@@ -713,9 +713,9 @@ class Reference(AbstractExpression):
     def collect(self, objType):
         objs = []
         for arg in self._args:     
-            objs = objs + arg.collect(objType)
+            objs += arg.collect(objType)
         if (type(self) is objType):
-            objs = objs + [self]
+            objs += [self]
         return list(set(objs))
 
     def __str__(self):
@@ -801,12 +801,8 @@ class Condition(object):
         if (self._cond is None):
             assert self._left is None and self._right is None
             return ""
-        left_str = ""
-        right_str = ""
-        if (self._left is not None):
-            left_str = self._left.__str__()
-        if (self._right is not None):
-            right_str = self._right.__str__()
+        left_str = self._left.__str__()
+        right_str = self._right.__str__()
         return "(" + left_str + " " + self._cond + " " + right_str + ")"
 
 class Case(object):
@@ -827,12 +823,12 @@ class Case(object):
         if (type(self) is objType):
             return [self]
         objs = self._cond.collect(objType) + self._expr.collect(objType)
-        return list(set(objs))  
+        return list(set(objs))
 
     def inlineRefs(self, refToExprMap):
         self._cond.inlineRefs(refToExprMap)
         self._expr = substituteRefs(self._expr, refToExprMap)
-    
+
     def __str__(self):
         return 'Case(' + self._cond.__str__() + ')' +\
                 '{ ' + self._expr.__str__() + ' }'
@@ -840,8 +836,8 @@ class Case(object):
 class Op(object):
     Sum = 0
     Min = 1
-    Max = 2    
-    
+    Max = 2
+
 class Accumulate(object):
     def __init__(self, _accRef, _expr, _opTyp):
         assert isinstance(_accRef, Reference)
