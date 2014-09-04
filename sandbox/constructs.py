@@ -658,7 +658,7 @@ class Interval(object):
         _ub   = Value.numericToValue(_ub)
         _step = Value.numericToValue(_step)
         assert(isinstance(_lb, AbstractExpression))
-        assert(isinstance(_ub, AbstractExpression))        
+        assert(isinstance(_ub, AbstractExpression))
         assert(isinstance(_step, AbstractExpression))
         assert(type(_step.value) == int)
         self._lb   = _lb
@@ -682,34 +682,14 @@ class Interval(object):
     def collect(self, objType):
         if (type(self) is objType):
             return [self]
-        objs = self._lb.collect(objType)        
-        objs = objs + self._ub.collect(objType)
-        objs = objs + self._step.collect(objType)
-        return list(set(objs))    
-    
+        objs = self._lb.collect(objType)
+        objs += self._ub.collect(objType)
+        objs += self._step.collect(objType)
+        return list(set(objs))
+
     def __str__(self):
         return '(' + self._lb.__str__() + ', ' +\
                self._ub.__str__() + ', ' + self._step.__str__() + ')'
-
-class Domain(object):
-    def __init__(self, _intervals):
-        self._intervals = _intervals
-
-    @property
-    def intervals(self):
-        return tuple(self._intervals)
-
-    def collect(self, objType):
-        if (type(self) is objType):
-            return [self]
-        objs = []
-        for interval in self._intervals:
-            objs = objs +  interval.collect(objType)
-        return list(set(objs))    
-
-    def __str__(self):
-        interval_str = ", ".join([interval.__str__() for interval in self._intervals])
-        return "(" + interval_str + ")"
 
 class Reference(AbstractExpression):
     def __init__(self, _obj, _args):
