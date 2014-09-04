@@ -587,7 +587,7 @@ class Short(object):
 class UShort(object):
     @staticmethod
     def cTypeName():
-        return 'uint64'
+        return 'uint16'
     pass
 class Char(object):
     @staticmethod
@@ -607,7 +607,7 @@ class Long(object):
 class ULong(object):
     @staticmethod
     def cTypeName():
-        return 'float'
+        return 'uint64'
     pass
 class Rational(object):
     pass
