@@ -154,7 +154,7 @@ class AbstractBinaryOpNode(AbstractExpression):
         if (self._right is not None):
             objs = objs + self._right.collect(objType)
         if (type(self) == objType):
-            objs = objs = [self]
+            objs = objs + [self]
         return list(set(objs))  
 
     def clone(self):
