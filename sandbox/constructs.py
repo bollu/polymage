@@ -149,12 +149,10 @@ class AbstractBinaryOpNode(AbstractExpression):
 
     def collect(self, objType):
         objs = []
-        if (self._left is not None):
-            objs = objs + self._left.collect(objType)
-        if (self._right is not None):
-            objs = objs + self._right.collect(objType)
+        objs += self._left.collect(objType)
+        objs += self._right.collect(objType)
         if (type(self) == objType):
-            objs = objs + [self]
+            objs += [self]
         return list(set(objs))  
 
     def clone(self):
@@ -176,7 +174,7 @@ class AbstractBinaryOpNode(AbstractExpression):
 
 class Add(AbstractBinaryOpNode):
     def __init__(self, _left, _right):
-        AbstractBinaryOpNode.__init__(self, _left, _right, '+')        
+        AbstractBinaryOpNode.__init__(self, _left, _right, '+')
 class Mul(AbstractBinaryOpNode):
     def __init__(self, _left, _right):
         AbstractBinaryOpNode.__init__(self, _left, _right, '*')
@@ -316,8 +314,7 @@ class Exp(InbuiltFunction):
         return Double
 
     def clone(self):
-        cloneArgs = [ arg.clone() for arg in self._args ]
-        return Exp(cloneArgs[0])
+        return Exp(self._args[0].clone())
 
     def __str__(self):
         return "std::exp(" +  self._args[0].__str__() +  ")"
@@ -330,8 +327,7 @@ class Sin(InbuiltFunction):
         return Double
 
     def clone(self):
-        cloneArgs = [ arg.clone() for arg in self._args ]
-        return Sin(cloneArgs[0])
+        return Sin(self._args[0].clone())
 
     def __str__(self):
         return "std::sin(" +  self._args[0].__str__() +  ")"
@@ -344,8 +340,7 @@ class Cos(InbuiltFunction):
         return Double
 
     def clone(self):
-        cloneArgs = [ arg.clone() for arg in self._args ]
-        return Cos(cloneArgs[0])
+        return Cos(self._args[0].clone())
 
     def __str__(self):
         return "std::cos(" +  self._args[0].__str__() +  ")"
@@ -358,8 +353,7 @@ class Sqrt(InbuiltFunction):
         return Double
 
     def clone(self):
-        cloneArgs = [ arg.clone() for arg in self._args ]
-        return Sqrt(cloneArgs[0])
+        return Sqrt(self._args[0].clone())
 
     def __str__(self):
         return "std::sqrt(" +  self._args[0].__str__() +  ")"
@@ -372,8 +366,7 @@ class Sqrtf(InbuiltFunction):
         return Float
 
     def clone(self):
-        cloneArgs = [ arg.clone() for arg in self._args ]
-        return Sqrtf(cloneArgs[0])
+        return Sqrtf(self._args[0].clone())
 
     def __str__(self):
         return "std::sqrtf(" +  self._args[0].__str__() +  ")"
@@ -386,8 +379,7 @@ class Abs(InbuiltFunction):
         return getType(self._args[0])
 
     def clone(self):
-        cloneArgs = [ arg.clone() for arg in self._args ]
-        return Abs(cloneArgs[0])
+        return Abs(self._args[0].clone())
 
     def __str__(self):
         return "std::abs(" +  self._args[0].__str__() +  ")"
@@ -395,7 +387,7 @@ class Abs(InbuiltFunction):
 class Cast(AbstractExpression):
     def __init__(self, _typ, _expr):
         _expr = Value.numericToValue(_expr)
-        assert _typ in [Float, Int, UInt, UChar, Char, Double, Long, UInt, Short, UShort] 
+        assert _typ in [Float, Double, UChar, Char, UShort, Short, UInt, Int, ULong, ULong] 
         assert(isinstance(_expr, AbstractExpression))
         self._typ  = _typ
         self._expr = _expr
@@ -410,10 +402,9 @@ class Cast(AbstractExpression):
 
     def collect(self, objType):
         objs = []
-        if (self._expr is not None):
-            objs = objs + self._expr.collect(objType)
+        objs += self._expr.collect(objType)
         if (type(self) == objType):
-            objs = objs + [self]
+            objs += [self]
         return list(set(objs))
 
     def clone(self):
@@ -453,14 +444,11 @@ class Select(AbstractExpression):
 
     def collect(self, objType):
         objs = []
-        if (self._cond is not None):
-            objs = objs + self._cond.collect(objType)
-        if (self._trueExpr is not None):
-            objs = objs + self._trueExpr.collect(objType)
-        if (self._falseExpr is not None):
-            objs = objs + self._falseExpr.collect(objType)
+        objs += self._cond.collect(objType)
+        objs += self._trueExpr.collect(objType)
+        objs += self._falseExpr.collect(objType)
         if (type(self) == objType):
-            objs = objs + [self]
+            objs += [self]
         return list(set(objs))
 
     def inlineRefs(self, refToExprMap):
@@ -501,22 +489,16 @@ class AbstractUnaryOpNode(AbstractExpression):
         
     def collect(self, objType):
         objs = []
-        if (self._child is not None):
-            objs = objs + self._child.collect(objType)
+        objs += self._child.collect(objType)
         if (type(self) == objType):
-            objs = objs + [self]
+            objs += [self]
         return list(set(objs))
 
     def clone(self):
         return AbstractUnaryOpNode(self._child.clone(), self._op)
 
-    def __str__(self):        
-        if (self._op is None):
-            assert self._child is None
-            return ""
-        child_str = ""
-        if (self._child is not None):
-            child_str = self._child.__str__()
+    def __str__(self):
+        child_str = self._child.__str__()
         return self._op + "(" + child_str + ")"
 
 class UnaryPlus(AbstractUnaryOpNode):
