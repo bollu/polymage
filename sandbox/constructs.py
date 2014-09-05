@@ -880,14 +880,14 @@ class Accumulate(object):
             assert False
         return 'Accumulate(' + self._accRef.__str__() + ' = ' + \
                  self._accRef.__str__() + ',' + self._expr.__str__() + \
-                 ' ' + opStr + ')' 
+                 ' ' + opStr + ')'
 
 class Function(object):
     def __init__(self, _typ, _name):
         self._name      = _name
         # Type of the scalar range of the function
         self._typ       = _typ
-        # Variables of the function 
+        # Variables of the function
         self._variables = None
 
         # Gives the domain of each variable. Domain of each variable is expected
@@ -895,7 +895,7 @@ class Function(object):
         # the domain is assumed to be valid.
         self._varDomain    = None 
 
-        # * Body of a function is composed of Case and Expression constructs. 
+        # * Body of a function is composed of Case and Expression constructs.
         # * The Case constructs are expected to be non-overlapping.
         # * If multiple Case constructs are satisfied at a point the value 
         #   can be defined by any one of them
@@ -917,9 +917,11 @@ class Function(object):
     def variableDomain(self, _varDom):
         assert(self._variables is None)
         assert(self._varDomain is None)
+        # _varDom = (variables, variableDomains)
         assert(len(_varDom[0]) == len(_varDom[1]))
         for i in xrange(0, len(_varDom[0])):
             assert(isinstance(_varDom[0][i], Variable))
+            assert(isinstance(_varDom[1][i], Interval))
             assert(_varDom[0][i].typ ==  _varDom[1][i].typ)
         # add check to ensure that upper bound and lower bound
         # expressions for each variable are only defined in 
@@ -932,7 +934,7 @@ class Function(object):
         # Can this be done automatically
         self._variables = _varDom[0]
         self._varDomain = _varDom[1]
-    
+
     @property
     def domain(self):
         return self._varDomain
@@ -951,8 +953,10 @@ class Function(object):
         # check if the Case and Expression constructs only use
         # function variables and global parameters
         if(isinstance(_def, Case)):
+            # -> need not check all definitions
             for part in self._body:
                assert(isinstance(part, Case))
+        # MOD -> if _def is not a Case, shouldnt it be disallowed after the first definition?
         self._body.append(_def)
 
     def __call__(self, *args):
@@ -964,6 +968,7 @@ class Function(object):
 
     def inlineRefs(self, refToExprMap):
         numCases = len(self._body)
+        # MOD -> disallow more than one instance of a definition without a Case
         for i in xrange(0, numCases):
             if isinstance(self._body[i], Case):
                 self._body[i].inlineRefs(refToExprMap)
@@ -973,9 +978,9 @@ class Function(object):
     def getObjects(self, objType):
         objs = []
         for case in self._body:
-            objs = objs + case.collect(objType)
+            objs += case.collect(objType)
         for interval in self._varDomain:
-            objs = objs + interval.collect(objType)
+            objs += interval.collect(objType)
         return list(set(objs))
 
     def hasBoundedIntegerDomain(self):
