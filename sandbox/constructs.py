@@ -1034,7 +1034,7 @@ class Image(Function):
 
 class Accumulator(Function):
     def __init__(self, _typ, _name):
-        Function.__init__(self, _typ, _name)  
+        Function.__init__(self, _typ, _name)
         # Gives the domain of the reduction. Reduction domain of each variable is 
         # expected to be over integers. Reduction evaluation in the lexicographic 
         # order of the domain is assumed to be valid.
@@ -1068,9 +1068,10 @@ class Accumulator(Function):
         assert(len(_redDom[0]) == len(_redDom[1]))
         for i in xrange(0, len(_redDom[0])):
             assert(isinstance(_redDom[0][i], Variable))
+            assert(isinstance(_redDom[1][i], Interval))
             assert(_redDom[0][i].typ ==  _redDom[1][i].typ)
         # add check to ensure that upper bound and lower bound
-        # expressions for each variable are only defined in 
+        # expressions for each variable are only defined in
         # terms of variables of the function and global parameters
 
         # Should bounds be restricted only to parameters or function
@@ -1079,7 +1080,7 @@ class Accumulator(Function):
         # Should the domain be restricted to the positive quadrant?
         # Can this be done automatically
         self._redVariables = _redDom[0]
-        self._redDomain = _redDom[1]  
+        self._redDomain = _redDom[1]
 
     @property
     def defintion(self):
@@ -1093,10 +1094,12 @@ class Accumulator(Function):
         # function variables and global parameters
 
         # Which way is better Case inside accumulate or accumulate inside Case
+        # -> need not check all definitions
         if(isinstance(_def, Case)):
             for part in self._body:
                assert(isinstance(_def.expression, Accumulate))
                assert(isinstance(part, Case))
+        # MOD -> if _def is not a Case, shouldnt it be disallowed after the first definition?
         self._body.append(_def)
 
     def hasBoundedIntegerDomain(self):
@@ -1109,25 +1112,25 @@ class Accumulator(Function):
             else:
                 boundedIntegerDomain = False
 
-        for varDom in self._redDomain:
-            if isinstance(varDom, Interval):
-                if(not isAffine(varDom.lowerBound) or
-                   not isAffine(varDom.upperBound)):
+        for redDom in self._redDomain:
+            if isinstance(redDom, Interval):
+                if(not isAffine(redDom.lowerBound) or
+                   not isAffine(redDom.upperBound)):
                     boundedIntegerDomain = False
             else:
                 boundedIntegerDomain = False
-        
+
         return boundedIntegerDomain
-    
+
     def getObjects(self, objType):
         objs = []
         for case in self._body:
-            objs = objs + case.collect(objType)
+            objs += case.collect(objType)
         for interval in self._varDomain:
-            objs = objs + interval.collect(objType)
+            objs += interval.collect(objType)
         for interval in self._redDomain:
-            objs = objs + interval.collect(objType)
-        objs = objs + self._default.collect(objType)
+            objs += interval.collect(objType)
+        objs += self._default.collect(objType)
         return list(set(objs))
     
     def __str__(self):
@@ -1144,19 +1147,19 @@ class Accumulator(Function):
         else:
             return self._name
 
-def isAffine(expr, div = True, modulo = False):
+def isAffine(expr, includeDiv = True, includeModulo = False):
     expr = Value.numericToValue(expr)
     assert(isinstance(expr, AbstractExpression)
            or isinstance(expr, Condition))
     if (isinstance(expr, Value)):
-        return (expr.typ == Int) or ((expr.typ == Rational) and div)    
+        return (expr.typ == Int) or ((expr.typ == Rational) and includeDiv)
     elif (isinstance(expr, Variable)):
         return True
     elif (isinstance(expr, Reference)):
-        return False    
+        return False
     elif (isinstance(expr, AbstractBinaryOpNode)):
-        leftCheck = isAffine(expr.left, div, modulo)
-        rightCheck = isAffine(expr.right, div, modulo)
+        leftCheck = isAffine(expr.left, includeDiv, includeModulo)
+        rightCheck = isAffine(expr.right, includeDiv, includeModulo)
         # Bad coding style I suppose. Have to fix this
         if (leftCheck and rightCheck):
             if (expr.op in ['+','-']):
@@ -1167,14 +1170,14 @@ def isAffine(expr, div = True, modulo = False):
                     return True
                 else:
                     return False
-            elif(expr.op in ['/'] and div):
+            elif(expr.op in ['/'] and includeDiv):
                 if (not (expr.right.has(Variable) or expr.right.has(Parameter))):
                     return True
                 else:
                     return False
-            elif(expr.op in ['%'] and modulo):
+            elif(expr.op in ['%'] and includeModulo):
                 if (not (expr.right.has(Variable) or expr.right.has(Parameter))):
-                    return isAffine(expr.left, div, False)
+                    return isAffine(expr.left, includeDiv, False)
                 else:
                     return False
             else:
@@ -1182,10 +1185,10 @@ def isAffine(expr, div = True, modulo = False):
         else:
             return False
     elif (isinstance(expr, AbstractUnaryOpNode)):
-        return isAffine(expr.child, div, modulo)
+        return isAffine(expr.child, includeDiv, includeModulo)
     elif (isinstance(expr, Condition)):
-        return isAffine(expr.lhs, div, modulo) and \
-               isAffine(expr.rhs, div, modulo)
+        return isAffine(expr.lhs, includeDiv, includeModulo) and \
+               isAffine(expr.rhs, includeDiv, includeModulo)
     elif (isinstance(expr, (Select, Cast, InbuiltFunction))):
         return False
     raise TypeError(type(expr))
@@ -1207,23 +1210,23 @@ def getAffineVarAndParamCoeff(expr):
             coeff = dict( (n, leftCoeff.get(n, 0) - rightCoeff.get(n, 0))\
                           for n in set(leftCoeff) | set(rightCoeff) )
         elif (expr.op == '*'):
-            leftCheck = isConstantExpr(expr.left, affine = True)
-            rightCheck = isConstantExpr(expr.right, affine = True)
+            leftIsConstant = isConstantExpr(expr.left, affine = True)
+            rightIsConstant = isConstantExpr(expr.right, affine = True)
             #sanity check should be true if the expression is affine
-            assert(not (leftCheck and rightCheck))           
-            if (leftCheck and not rightCheck):
-                coeff = dict( (n, getConstantFromExpr(expr.left, affine = True) * 
+            assert(not (leftIsConstant and rightIsConstant))
+            if (leftIsConstant and not rightIsConstant):
+                coeff = dict( (n, getConstantFromExpr(expr.left, affine = True) *
                                   rightCoeff.get(n, 0))
                               for n in set(rightCoeff) )
-            elif(rightCheck and not leftCheck):
-                coeff = dict( (n, getConstantFromExpr(expr.right, affine = True) * 
+            elif(rightIsConstant and not leftIsConstant):
+                coeff = dict( (n, getConstantFromExpr(expr.right, affine = True) *
                                   leftCoeff.get(n, 0))
                               for n in set(leftCoeff) )
         elif (expr.op == '/'):
-            rightCheck = isConstantExpr(expr.right, affine = True)
+            rightIsConstant = isConstantExpr(expr.right, affine = True)
             #sanity check should be true if the expression is affine
-            assert(rightCheck)           
-            coeff = dict( (n, Fraction(1, getConstantFromExpr(expr.right, affine = True)) * 
+            assert(rightIsConstant)
+            coeff = dict( (n, Fraction(1, getConstantFromExpr(expr.right, affine = True)) *
                                        leftCoeff.get(n, 0))
                            for n in set(leftCoeff) )
         return coeff
@@ -1313,15 +1316,15 @@ def simplifyExpr(expr):
     expr = Value.numericToValue(expr)
     assert(isinstance(expr, AbstractExpression))
     if (isinstance(expr, Value)):
-        return expr.clone() 
+        return expr.clone()
     elif (isinstance(expr, Variable)):
         return expr.clone()
     elif (isinstance(expr, Reference)):
         simpleArgs = []
         for arg in expr.arguments:
             simpleArgs.append(simplifyExpr(arg))
-        # Equivalent to cloning    
-        return expr.objectRef(*simpleArgs)    
+        # Equivalent to cloning
+        return expr.objectRef(*simpleArgs)
     elif (isinstance(expr, AbstractBinaryOpNode) or
           isinstance(expr, AbstractUnaryOpNode)):
         if (isAffine(expr, div=False)):
@@ -1355,7 +1358,7 @@ def substituteRefs(expr, refToExprMap):
     expr = Value.numericToValue(expr)
     assert(isinstance(expr, AbstractExpression))
     if (isinstance(expr, Value)):
-        return expr.clone() 
+        return expr.clone()
     elif (isinstance(expr, Variable)):
         return expr.clone()
     elif (isinstance(expr, Reference)):
@@ -1365,7 +1368,7 @@ def substituteRefs(expr, refToExprMap):
             assert len(expr.arguments) == len(refVars)
             for i in xrange(0, len(refVars)):
                 varToExprMap[refVars[i]] = expr.arguments[i]
-            # Equivalent to cloning    
+            # Equivalent to cloning
             return substituteVars(refToExprMap[expr], varToExprMap)
         else:
             return expr.clone()
@@ -1394,7 +1397,7 @@ def substituteVars(expr, varToExprMap):
     expr = Value.numericToValue(expr)
     assert(isinstance(expr, AbstractExpression))
     if (isinstance(expr, Value)):
-        return expr.clone() 
+        return expr.clone()
     elif (isinstance(expr, Variable)):
         if expr in varToExprMap:
             return varToExprMap[expr].clone()
@@ -1404,8 +1407,8 @@ def substituteVars(expr, varToExprMap):
         args = []
         for i in xrange(0, numArgs):
             args.append(substituteVars(expr.arguments[i], varToExprMap))
-        # Equivalent to cloning    
-        return expr.objectRef(*args)    
+        # Equivalent to cloning
+        return expr.objectRef(*args)
     elif (isinstance(expr, AbstractBinaryOpNode)):
         left = substituteVars(expr.left, varToExprMap)
         right = substituteVars(expr.right, varToExprMap)
@@ -1430,7 +1433,7 @@ def substituteVars(expr, varToExprMap):
         expr.substituteVars(varToExprMap)
         return expr
     raise TypeError(type(expr))
- 
+
 def getType(expr):
     expr = Value.numericToValue(expr)
     assert(isinstance(expr, AbstractExpression))
