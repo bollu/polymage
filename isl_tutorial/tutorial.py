@@ -100,20 +100,48 @@ def SetsAndRelations(ctx):
 
 def SetsAsIterationSpaces(ctx):
     fig = plt.figure()
-    ax = fig.add_subplot(111)
-    
+
+    ax = fig.add_subplot(221)
     ax.set_autoscale_on(True)
     ax.locator_params(integer=True)
     ax.set_aspect('equal')
     ax.grid(True)
+
     # An easier way of creating sets
     s1 = isl.BasicSet("{[x, y] : x >= 0 and x < 5 and y >= 0 and y < 5}")
-    s2 = isl.BasicSet("{[x, y] : x >= 4 and x < 8 and y >= 4 and y < 8}")
+    s2 = isl.BasicSet("{[x, y] : x >= 3 and x < 8 and y >= 3 and y < 8}")
     print s1
-    print s2
-
+    print s2   
     drawBasicSet(s1, { 0:'x', 1:'y', 'color':'red', 'pointSize':150.0}, ax)
     drawBasicSet(s2, { 0:'x', 1:'y'}, ax)
+
+    ax = fig.add_subplot(222)
+    ax.set_autoscale_on(True)
+    ax.locator_params(integer=True)
+    ax.set_aspect('equal')
+    ax.grid(True)
+
+    u = s1.union(s2)
+    print u
+    drawBasicSet(u, { 0:'x', 1:'y'}, ax)
+
+    ax = fig.add_subplot(223)
+    ax.set_autoscale_on(True)
+    ax.locator_params(integer=True)
+    ax.set_aspect('equal')
+    ax.grid(True)
+    d = s1.subtract(s2)
+    print d 
+    drawBasicSet(d, { 0:'x', 1:'y'}, ax)
+
+    ax = fig.add_subplot(224)
+    ax.set_autoscale_on(True)
+    ax.locator_params(integer=True)
+    ax.set_aspect('equal')
+    ax.grid(True)
+    h = u.convex_hull()
+    print h
+    drawBasicSet(h, { 0:'x', 1:'y'}, ax)
     plt.show()
 
 def drawBasicSet(bset, drawSpec, axes):
