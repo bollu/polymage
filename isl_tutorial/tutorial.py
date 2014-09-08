@@ -98,9 +98,85 @@ def SetsAndRelations(ctx):
     # What happens now?
     print r
 
-
 def SetsAsIterationSpaces(ctx):
-    pass
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    
+    ax.set_autoscale_on(True)
+    ax.locator_params(integer=True)
+    ax.set_aspect('equal')
+    ax.grid(True)
+    # An easier way of creating sets
+    s1 = isl.BasicSet("{[x, y] : x >= 0 and x < 5 and y >= 0 and y < 5}")
+    s2 = isl.BasicSet("{[x, y] : x >= 4 and x < 8 and y >= 4 and y < 8}")
+    print s1
+    print s2
+
+    drawBasicSet(s1, { 0:'x', 1:'y', 'color':'red', 'pointSize':150.0}, ax)
+    drawBasicSet(s2, { 0:'x', 1:'y'}, ax)
+    plt.show()
+
+def drawBasicSet(bset, drawSpec, axes):
+    """ Visualize a basic set in two or three dimensions. The basic set should be enumerable
+        i.e all the bounds must be constants. Only 3 dimensions or less can be marked as the axis 
+        dimensions. Non-axis dimensions can be color coded or unrolled. Each dimension must be
+        marked as axis = {x, y, z}, unroll, color. """
+    # Find the dimension of the plot
+    dimToAxis = { 'x' : None, 'y' : None, 'z' : None}
+    colorSpec = None
+    pointSpec = None
+    for dim in drawSpec:
+        if drawSpec[dim] in dimToAxis:
+            if dimToAxis[drawSpec[dim]] is None:
+                dimToAxis[drawSpec[dim]] = dim
+            else:
+                # Multiple dimensions cannot map to the same axis
+                assert False       
+        elif dim == 'color': 
+            colorSpec = drawSpec[dim]
+        elif dim == 'pointSize': 
+            pointSpec = drawSpec[dim]
+        else:
+            assert False
+    
+    if axes.name == 'rectilinear':
+        assert (dimToAxis['z'] is None)
+
+    # Check if all the dimensions are enumerable
+    dimLen = bset.dim(isl._isl.dim_type.set)
+    for i in xrange(0, dimLen):
+       dimLowerBound = bset.dim_min(i)
+       dimUpperBound = bset.dim_max(i)
+       assert dimLowerBound.is_cst() and dimUpperBound.is_cst()
+
+    points = []
+    bset.foreach_point(points.append)
+    #print points
+    X = 0 
+    Y = 0 
+    Z = 0
+    C = 'blue'
+    pointSize = 50.0
+    if dimToAxis['x'] is not None:
+        X = [ point.get_coordinate_val(isl._isl.dim_type.all, dimToAxis['x']).to_python()
+              for point in points ]
+    if dimToAxis['y'] is not None:    
+        Y = [ point.get_coordinate_val(isl._isl.dim_type.all, dimToAxis['y']).to_python()
+              for point in points ]
+    if dimToAxis['z'] is not None:    
+        Z = [ point.get_coordinate_val(isl._isl.dim_type.all, dimToAxis['z']).to_python() 
+              for point in points ]
+    if colorSpec is not None:
+        C = colorSpec
+    if pointSpec is not None:
+        pointSize = pointSpec
+
+    if axes.name == '3d':
+        axes.scatter(X, Y, Z, s=pointSize, c = C)
+    elif axes.name == 'rectilinear':
+        axes.scatter(X, Y, s=pointSize, c = C)
+    else:
+        assert False
 
 def LocalSpaces(ctx):
     # A local space is essentially a space with zero or more existentially 
@@ -110,8 +186,8 @@ def LocalSpaces(ctx):
 ctx = isl.Context()
 #Spaces(ctx)
 #SetsAndRelations(ctx)
-#LocalSpaces(ctx)
 SetsAsIterationSpaces(ctx)
+#LocalSpaces(ctx)
 
 def islApiExamples():
     ctx = isl.Context()
@@ -295,65 +371,6 @@ def showTiling3d():
         for polyComp in fusedstage.polyRep.polyParts[comp]:
             drawBasicSet(polyComp.sched.range(), {4:'z', 5:'x', 6:'y', 'color':(0, ('red', 'blue'))}, ax)
     plt.show()
-
-
-def drawBasicSet(bset, drawSpec, axes):
-    """ Visualize a basic set in two or three dimensions. The basic set should be enumerable
-        i.e all the bounds must be constants. Only 3 dimensions or less can be marked as the axis 
-        dimensions. Non-axis dimensions can be color coded or unrolled. Each dimension must be
-        marked as axis = {x, y, z}, unroll, color. """
-    # Find the dimension of the plot
-    dimToAxis = { 'x' : None, 'y' : None, 'z' : None}
-    colorDim = None
-    for dim in drawSpec:
-        if drawSpec[dim] in dimToAxis:
-            if dimToAxis[drawSpec[dim]] is None:
-                dimToAxis[drawSpec[dim]] = dim
-            else:
-                # Multiple dimensions cannot map to the same axis
-                assert False       
-        if dim == 'color': 
-            colorDim = drawSpec[dim]
-    
-    if axes.name == 'rectilinear':
-        assert (dimToAxis['z'] is None)
-
-    # Check if all the dimensions are enumerable
-    dimLen = bset.dim(isl._isl.dim_type.set)
-    for i in xrange(0, dimLen):
-       dimLowerBound = bset.dim_min(i)
-       dimUpperBound = bset.dim_max(i)
-       assert dimLowerBound.is_cst() and dimUpperBound.is_cst()
-
-    points = []
-    bset.foreach_point(points.append)
-    #print points
-    X = 0 
-    Y = 0 
-    Z = 0
-    C = 'blue'
-    if dimToAxis['x'] is not None:
-        X = [ point.get_coordinate_val(isl._isl.dim_type.all, dimToAxis['x']).to_python()
-              for point in points ]
-    if dimToAxis['y'] is not None:    
-        Y = [ point.get_coordinate_val(isl._isl.dim_type.all, dimToAxis['y']).to_python()
-              for point in points ]
-    if dimToAxis['z'] is not None:    
-        Z = [ point.get_coordinate_val(isl._isl.dim_type.all, dimToAxis['z']).to_python() 
-              for point in points ]
-    if colorDim is not None:
-        C = []
-        for point in points:
-            p = point.get_coordinate_val(isl._isl.dim_type.all, colorDim[0]).to_python()
-            ringLen = len(colorDim[1])
-            C.append(colorDim[1][p % ringLen])
-
-    if axes.name == '3d':
-        axes.scatter(X, Y, Z, s=50.0, c = C)
-        
-    if axes.name == 'rectilinear':
-        axes.scatter(X, Y, s=50.0, c = C)
-
 
 def drawBasicMap(bmap, drawSpec):
     pass
