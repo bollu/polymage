@@ -3,7 +3,7 @@ import time
 import cv2
 
 #Ahem I have this file do you! 
-cap = cv2.VideoCapture("/home/ravi/Videos/Thor.The.Dark.World.2013.HDRip.720p.POISON.avi")
+cap = cv2.VideoCapture("/home/ravi/Videos/Oblivion.2013.1080p.BluRay.x264.POISON.mp4")
 
 frames = 0
 startTime = time.clock()
@@ -15,7 +15,7 @@ while(cap.isOpened()):
     #cv2.imshow('frame', gray)
  
     blur = frame 
-    for i in xrange(0, 20):
+    for i in xrange(0, 3):
         blur = cv2.blur(blur, (5, 5))
     cv2.imshow('frame', blur)
 
