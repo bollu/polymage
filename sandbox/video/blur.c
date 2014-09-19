@@ -8,7 +8,7 @@ void gray(int C, int R, const void * img, void *result)
     int i, j;
 
     //printf("%d %d %d %d\n", C, R, img, result);
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for(i = 0; i < R; i++){
         for(j = 0; j < C; j++){
             resultc[i*C + j] =
