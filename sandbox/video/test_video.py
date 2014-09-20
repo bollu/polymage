@@ -15,7 +15,8 @@ unsharp = libmask.unsharp_mask
 
 
 #Ahem I have this file do you! 
-cap = cv2.VideoCapture("/big-data/Interstellar-TLR-3-51ch-1080p-HDTN.mp4")
+#cap = cv2.VideoCapture("/big-data/Interstellar-TLR-3-51ch-1080p-HDTN.mp4")
+cap = cv2.VideoCapture("/home/ravi/Videos/Interstellar-TLR-3-51ch-4K-HDTN.mp4")
 
 
 frames = 0
