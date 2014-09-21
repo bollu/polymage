@@ -1,0 +1,6 @@
+point-to-point : thresholding function
+stencil : sobel
+histogram : pgfplot histogram chart
+time-iterated : lucy-deconvolution
+downsample : resize using tikz
+upsample : downsample and get upsample
