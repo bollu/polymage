@@ -8,12 +8,9 @@ from common import clock, draw_str, StatValue
 import video
 
 # load polymage shared libraries
-libmask = ctypes.cdll.LoadLibrary("./unsharp.so")
 libharris = ctypes.cdll.LoadLibrary("./harris.so")
 libbilateral = ctypes.cdll.LoadLibrary("./bilateral.so")
 
-unsharp_par = libmask.unsharp_mask_par
-unsharp = libmask.unsharp_mask
 harris = libharris.pipeline_harris
 bilateral = libbilateral.pipeline_bilateral
 bilateral_naive = libbilateral.pipeline_naive
@@ -44,6 +41,7 @@ while(cap.isOpened()):
             res = np.zeros((rows, cols), np.float32) 
             harris(ctypes.c_int(cols-2), ctypes.c_int(rows-2), \
             ctypes.c_void_p(gray.ctypes.data), ctypes.c_void_p(res.ctypes.data))
+        res = cv2.cvtColor(res, cv2.COLOR_GRAY2RGB)     
     elif bilateral_mode:
         gray = gray/255
         res = np.zeros((rows, cols), np.float32)
@@ -57,10 +55,11 @@ while(cap.isOpened()):
         res = frame
 
     frameEnd = clock()
+    cv2.rectangle(res, (0, 0), (750, 150), (255, 255, 255), thickness=cv2.cv.CV_FILLED)
     draw_str(res, (40, 40), "frame interval :  %.1f ms" % (frameEnd*1000 - frameStart*1000))
-    if cv_mode:
+    if cv_mode and harris_mode:
         draw_str(res, (40, 80), "Pipeline     :  " + str("OpenCV"))
-    else:
+    elif bilateral_mode or harris_mode:
         draw_str(res, (40, 80), "Pipeline     :  " + str("PolyMage"))
     if harris_mode:    
         draw_str(res, (40, 120), "Benchmark   :  " + str("Harris Corner"))
@@ -69,7 +68,7 @@ while(cap.isOpened()):
     ch = 0xFF & cv2.waitKey(1)
     if ch == ord('q'):
         break
-    if ch == ord('c'):
+    if ch == ord(' '):
         cv_mode = not cv_mode
     if ch == ord('h'):
         harris_mode = not harris_mode
@@ -77,8 +76,6 @@ while(cap.isOpened()):
     if ch == ord('b'):
         bilateral_mode = not bilateral_mode
         harris_mode = False
-    if ch == ord('n'):
-        naive_mode = False
     frames += 1
 
 cap.release()
