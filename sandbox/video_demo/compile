@@ -1,1 +1,0 @@
-icc -openmp -fPIC -shared -o gray.so gray.c

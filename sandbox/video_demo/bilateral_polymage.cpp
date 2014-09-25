@@ -45,6 +45,7 @@ extern "C" void  pipeline_bilateral(int  cols, int  rows, void * input_void, voi
     memset(blurz, 0, sizeof(float) * 2 *16 *74 *14);
     memset(blurx, 0, sizeof(float) * 2 *16 *74 *14);
     memset(blury, 0, sizeof(float) * 2 *16 *74 *14);
+    memset(interpolated, 0, sizeof(float) * 2 * 128 * 592);
     for (int  _T_i2 = -1; (_T_i2 <= 3); _T_i2 = (_T_i2 + 1))
     {
       for (int  _i0 = 0; (_i0 <= 1); _i0 = (_i0 + 1))

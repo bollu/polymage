@@ -5,7 +5,7 @@ import cv2
 import sys
 
 from common import clock, draw_str, StatValue
-import video
+#import video
 
 # load polymage shared libraries
 libharris = ctypes.cdll.LoadLibrary("./harris.so")
