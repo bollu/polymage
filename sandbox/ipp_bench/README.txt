@@ -3,4 +3,4 @@
 (*) template compile string :
     icpc -O3 -xhost -openmp
     -I [path-to-intel-studio]/intel/studio/ipp/include]
-    -lippcore -lippvm -lipps -lippi
+    -lippcore -lippvm -lipps -lippi -lippcc

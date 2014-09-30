@@ -7,11 +7,13 @@ Data Types
 
 Image Sizes
 ===========
-- 16x16
 - 32x32
 - 64x64
 - 128x128
 - 512x512
+- 1024x1024
+- 2048x2048
+- 4096x4096
 
 
 Image Processing
