@@ -1,0 +1,171 @@
+#include <stdio.h>
+#include <iostream>
+
+#include <ippcore.h>
+#include <ippvm.h>
+#include <ipps.h>
+#include <ippi.h>
+#include <ippcv.h>
+
+#include "opencv2/core/core.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/highgui/highgui.hpp"
+
+#include "timing.h"
+
+#ifndef NRUNS
+#define NRUNS 5
+#endif
+
+using namespace cv;
+
+extern void refHarris(int cols, int rows, float *input, float *& harris);
+
+void image_info(Mat &img)
+{
+    std::cout << "Channels: " << img.channels() << std::endl;
+    std::cout << "Depth: "  << img.type() << std::endl;
+    std::cout << "Size: "  << img.size() << std::endl;
+}
+
+int main(int argc, char *argv[])
+{
+    cvUseOptimized(1);
+    timeval t1, t2;
+
+    // FIXME (just for attention - set path and roi properly)
+    Mat imgIn;
+    Rect roi(2000, 2000, 4096, 4096);
+    if(argc == 2){
+        imgIn = imread(argv[1]);
+    }
+    else{
+        printf("Usage: %s image\n", argv[0]);
+        exit(1);
+    }
+    image_info(imgIn);
+
+    // cut the ROI
+    Mat imgRoi = imgIn(roi).clone();
+    int rows = imgRoi.size().height;
+    int cols = imgRoi.size().width;
+
+    // to grayscale
+    Mat imgGray;
+    cvtColor(imgRoi, imgGray, CV_BGR2GRAY);
+
+    // to float
+    Mat img;
+    imgGray.convertTo(img, CV_32F, 1.0f/255);
+
+    // result
+    Mat dst(rows, cols, CV_32F);
+    Mat dstRef = dst.clone();
+    image_info(dst);
+
+
+    // USING IPP
+    // =========
+    Mat dst_ipp(rows, cols, CV_32F);
+	IppiSize imgRoi_ipp = { cols, rows };
+
+    int bufSize = 0;
+    Ipp32f* pBuffer = 0;
+	IppStatus status = ippStsNoErr;
+
+	// Compute the temporary work buffer size
+	status = ippiHarrisCornerGetBufferSize(imgRoi_ipp, ippMskSize3x3,          3, ipp32f,        1,  &bufSize);
+	       //ippiHarrisCornerGetBufferSize(       ROI,   filter mask, avgWndSize,   type, channels, allocated);
+	// Memory allocation
+	if (status != ippStsNoErr) pBuffer = ippsMalloc_32f(bufSize);
+	if (pBuffer != NULL){
+		status = ippiHarrisCorner_32f_C1R(img, cols, dst_ipp, cols, imgRoi_ipp,
+                                          ippFilterSobel, ippMskSize3x3, 3,
+                                          0.04f, 1.0f, ippBorderConst, 0, pBuffer);
+		//       ippiHarrisCorner_32f_C1R(pSrc, srcStep, pDst, dstStep, roiSize,
+        //                                filterType, filterMask, avgWndSize,
+        //                                k, scale, borderType, 0, pBuffer);
+
+        ippsFree(pBuffer);
+    }
+    
+    /*
+    for(int runs = 0; runs < NRUNS; runs++){
+    timer__(&t1); // start clock
+    __timer(&t1, &t2, "ipp"); // end clock
+    }
+    */
+
+
+    // USING OPENCV
+    // ============
+    for(int runs = 0; runs < NRUNS; runs++){
+    timer__(&t1); // start clock
+    cornerHarris(img, dst, 3, 3, 0.04);
+    __timer(&t1, &t2, "opencv"); // end clock
+    }
+
+
+    // REFERENCE
+    // =========
+
+    float *refImg = (float *)malloc(sizeof(float) * (rows+2) * (cols+2));
+    float *refDst = (float *)malloc(sizeof(float) * (rows+2) * (cols+2));
+
+    // Initialize
+    //#pragma omp parallel for
+    for(int i = 0; i < rows+2; i++){
+        for(int j = 0; j < cols+2; j++){
+            int ii = i - 1 > 0 ?  (i -1 < rows ? i-1:  rows-1): 0;
+            int jj = j - 1 > 0 ?  (j -1 < cols ? j-1:  cols-1): 0;
+            refImg[(i)*(cols+2) + (j)] = img.at<float>(ii, jj);
+        }
+    }
+
+    // Run
+    for(int runs = 0; runs < NRUNS; runs++){
+    timer__(&t1); // start clock
+    refHarris(cols, rows, refImg, refDst);
+    __timer(&t1, &t2, "ref"); // end clock
+    }
+
+    // Collect
+    for(int i = 0; i < rows; i++)
+        for(int j = 0; j < cols; j++)
+            dstRef.at<float>(i, j) = refDst[(i+1)*(cols+2) + (j+1)];
+
+
+    // DISPLAY
+    // =======
+    #ifdef SHOW
+
+    // OpenCV's
+    Mat imgShow_CV = imgRoi.clone();
+    normalize(dst, dst, 0, 255, NORM_MINMAX, CV_32FC1, Mat() );
+    convertScaleAbs(dst, dst);
+    for( int i = 0; i < dst.rows ; i++ )
+        for( int j = 0; j < dst.cols; j++ )
+            if( dst.at<unsigned char>(i, j) > 75)
+                circle( imgShow_CV, Point( j, i ), 5,  Scalar(0, 0, 255), 2, 8, 0 );
+
+    // Ref's
+    Mat imgShow_Ref = imgRoi.clone();
+    normalize(dstRef, dstRef, 0, 255, NORM_MINMAX, CV_32FC1, Mat() );
+    convertScaleAbs(dstRef, dstRef);
+    for( int i = 0; i < dstRef.rows; i++ )
+        for( int j = 0; j < dstRef.cols; j++ )
+            if( dstRef.at<unsigned char>(i, j) > 75)
+                circle( imgShow_Ref , Point( j+1, i+1 ), 5,  Scalar(0, 0, 255), 2, 8, 0 );
+
+    namedWindow( "CV Result", WINDOW_NORMAL );
+    imshow( "CV Result", imgShow_CV );
+
+    namedWindow( "Ref Result", WINDOW_NORMAL );
+    imshow( "Ref Result", imgShow_Ref );
+
+    waitKey();
+    waitKey();
+    #endif
+
+    return 0; 
+}
