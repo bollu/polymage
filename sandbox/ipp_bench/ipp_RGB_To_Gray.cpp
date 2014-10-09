@@ -17,6 +17,10 @@
 #define NRUNS 5
 #endif
 
+#ifndef SIZE
+#define SIZE 512
+#endif
+
 using namespace cv;
 
 void refGray(int cols, int rows, const float *img, float *& res)
@@ -50,10 +54,8 @@ int main(int argc, char *argv[])
 
     // FIXME (just for attention - set path and roi properly)
     Mat imgf;
-    Rect roi(0, 0, 4096, 4096);
+    Rect roi(0, 0, SIZE, SIZE);
     if(argc == 2){
-        //imgf = imread("../../images/room1.png");
-        //imgf = imread("../../images/port.jpg");
         imgf = imread(argv[1]);
     }
     else{
@@ -61,41 +63,51 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+    // to float
     Mat img1;
     imgf.convertTo(img1, CV_32F, 1.0f/255);
     Mat img = img1(roi).clone();
     Mat dst(img.size().height, img.size().width, CV_32F);
 
+    // size
     int rows = img.size().height;
     int cols = img.size().width;
-    float *refImg = (float *)malloc(sizeof(float) * 3 * rows * cols);
-    float *refDst = (float *)malloc(sizeof(float) * rows * cols);
 
     image_info(img);
     image_info(dst);
 
 	IppiSize imgRoi = { dst.size().width, dst.size().height };
 
+    // ===========================================================================================================
+
     // USING IPP
-    // =========
+
     for(int runs = 0; runs < NRUNS; runs++){
     timer__(&t1); // start clock
 	ippiRGBToGray_32f_C3C1R ( (const Ipp32f *)&img.data[0], 3*img.size().width, (Ipp32f *)&dst.data[0], dst.size().width, imgRoi );
     __timer(&t1, &t2, "ipp"); // end clock
     }
+    printf("\n");
+
+    // ===========================================================================================================
 
     // USING OPENCV
-    // ============
+
     for(int runs = 0; runs < NRUNS; runs++){
     timer__(&t1); // start clock
     cv::cvtColor(img, dst, CV_BGR2GRAY);
-    __timer(&t1, &t2, "opencv"); // end clock
+    __timer(&t1, &t2, "ocv"); // end clock
     }
+    printf("\n");
+
+    // ===========================================================================================================
 
     // REFERENCE
-    // =========
 
     // Initialize
+    float *refImg = (float *)malloc(sizeof(float) * 3 * rows * cols);
+    float *refDst = (float *)malloc(sizeof(float) * rows * cols);
+
     for(int c = 0; c < 3; c++)
         //#pragma omp parallel for
         for(int i = 0; i < rows; i++)
@@ -109,23 +121,28 @@ int main(int argc, char *argv[])
     refGray(cols, rows, refImg, refDst);
     __timer(&t1, &t2, "ref"); // end clock
     }
+    printf("\n");
 
     // Collect
     for(int i = 0; i < rows; i++)
         for(int j = 0; j < cols; j++)
             dst.at<float>(i, j) = refDst[i*cols + j];
 
+    // ===========================================================================================================
+
     // DISPLAY
-    // =======
+
     #ifdef SHOW
     namedWindow( "Image", WINDOW_NORMAL );
-    imshow( "Image", img );
-
     namedWindow( "Result", WINDOW_NORMAL );
-    imshow( "Result", dst );
-
-    waitKey();
-    waitKey();
+    for(;;) {
+        int c;
+        c = waitKey(10);
+        if( (char)c == 27 )
+        { break; }
+        imshow( "Image", img );
+        imshow( "Result", dst );
+    }
     #endif
 
     return 0; 

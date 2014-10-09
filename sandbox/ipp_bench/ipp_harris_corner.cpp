@@ -17,6 +17,10 @@
 #define NRUNS 5
 #endif
 
+#ifndef SIZE
+#define SIZE 4096
+#endif
+
 using namespace cv;
 
 extern void refHarris(int cols, int rows, float *input, float *& harris);
@@ -35,7 +39,7 @@ int main(int argc, char *argv[])
 
     // FIXME (just for attention - set path and roi properly)
     Mat imgIn;
-    Rect roi(2000, 2000, 4096, 4096);
+    Rect roi(2000, 2000, SIZE, SIZE);
     if(argc == 2){
         imgIn = imread(argv[1]);
     }
@@ -61,7 +65,6 @@ int main(int argc, char *argv[])
 
     // result
     Mat dst(rows, cols, CV_32F);
-    Mat dstRef = dst.clone();
     image_info(dst);
 
     // ===========================================================================================================
@@ -72,13 +75,15 @@ int main(int argc, char *argv[])
     Mat img_ipp(rows+2, cols+2, CV_32F, cvScalar(0.0f));
     img.copyTo(img_ipp(Rect(1, 1, cols, rows))); // source with ghost
 
-    Mat dst_ipp(rows, cols, CV_32F);
+    Mat dst_ipp = dst.clone();
 
 	IppiSize imgRoi_ipp = { cols, rows };
 
     int bufSize = 0;
     Ipp8u* pBuffer = NULL;
 	IppStatus status = ippStsNoErr;
+
+    double scale = std::pow(12.0, -4.0);
 
 	// Compute work buffer size
 	status = ippiHarrisCornerGetBufferSize(imgRoi_ipp, ippMskSize3x3,          3, ipp32f,        1,  &bufSize);
@@ -93,14 +98,16 @@ int main(int argc, char *argv[])
         timer__(&t1); // start clock
         status = ippiHarrisCorner_32f_C1R((const Ipp32f *)&(img_ipp.data[1*(cols+2)+1]), (cols+2)*sizeof(Ipp32f), (Ipp32f *)&dst_ipp.data[0], cols*sizeof(Ipp32f), imgRoi_ipp,
                                           ippFilterSobel, ippMskSize3x3, 3,
-                                          0.04f, 1.0f, ippBorderConst, 0.0f, pBuffer);
+                                          0.04f, (Ipp32f)scale, ippBorderConst, 0.0f, pBuffer);
 		//       ippiHarrisCorner_32f_C1R(pSrc, srcStep, pDst, dstStep, roiSize,
         //                                filterType, filterMask, avgWndSize,
         //                                k, scale, borderType, borderValue, pBuffer);
         __timer(&t1, &t2, "ipp"); // end clock
+        std::cout <<"\tstatus: " <<ippGetStatusString(status) <<std::endl;
         }
         ippsFree(pBuffer);
     }
+    printf("\n");
 
     // ===========================================================================================================
 
@@ -111,11 +118,13 @@ int main(int argc, char *argv[])
     cornerHarris(img, dst, 3, 3, 0.04);
     __timer(&t1, &t2, "opencv"); // end clock
     }
+    printf("\n");
 
     // ===========================================================================================================
 
     // REFERENCE
 
+    Mat dstRef = dst.clone();
     float *refImg = (float *)malloc(sizeof(float) * (rows+2) * (cols+2));
     float *refDst = (float *)malloc(sizeof(float) * (rows+2) * (cols+2));
 
@@ -135,6 +144,7 @@ int main(int argc, char *argv[])
     refHarris(cols, rows, refImg, refDst);
     __timer(&t1, &t2, "ref"); // end clock
     }
+    printf("\n");
 
     // Collect
     for(int i = 0; i < rows; i++)
@@ -146,19 +156,20 @@ int main(int argc, char *argv[])
     // DISPLAY
     #ifdef SHOW
 
+    /*
     // IPP's
     Mat imgShow_IPP = imgRoi.clone();
-    normalize(dst_ipp, dst_ipp, 0, 255, NORM_MINMAX, CV_32FC1, Mat() );
-    convertScaleAbs(dst_ipp, dst_ipp);
+    //normalize(dst_ipp, dst_ipp, 0, 255, NORM_MINMAX, CV_32FC1, Mat() );
+    //convertScaleAbs(dst_ipp, dst_ipp);
     for( int i = 0; i < dst_ipp.rows ; i++ )
         for( int j = 0; j < dst_ipp.cols; j++ )
-            if( dst_ipp.at<unsigned char>(i, j) > 75)
+            if( dst_ipp.at<unsigned char>(i, j) > 0)
                 circle( imgShow_IPP, Point( j, i ), 5,  Scalar(0, 0, 255), 2, 8, 0 );
 
     // OpenCV's
     Mat imgShow_CV = imgRoi.clone();
-    normalize(dst, dst, 0, 255, NORM_MINMAX, CV_32FC1, Mat() );
-    convertScaleAbs(dst, dst);
+    //normalize(dst, dst, 0, 255, NORM_MINMAX, CV_32FC1, Mat() );
+    //convertScaleAbs(dst, dst);
     for( int i = 0; i < dst.rows ; i++ )
         for( int j = 0; j < dst.cols; j++ )
             if( dst.at<unsigned char>(i, j) > 75)
@@ -166,24 +177,32 @@ int main(int argc, char *argv[])
 
     // Ref's
     Mat imgShow_Ref = imgRoi.clone();
-    normalize(dstRef, dstRef, 0, 255, NORM_MINMAX, CV_32FC1, Mat() );
-    convertScaleAbs(dstRef, dstRef);
+    //normalize(dstRef, dstRef, 0, 255, NORM_MINMAX, CV_32FC1, Mat() );
+    //convertScaleAbs(dstRef, dstRef);
     for( int i = 0; i < dstRef.rows; i++ )
         for( int j = 0; j < dstRef.cols; j++ )
             if( dstRef.at<unsigned char>(i, j) > 75)
                 circle( imgShow_Ref , Point( j+1, i+1 ), 5,  Scalar(0, 0, 255), 2, 8, 0 );
+    */
 
     namedWindow( "IPP Result", WINDOW_NORMAL );
-    imshow( "IPP Result", imgShow_IPP );
 
     namedWindow( "CV Result", WINDOW_NORMAL );
-    imshow( "CV Result", imgShow_CV );
 
     namedWindow( "Ref Result", WINDOW_NORMAL );
-    imshow( "Ref Result", imgShow_Ref );
 
-    waitKey();
-    waitKey();
+    for(;;) {
+        int c;
+        c = waitKey(10);
+        if( (char)c == 27 )
+        { break; }
+        //imshow( "IPP Result", imgShow_IPP );
+        imshow( "IPP Result", dst_ipp );
+        //imshow( "CV Result", imgShow_CV );
+        imshow( "CV Result", dst );
+        //imshow( "Ref Result", imgShow_Ref );
+        imshow( "Ref Result", dstRef );
+    }
     #endif
 
     return 0; 
