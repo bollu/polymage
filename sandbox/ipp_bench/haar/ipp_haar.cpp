@@ -11,9 +11,9 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
 
-#include "timing.h"
+#include "../timing.h"
 
-#include "vec_intrinsic.h"
+#include "../vec_intrinsic.h"
 
 #ifndef NRUNS
 #define NRUNS 5

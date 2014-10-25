@@ -11,7 +11,7 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
 
-#include "timing.h"
+#include "../timing.h"
 
 #ifndef NRUNS
 #define NRUNS 5
