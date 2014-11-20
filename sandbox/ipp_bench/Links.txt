@@ -1,0 +1,6 @@
+(+) Using OpenCV Mat images with IPP [ http://stackoverflow.com/questions/13465914/using-opencv-mat-images-with-intel-ipp ]
+(+) Using IPP with OpenCV [ https://software.intel.com/sites/default/files/m/2/5/1/1/e/33161-OpenCV_ApplicationNotes.pdf ]
+(+) ADAPTIVE HOMOGENEITY-DIRECTED DEMOSAICING ALGORITHM [ http://nagykrisztian.com/store/hirakawa.pdf ]
+(+) ipps [ https://software.intel.com/sites/default/files/managed/95/8b/ipps.pdf ]
+(+) ippi [ https://software.intel.com/sites/default/files/managed/35/17/ippi.pdf ]
+(+) TBB + IPP [ https://software.intel.com/en-us/articles/threading-IPP-resize-with-TBB ]
