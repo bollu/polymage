@@ -1,3 +1,7 @@
+# Making things compatible for python 3
+# Yet to figure out how to make range like xrange
+from __future__ import absolute_import, division, print_function
+
 from fractions import Fraction
 from fractions import gcd
 class AbstractExpression(object):
@@ -61,13 +65,25 @@ class AbstractExpression(object):
         return Mul(other, self)
 
     @typeCheck
-    def __div__(self, other):
+    def __truediv__(self, other):
         if isinstance(other, Value):
             if other.value == 1:
                 return self
         return Div(self, other)
+
     @typeCheck
-    def __rdiv__(self, other):
+    def __rtruediv__(self, other):
+        return Div(other, self)
+
+    @typeCheck
+    def __floordiv__(self, other):
+        if isinstance(other, Value):
+            if other.value == 1:
+                return self
+        return Div(self, other)
+
+    @typeCheck
+    def __rfloordiv__(self, other):
         return Div(other, self)
 
     @typeCheck
@@ -226,7 +242,7 @@ class InbuiltFunction(AbstractExpression):
         return list(set(objs))
 
     def substituteVars(self, varToExprMap):
-        for i in xrange(0, len(self._args)):
+        for i in range(0, len(self._args)):
             self._args[i] = substituteVars(self._args[i], varToExprMap)
 
     def inlineRefs(self, refToExprMap):
@@ -517,8 +533,9 @@ class Value(AbstractExpression):
             _value = Value(_value, Int)
         elif type(_value) is float:
             _value = Value(_value, Float)
-        elif type(_value) is long:
-            _value = Value(_value, Long)
+        # Python 3 has no long
+        #elif type(_value) is long:
+        #    _value = Value(_value, Long)
         elif type(_value) is Fraction:
             _value = Value(_value, Rational)
         return _value
@@ -919,7 +936,7 @@ class Function(object):
         assert(self._varDomain is None)
         # _varDom = (variables, variableDomains)
         assert(len(_varDom[0]) == len(_varDom[1]))
-        for i in xrange(0, len(_varDom[0])):
+        for i in range(0, len(_varDom[0])):
             assert(isinstance(_varDom[0][i], Variable))
             assert(isinstance(_varDom[1][i], Interval))
             assert(_varDom[0][i].typ ==  _varDom[1][i].typ)
@@ -969,7 +986,7 @@ class Function(object):
     def inlineRefs(self, refToExprMap):
         numCases = len(self._body)
         # MOD -> disallow more than one instance of a definition without a Case
-        for i in xrange(0, numCases):
+        for i in range(0, numCases):
             if isinstance(self._body[i], Case):
                 self._body[i].inlineRefs(refToExprMap)
             else:
@@ -998,7 +1015,7 @@ class Function(object):
         if (self._body):
             var_str = ", ".join([var.__str__() for var in self._variables])
             dom_str = ', '.join([self._variables[i].__str__() + self._varDomain[i].__str__()\
-                                for i in xrange(len(self._varDomain))])
+                                for i in range(len(self._varDomain))])
             case_str = "{ " + "\n ".join([case.__str__() for case in self._body]) + " }"
             return "Domain: " + dom_str + '\n' + self._name + "(" + var_str + ") = " +\
                     case_str + '\n'
@@ -1066,7 +1083,7 @@ class Accumulator(Function):
         assert(self._redVariables is None)
         assert(self._redDomain is None)
         assert(len(_redDom[0]) == len(_redDom[1]))
-        for i in xrange(0, len(_redDom[0])):
+        for i in range(0, len(_redDom[0])):
             assert(isinstance(_redDom[0][i], Variable))
             assert(isinstance(_redDom[1][i], Interval))
             assert(_redDom[0][i].typ ==  _redDom[1][i].typ)
@@ -1137,9 +1154,9 @@ class Accumulator(Function):
         if (self._body):
             varStr = ", ".join([var.__str__() for var in self._variables])
             domStr = ', '.join([self._variables[i].__str__() + self._varDomain[i].__str__()\
-                                for i in xrange(len(self._varDomain))])
+                                for i in range(len(self._varDomain))])
             redDomStr = ', '.join([self._redVariables[i].__str__() + self._redDomain[i].__str__()\
-                                for i in xrange(len(self._redDomain))])
+                                for i in range(len(self._redDomain))])
             caseStr = "{ " + "\n ".join([case.__str__() for case in self._body]) + " }"
             return "Domain: " + domStr + '\n' + "Reduction Domain: " + redDomStr + '\n' +\
                     self._name + "(" + varStr + ") = " +\
@@ -1327,7 +1344,7 @@ def simplifyExpr(expr):
         return expr.objectRef(*simpleArgs)
     elif (isinstance(expr, AbstractBinaryOpNode) or
           isinstance(expr, AbstractUnaryOpNode)):
-        if (isAffine(expr, div=False)):
+        if (isAffine(expr, includeDiv=False)):
             coeff = getAffineVarAndParamCoeff(expr)
             variables = list(set(expr.collect(Variable)))
             params = list(set(expr.collect(Parameter)))
@@ -1366,7 +1383,7 @@ def substituteRefs(expr, refToExprMap):
             refVars = expr.objectRef.variables
             varToExprMap = {}
             assert len(expr.arguments) == len(refVars)
-            for i in xrange(0, len(refVars)):
+            for i in range(0, len(refVars)):
                 varToExprMap[refVars[i]] = expr.arguments[i]
             # Equivalent to cloning
             return substituteVars(refToExprMap[expr], varToExprMap)
@@ -1405,7 +1422,7 @@ def substituteVars(expr, varToExprMap):
     elif (isinstance(expr, Reference)):
         numArgs = len(expr.arguments)
         args = []
-        for i in xrange(0, numArgs):
+        for i in range(0, numArgs):
             args.append(substituteVars(expr.arguments[i], varToExprMap))
         # Equivalent to cloning
         return expr.objectRef(*args)
