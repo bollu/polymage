@@ -5,8 +5,8 @@ from __future__ import absolute_import, division, print_function
 from fractions import Fraction
 import sys
 sys.path.insert(0, '../frontend')
-from constructs import *
-from bounds import *
+from Constructs import *
+from Bounds import *
 
 # Have to change the string comparision tests to something
 # better. Maybe eval the rexpression at the point.

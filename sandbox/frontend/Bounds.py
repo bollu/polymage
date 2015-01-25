@@ -1,7 +1,7 @@
 # Making things compatible for python 3
 # Yet to figure out how to make range like xrange
 from __future__ import absolute_import, division, print_function
-from constructs import *
+from Constructs import *
 
 def isAffine(expr, includeDiv = True, includeModulo = False):
     expr = Value.numericToValue(expr)
