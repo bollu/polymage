@@ -5,154 +5,115 @@ from __future__ import absolute_import, division, print_function
 from fractions import Fraction
 import sys
 sys.path.insert(0, '../frontend')
-import constructs as c
+from constructs import *
+from bounds import *
 
 # Have to change the string comparision tests to something
 # better. Maybe eval the rexpression at the point.
 def test_param():
-    N = c.Parameter(c.Float, "N")
-    assert N.has(c.Variable) == False
-    assert N.has(c.Parameter) == True
-    #assert N.isAffine() == True
+    N = Parameter(Float, "N")
+    assert N.has(Variable) == False
+    assert N.has(Parameter) == True
     assert N.name == "N"
-    assert N.typ == c.Float
+    assert N.typ == Float
 
 def test_variable():
-    x = c.Variable(c.UInt, "x")
-    assert x in x.collect(c.Variable)
-    assert x not in x.collect(c.Parameter)
-    #assert x.isAffine() == True
+    x = Variable(UInt, "x")
+    assert x in x.collect(Variable)
+    assert x not in x.collect(Parameter)
     assert x.name == "x"
-    assert x.typ == c.UInt
+    assert x.typ == UInt
 
 def test_types():
-    assert c.Value(3.0, c.Float) == 3.0 
-    assert c.Value(3.0, c.Double) == 3.0
-    assert c.Value(3, c.Int) == 3 
-    assert c.Value(3, c.UInt) == 3 
-    assert c.Value(3, c.Char) == 3 
-    assert c.Value(3, c.UChar) == 3 
-    assert c.Value(3, c.Short) == 3 
-    assert c.Value(3, c.UShort) == 3
-    assert c.Value(3, c.Long) == 3 
-    assert c.Value(3, c.ULong) == 3
+    assert Value(3.0, Float) == 3.0 
+    assert Value(3.0, Double) == 3.0
+    assert Value(3, Int) == 3 
+    assert Value(3, UInt) == 3 
+    assert Value(3, Char) == 3 
+    assert Value(3, UChar) == 3 
+    assert Value(3, Short) == 3 
+    assert Value(3, UShort) == 3
+    assert Value(3, Long) == 3 
+    assert Value(3, ULong) == 3
 
 def test_interval():
-    I = c.Interval(c.UInt, c.Value(3, c.UInt), c.Value(5, c.UInt), c.Value(1, c.UInt))
-    assert I.typ == c.UInt
+    I = Interval(UInt, Value(3, UInt), Value(5, UInt), Value(1, UInt))
+    assert I.typ == UInt
     assert I.lowerBound == 3
     assert I.upperBound == 5
     assert I.step == 1
 
 def test_image():
-    N = c.Parameter(c.UInt, "N")
-    Img = c.Image(c.UChar, "Input", [N, N, 3])
-    assert Img.typ  == c.UChar
+    N = Parameter(UInt, "N")
+    Img = Image(UChar, "Input", [N, N, 3])
+    assert Img.typ  == UChar
     assert Img.name == "Input"
     assert Img.dimensions[0] == N
     assert Img.dimensions[1] == N
     assert Img.dimensions[2] == 3
 
 def test_expr():
-    N = c.Parameter(c.UInt, "N")
-    x = c.Variable(c.UInt, "x")
-    y = c.Variable(c.UInt, "y")
-    z = c.Variable(c.UInt, "z")
+    N = Parameter(UInt, "N")
+    x = Variable(UInt, "x")
+    y = Variable(UInt, "y")
+    z = Variable(UInt, "z")
     w = x * (y * z) - N
-    assert N in w.collect(c.Parameter)
+    assert N in w.collect(Parameter)
     assert w.__str__().replace(' ', '') == "((x*(y*z))-N)"
     w = (+(((-(((x - (y + z)) / z) % 2) ^ 3) >> z) << 5) | 1) & y
     for var in [x, y, z]:
-        assert var in w.collect(c.Variable)
+        assert var in w.collect(Variable)
     assert w.__str__().replace(' ', '') == "((+((((-((((x-(y+z))/z)%2))^3)>>z)<<5))|1)&y)"
     i = 3
     w = x * i
     assert w.__str__().replace(' ', '') == "(x*3)"
 
 def test_condition():
-    N = c.Parameter(c.UInt, "N")
-    x = c.Variable(c.UInt, "x")
-    y = c.Variable(c.UInt, "y")
-    c1 = c.Condition(x+N, '>', y)
-    assert x in c1.collect(c.Variable)
-    assert y in c1.collect(c.Variable)
-    assert N in c1.collect(c.Parameter)
+    N = Parameter(UInt, "N")
+    x = Variable(UInt, "x")
+    y = Variable(UInt, "y")
+    c1 = Condition(x+N, '>', y)
+    assert x in c1.collect(Variable)
+    assert y in c1.collect(Variable)
+    assert N in c1.collect(Parameter)
     assert c1.__str__().replace(' ', '') == "((x+N)>y)"
-    c2 = c.Condition(x , '<', 5)
+    c2 = Condition(x , '<', 5)
     assert c2.__str__().replace(' ', '') == "(x<5)"
     c3 = c1 & c2
     assert c3.__str__().replace(' ', '') == "(((x+N)>y)&&(x<5))"
 
 def test_case():
-    N = c.Parameter(c.UInt, "N")
-    x = c.Variable(c.UInt, "x")
-    y = c.Variable(c.UInt, "y")
-    c1 = c.Case(c.Condition(x+1, '>', y), x-y)
+    N = Parameter(UInt, "N")
+    x = Variable(UInt, "x")
+    y = Variable(UInt, "y")
+    c1 = Case(Condition(x+1, '>', y), x-y)
     assert c1.condition.__str__().replace(' ', '')  == "((x+1)>y)"
     assert c1.expression.__str__().replace(' ', '') == "(x-y)"
 
 def test_function():
-    N = c.Parameter(c.UInt, "N")
-    x = c.Variable(c.UInt, "x")
-    y = c.Variable(c.UInt, "y")
-    r = c.Interval(c.UInt, 0, N-1, 1)
-    func1 = c.Function(([x, y], [r, r]), c.UInt, "add")
+    N = Parameter(UInt, "N")
+    x = Variable(UInt, "x")
+    y = Variable(UInt, "y")
+    r = Interval(UInt, 0, N-1, 1)
+    func1 = Function(([x, y], [r, r]), UInt, "add")
     func1.defn = [ x + y ]
-    assert r in  func1.getObjects(c.Interval)
+    assert r in  func1.getObjects(Interval)
     assert func1.defn[0].__str__().replace(' ','') == "(x+y)" 
-    func2 = c.Function(([x, y], [r, r]), c.UInt, "max")
-    func2.defn = [ c.Case(c.Condition(x, '>', y), x),
-                   c.Case(c.Condition(x, '<=', y), y) ]
+    func2 = Function(([x, y], [r, r]), UInt, "max")
+    func2.defn = [ Case(Condition(x, '>', y), x),
+                   Case(Condition(x, '<=', y), y) ]
     assert func2.defn[0].__str__().replace(' ','') == "Case((x>y)){x}" 
     assert func2.defn[1].__str__().replace(' ','') == "Case((x<=y)){y}" 
 
-def test_affine():
-    N = c.Parameter(c.UInt, "N")
-    x = c.Variable(c.UInt, "x")
-    y = c.Variable(c.UInt, "y")
-    assert(c.isAffine(x + y) == True)
-    assert(c.isAffine(3) == True)
-    assert(c.isAffine(x*y) == False)
-    assert(c.isAffine(-x + N + 3*y) == True)
-    assert(c.isAffine(2*x + N/2 + 3*y) == True)
-    c1 = c.Condition(x, '<', 2*y)
-    c2 = c.Condition(x, '>', 2-y)
-    c3 = c.Condition(x, '>=', x*y)
-    c4 = c.Condition(x + 2*N, '<=', y + N)
-    c5 = c.Condition(x*N, '!=', y)
-    assert(c.isAffine(c1) == True)
-    assert(c.isAffine(c2) == True)
-    assert(c.isAffine(c3) == False)
-    assert(c.isAffine(c4) == True)
-    assert(c.isAffine(c5) == False)
-
-def test_coeff():
-    N = c.Parameter(c.UInt, "N")
-    x = c.Variable(c.UInt, "x")
-    y = c.Variable(c.UInt, "y")
-    coeff = c.getAffineVarAndParamCoeff(1+x)
-    assert(coeff[x] == 1)
-    coeff = c.getAffineVarAndParamCoeff(1+x +y)
-    assert(coeff[x] == 1 and coeff[y] == 1)
-    coeff = c.getAffineVarAndParamCoeff(3)
-    assert(coeff == {})
-    coeff = c.getAffineVarAndParamCoeff(N*x + y)
-    assert(coeff == {})
-    coeff = c.getAffineVarAndParamCoeff(x*y)
-    assert(coeff == {})
-    coeff = c.getAffineVarAndParamCoeff(2*(x*3+y +N +x + y -5) 
-                                      + 3*(-x) + 4*(-y) + N)
-    assert(coeff[x] == 5 and coeff[y] == 0 and coeff[N] == 3)
-
 def test_conjuncts():
-    N = c.Parameter(c.UInt, "N")
-    x = c.Variable(c.UInt, "x")
-    y = c.Variable(c.UInt, "y")
-    c1 = c.Condition(x, '<', y)
-    c2 = c.Condition(x, '>', N)
-    c3 = c.Condition(x, '<', 3)
-    c4 = c.Condition(x + y, '<=',N)
-    c5 = c.Condition(x, '!=', 2*N)
+    N = Parameter(UInt, "N")
+    x = Variable(UInt, "x")
+    y = Variable(UInt, "y")
+    c1 = Condition(x, '<', y)
+    c2 = Condition(x, '>', N)
+    c3 = Condition(x, '<', 3)
+    c4 = Condition(x + y, '<=',N)
+    c5 = Condition(x, '!=', 2*N)
     cond  = (c1 & c2) | (c3 | c4) & c5
     conjuncts = cond.splitToConjuncts()
     conjuncts_str = []
@@ -170,38 +131,23 @@ def test_conjuncts():
     assert conjuncts_str[4].replace(' ','') == "((x+y)<=N)(x>(2*N))" 
 
 def test_divide():
-    N = c.Parameter(c.UInt, "N")
-    x = c.Variable(c.UInt, "x")
-    y = c.Variable(c.UInt, "y")
+    N = Parameter(UInt, "N")
+    x = Variable(UInt, "x")
+    y = Variable(UInt, "y")
 
     expr = (2*x + N//2 + 3*y)*3//2
-    assert c.isAffine(expr) == True
-    coeff = c.getAffineVarAndParamCoeff(expr)
+    assert isAffine(expr) == True
+    coeff = getAffineVarAndParamCoeff(expr)
     assert coeff[x] == Fraction(3, 1) 
     assert coeff[N] == Fraction(3, 4) 
     assert coeff[y] == Fraction(9, 2) 
     expr = (N-1)//2
-    assert c.getConstantFromExpr(expr, affine = True) == Fraction(-1, 2)
-
-def test_simplify():
-    N = c.Parameter(c.UInt, "N")
-    x = c.Variable(c.UInt, "x")
-    y = c.Variable(c.UInt, "y")
-
-    expr = (2*x + 3*x + 3 + 4 + 1 + 5*y - 4*y + N + 2 * 3 + 4//2)//2 
-    expr = c.simplifyExpr(expr)
-    coeff = c.getAffineVarAndParamCoeff(expr)
-    print(coeff)
-    print(expr)
-    assert coeff[x] == Fraction(5, 2)
-    assert coeff[y] == Fraction(1, 2)
-    assert coeff[N] == Fraction(1, 2)
-    assert c.getConstantFromExpr(expr, affine = True) == 8
+    assert getConstantFromExpr(expr, affine = True) == Fraction(-1, 2)
 
 def test_overload():
-    N = c.Parameter(c.UInt, "N")
-    x = c.Variable(c.UInt, "x")
-    y = c.Variable(c.UInt, "y")
+    N = Parameter(UInt, "N")
+    x = Variable(UInt, "x")
+    y = Variable(UInt, "y")
 
     expr = 1//N
     assert expr.__str__().replace(' ', '') == "(1/N)"
