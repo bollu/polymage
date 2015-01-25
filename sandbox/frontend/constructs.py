@@ -656,18 +656,6 @@ class Variable(AbstractExpression):
 class Parameter(Variable):
     def __init__(self, _typ, _name):
         Variable.__init__(self, _typ, _name)
-        self._definition = None
-
-    @property
-    def definition(self):
-        return self._definition
-
-    @definition.setter
-    def definition(self, _def):
-        assert(self._definition is None) 
-        _def = Value.numericToValue(_def)
-        assert(isinstance(_def, AbstractExpression))
-        self._definition = _def
     
 class Interval(object):
     def __init__(self, _typ,  _lb, _ub, _step=1):
@@ -900,7 +888,7 @@ class Accumulate(object):
                  ' ' + opStr + ')'
 
 class Function(object):
-    def __init__(self, _typ, _name):
+    def __init__(self, _varDom, _typ, _name):
         self._name      = _name
         # Type of the scalar range of the function
         self._typ       = _typ
@@ -910,31 +898,7 @@ class Function(object):
         # Gives the domain of each variable. Domain of each variable is expected
         # to be over integers. Function evaluation in the lexicographic order of 
         # the domain is assumed to be valid.
-        self._varDomain    = None 
 
-        # * Body of a function is composed of Case and Expression constructs.
-        # * The Case constructs are expected to be non-overlapping.
-        # * If multiple Case constructs are satisfied at a point the value 
-        #   can be defined by any one of them
-        # * All the Case constructs followed by an Expression construct are 
-        #   ignored.
-        self._body      = []
-
-    @property
-    def name(self):
-        return self._name
-    @property
-    def typ(self):
-        return self._typ
-
-    @property
-    def variableDomain(self):
-        return (self._variables, self._varDomain)
-    @variableDomain.setter
-    def variableDomain(self, _varDom):
-        assert(self._variables is None)
-        assert(self._varDomain is None)
-        # _varDom = (variables, variableDomains)
         assert(len(_varDom[0]) == len(_varDom[1]))
         for i in range(0, len(_varDom[0])):
             assert(isinstance(_varDom[0][i], Variable))
@@ -952,6 +916,25 @@ class Function(object):
         self._variables = _varDom[0]
         self._varDomain = _varDom[1]
 
+        # * Body of a function is composed of Case and Expression constructs.
+        # * The Case constructs are expected to be non-overlapping.
+        # * If multiple Case constructs are satisfied at a point the value 
+        #   can be defined by any one of them
+        # * All the Case constructs followed by an Expression construct are 
+        #   ignored.
+        self._body      = None
+
+    @property
+    def name(self):
+        return self._name
+    @property
+    def typ(self):
+        return self._typ
+
+    @property
+    def variableDomain(self):
+        return (self._variables, self._varDomain)
+           
     @property
     def domain(self):
         return self._varDomain
@@ -961,20 +944,20 @@ class Function(object):
         return self._variables
 
     @property
-    def definition(self):
+    def defn(self):
         return self._body
-    @definition.setter
-    def definition(self, _def):
-        _def = Value.numericToValue(_def)
-        assert(isinstance(_def, (Case, AbstractExpression)))
-        # check if the Case and Expression constructs only use
-        # function variables and global parameters
-        if(isinstance(_def, Case)):
-            # -> need not check all definitions
-            for part in self._body:
-               assert(isinstance(part, Case))
-        # MOD -> if _def is not a Case, shouldnt it be disallowed after the first definition?
-        self._body.append(_def)
+    @defn.setter
+    def defn(self, _def):
+        assert(self._body == None)
+        self._body = []
+        for case in _def:
+            case = Value.numericToValue(case)
+            assert(isinstance(case, (Case, AbstractExpression)))
+            # check if the Case and Expression constructs only use
+            # function variables and global parameters
+
+            # MOD -> if _def is not a Case, shouldnt it be disallowed after the first definition?
+            self._body.append(case)
 
     def __call__(self, *args):
         assert(len(args) == len(self._variables))
@@ -1024,7 +1007,6 @@ class Function(object):
 
 class Image(Function):
     def __init__(self, _typ, _name, _dims):
-        Function.__init__(self, _typ, _name)
         _dims = [ Value.numericToValue(dim) for dim in _dims ]
         # Have to evaluate if a  stronger constraint 
         # can be imposed. Only AbstractExpression in parameters?
@@ -1039,7 +1021,7 @@ class Image(Function):
             intervals.append(Interval(UInt, 0, dim-1, 1))
             variables.append(Variable(UInt, "_" + _name + str(i)))
             i = i + 1
-        self.variableDomain = (variables, intervals)
+        Function.__init__(self, (variables, intervals), _typ, _name)
 
     @property
     def dimensions(self):
@@ -1050,15 +1032,30 @@ class Image(Function):
         return self._name.__str__() + "(" + dim_str + ")"
 
 class Accumulator(Function):
-    def __init__(self, _typ, _name):
-        Function.__init__(self, _typ, _name)
+    def __init__(self, _varDom, _redDom, _typ, _name):
+        Function.__init__(self, _varDom, _typ, _name)
         # Gives the domain of the reduction. Reduction domain of each variable is 
         # expected to be over integers. Reduction evaluation in the lexicographic 
         # order of the domain is assumed to be valid.
-        self._redDomain = None
-        self._redVariables = None
-        # Intial value of each accumulator cell. Default is set to zero of the given 
-        # type
+        assert(len(_redDom[0]) == len(_redDom[1]))
+        for i in range(0, len(_redDom[0])):
+            assert(isinstance(_redDom[0][i], Variable))
+            assert(isinstance(_redDom[1][i], Interval))
+            assert(_redDom[0][i].typ ==  _redDom[1][i].typ)
+        # add check to ensure that upper bound and lower bound
+        # expressions for each variable are only defined in
+        # terms of variables of the function and global parameters
+
+        # Should bounds be restricted only to parameters or function
+        # variables be allowed? No for now
+
+        # Should the domain be restricted to the positive quadrant?
+        # Can this be done automatically
+        self._redVariables = _redDom[0]
+        self._redDomain = _redDom[1]
+
+        # Intial value of each accumulator cell. Default is set to zero of the 
+        # given type
         self._default   = Value(0, _typ)
 
     @property
@@ -1077,47 +1074,25 @@ class Accumulator(Function):
     @property
     def reductionVariables(self):
         return self._redVariables
-
-    @reductionDomain.setter
-    def reductionDomain(self, _redDom):
-        assert(self._redVariables is None)
-        assert(self._redDomain is None)
-        assert(len(_redDom[0]) == len(_redDom[1]))
-        for i in range(0, len(_redDom[0])):
-            assert(isinstance(_redDom[0][i], Variable))
-            assert(isinstance(_redDom[1][i], Interval))
-            assert(_redDom[0][i].typ ==  _redDom[1][i].typ)
-        # add check to ensure that upper bound and lower bound
-        # expressions for each variable are only defined in
-        # terms of variables of the function and global parameters
-
-        # Should bounds be restricted only to parameters or function
-        # variables be allowed? No for now
-
-        # Should the domain be restricted to the positive quadrant?
-        # Can this be done automatically
-        self._redVariables = _redDom[0]
-        self._redDomain = _redDom[1]
-
+        
     @property
-    def defintion(self):
+    def defn(self):
         return self._body
 
-    @defintion.setter
-    def definition(self, _def):
-        _def = Value.numericToValue(_def)
-        assert(isinstance(_def, (Case, Accumulate)))
-        # check if the Case and Expression constructs only use
-        # function variables and global parameters
-
-        # Which way is better Case inside accumulate or accumulate inside Case
-        # -> need not check all definitions
-        if(isinstance(_def, Case)):
-            for part in self._body:
-               assert(isinstance(_def.expression, Accumulate))
-               assert(isinstance(part, Case))
-        # MOD -> if _def is not a Case, shouldnt it be disallowed after the first definition?
-        self._body.append(_def)
+    @defn.setter
+    def defn(self, _def):
+        assert(self._body == None)
+        self._body = []
+        for case in _def:
+            case = Value.numericToValue(case)
+            assert(isinstance(case, (Case, Accumulate)))
+            # check if the Case and Expression constructs only use
+            # function variables and global parameters
+    
+            # Which way is better Case inside accumulate or accumulate inside Case
+            
+            # MOD -> if _def is not a Case, shouldnt it be disallowed after the first definition?
+            self._body.append(case)
 
     def hasBoundedIntegerDomain(self):
         boundedIntegerDomain = True

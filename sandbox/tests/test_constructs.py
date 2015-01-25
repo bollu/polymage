@@ -95,18 +95,16 @@ def test_function():
     N = c.Parameter(c.UInt, "N")
     x = c.Variable(c.UInt, "x")
     y = c.Variable(c.UInt, "y")
-    func1 = c.Function(c.UInt, "add")
     r = c.Interval(c.UInt, 0, N-1, 1)
-    func1.variableDomain = ([x, y], [r, r])
-    func1.definition = x + y
+    func1 = c.Function(([x, y], [r, r]), c.UInt, "add")
+    func1.defn = [ x + y ]
     assert r in  func1.getObjects(c.Interval)
-    assert func1.definition[0].__str__().replace(' ','') == "(x+y)" 
-    func2 = c.Function(c.UInt, "max")
-    func2.variableDomain = ([x, y], [r, r])
-    func2.definition = c.Case(c.Condition(x, '>', y), x)
-    func2.definition = c.Case(c.Condition(x, '<=', y), y)
-    assert func2.definition[0].__str__().replace(' ','') == "Case((x>y)){x}" 
-    assert func2.definition[1].__str__().replace(' ','') == "Case((x<=y)){y}" 
+    assert func1.defn[0].__str__().replace(' ','') == "(x+y)" 
+    func2 = c.Function(([x, y], [r, r]), c.UInt, "max")
+    func2.defn = [ c.Case(c.Condition(x, '>', y), x),
+                   c.Case(c.Condition(x, '<=', y), y) ]
+    assert func2.defn[0].__str__().replace(' ','') == "Case((x>y)){x}" 
+    assert func2.defn[1].__str__().replace(' ','') == "Case((x<=y)){y}" 
 
 def test_affine():
     N = c.Parameter(c.UInt, "N")
