@@ -1,5 +1,5 @@
 import islpy as isl
-from constructs import *
+from Constructs import *
 import math as math
 
 def lcm(a, b):
@@ -422,8 +422,9 @@ class PolyRep(object):
                                                         dimIn, 2)                    
                     brokenParts.append((falseSched, expr.falseExpression))
 
-                    #print trueSched
-                    #print falseSched
+                    #print(trueSched)
+                    #print(falseSched)
+
         if not brokenParts:
             polyPart = PolyPart(sched, expr, pred, comp, list(align), 
                                 list(scale), stageNo, liveout)
@@ -631,7 +632,7 @@ class PolyRep(object):
                     # done with parametric shifts. Full affine scheduling 
                     # might be able to find a way to uniformize 
                     # dependencies. This has to be further explored.
-                    #print ref
+                    #print(ref)
                     #assert False
                     depVec[parentVarSchedDim] = '*'
                 # Indexed with a single variable. This can either be an 
@@ -660,14 +661,14 @@ class PolyRep(object):
                             depVec[parentVarSchedDim] = \
                                (int(math.floor(depVec[parentVarSchedDim] *
                                 accessScale)))
-                            #print parentPart.sched
-                            #print childPart.sched
-                            #print childPart.expr
-                            #print depVec, ref
+                            #print(parentPart.sched)
+                            #print(childPart.sched)
+                            #print(childPart.expr)
+                            #print(depVec, ref)
                     else:
                         depVec[parentVarSchedDim] = '*'
                 elif len(domDimCoeff) == 0 and len(paramCoeff) > 0:
-                    #print ref
+                    #print(ref)
                     #assert False
                     depVec[parentVarSchedDim] = '*'
                 # Only parametric or Constant access. The schedule in this 
@@ -704,7 +705,7 @@ class PolyRep(object):
                             depVec[parentVarSchedDim] = highVec
                         else:
                             # Unpack dependence vectors when this hits
-                            #print ref
+                            #print(ref)
                             #assert False
                             #depVec[parentVarSchedDim] = (lowVec, highVec)
                             depVec[parentVarSchedDim] = '*'
@@ -713,8 +714,8 @@ class PolyRep(object):
                 else:
                     assert False
             else:
-                #print ref
-                #assert False
+                #print(ref)
+                #assert(False)
                 depVec[parentVarSchedDim] = '*'
 
         assert depVec[0] == '-'
@@ -725,9 +726,9 @@ class PolyRep(object):
         #for i in xrange(0, dimOut):
         #    if (depVec[i] == '-'):
         #        depVec[i] = '*'
-        #        print parentPart.sched
-        #        print childPart.sched
-        #        print i, ref
+        #        print(parentPart.sched)
+        #        print(childPart.sched)
+        #        print(i, ref)
         #        parentLowerBound = parentPart.sched.range().dim_min(i)
         #        parentUpperBound = parentPart.sched.range().dim_max(i)
                     
@@ -1341,12 +1342,11 @@ class PolyRep(object):
         # in the same group. Bundle such parts together.
         smallGroups = []
         optGroups = self.simpleGroup(paramEstimates, single=False)
-        #print "intial groups begin"
+        #print("intial groups begin")
         #for g in optGroups:
         #    for p in g:
-        #        print p.comp.name,
-        #    print
-        #print "intial groups end"
+        #        print(p.comp.name)
+        #print("intial groups end")
         initialParts = 0
         for g in optGroups:
             initialParts += len(g)
@@ -1373,7 +1373,7 @@ class PolyRep(object):
                         isSmall = False
                     if isinstance(p.comp, Accumulator):
                         isReduction = True
-                #print len(children[gi]), isSmall
+                #print(len(children[gi]), isSmall)
                 if not isSmall and not isReduction and len(optGroups[gi]) < self.groupSize:
                     if (len(children[gi]) > 1) and False:
                         newGroup = [ p for p in optGroups[gi] ]
@@ -1390,17 +1390,15 @@ class PolyRep(object):
                                 if pg not in children[gi] and pg != optGroups[gi]:
                                     merge = False
                         if merge:
-                            print "parent group begin"
+                            print("parent group begin")
                             for p in optGroups[gi]:
-                                print p.comp.name,
-                            print
-                            print "parent groups end"
-                            print "adding groups begin"
+                                print(p.comp.name)
+                            print("parent groups end")
+                            print("adding groups begin")
                             for g in children[gi]:
                                 for p in g:
-                                    print p.comp.name,
-                                print
-                            print "adding groups end"
+                                    print(p.comp.name)
+                            print("adding groups end")
                             for childGroup in children[gi]:
                                 for p in childGroup:
                                     scale = scaleToParentGroup(p, newGroup)
@@ -1412,17 +1410,15 @@ class PolyRep(object):
                             opt = True
                             break
                     elif (len(children[gi]) == 1):
-                        print "parent group begin"
+                        print("parent group begin")
                         for p in optGroups[gi]:
-                            print p.comp.name,
-                        print
-                        print "parent groups end"
-                        print "adding groups begin"
+                            print(p.comp.name)
+                        print("parent groups end")
+                        print("adding groups begin")
                         for g in children[gi]:
                             for p in g:
-                                print p.comp.name,
-                            print
-                        print "adding groups end"
+                                print(p.comp.name)
+                        print("adding groups end")
                         newGroup = [ p for p in optGroups[gi] ]
                         for p in children[gi][0]:
                             scale = scaleToParentGroup(p, newGroup)
@@ -1434,13 +1430,12 @@ class PolyRep(object):
                         opt = True
                         break
             optGroups = newGroups         
-        #print "final groups begin"
+        #print("final groups begin")
         #for g in optGroups:
         #    for p in g:
-        #        print p.comp.name,
-        #    print
-        #print "final groups end"    
-        #print optGroups
+        #        print(p.comp.name)
+        #print("final groups end")
+        #print(optGroups)
         #bundles = [ b for b in bundles if b not in smallGroups ]
         """
         for b in bundles:
@@ -1598,7 +1593,7 @@ class PolyRep(object):
                 maxWidth[i] = maxWidth[i] + maxW[i]
             widths.append((list(minWidth), currh))
             widths.append((list(maxWidth), currh))
-            #print widths
+            #print(widths)
                     
         for width, h in widths:
             scale = hmax - h 
@@ -1647,9 +1642,9 @@ class PolyRep(object):
         for i in xrange(0, len(stageGroups)):            
             stageDeps[i] = self.getGroupDependenceVectors(stageGroups[i])
             #for g in stageGroups[i]:
-            #    print g.sched
-            #    print g.expr
-            #print stageDeps[i]
+            #    print(g.sched)
+            #    print(g.expr)
+            #print(stageDeps[i])
 
         # -- Generate a tiled schedule for the group
         #    -- Stencil groups are groups which have only uniform inter stage 
@@ -1726,16 +1721,16 @@ class PolyRep(object):
             hmax = max( [ s.stageNo for s in stageGroups[gi] ] )
             hmin = min( [ s.stageNo for s in stageGroups[gi] ] )
             slopeMin, slopeMax = self.computeTileSlope(stageDeps[gi], hmax)
-            #print slopeMin, slopeMax, hmax - hmin
+            #print(slopeMin, slopeMax, hmax - hmin)
             
             #self.splitTile(stageGroups[gi], slopeMin, slopeMax)
             self.overlapTile(stageGroups[gi], slopeMin, slopeMax)
-            print stageDeps[gi]
-            print slopeMin, slopeMax, hmax, len(stageGroups[gi])
+            print(stageDeps[gi])
+            print(slopeMin, slopeMax, hmax, len(stageGroups[gi]))
             #for p in stageGroups[gi]:
-            #    print p.scale, p.comp.name + ' = ' +  p.expr.__str__()
+            #    print(p.scale, p.comp.name + ' = ' +  p.expr.__str__())
             #for p in stageGroups[gi]:
-            #    print p.dimTileInfo
+            #    print(p.dimTileInfo)
 
             # Determine the buffer sizes for stages in each dimension
             for p in stageGroups[gi]:
@@ -1911,7 +1906,7 @@ class PolyRep(object):
                     pi += 1
 
             #for p in stageGroups[gi]:
-            #    print p.sched
+            #    print(p.sched)
             #assert False
 
 
@@ -1986,7 +1981,7 @@ class PolyRep(object):
                 
                     tileSize = self.tileSizes[numTileDims]
                     # Compute the overlap shift
-                    #print slopeMax, slopeMin, h, L, R, i-1
+                    #print(slopeMax, slopeMin, h, L, R, i-1)
                     overlapShift = abs(L * (h)) + abs(R * (h))
                     for j in xrange(0, len(part.align)):
                         if i == part.align[j]:
@@ -2190,7 +2185,7 @@ class PolyRep(object):
             
             #assert False
             def printer(arg):
-                print arg
+                print(arg)
             schedMap.foreach_map(printer)
             self.polyast.append(astbld.ast_from_schedule(schedMap))
        

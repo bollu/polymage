@@ -2,6 +2,11 @@
 # Yet to figure out how to make range like xrange
 from __future__ import absolute_import, division, print_function
 
+class Void(object):
+    @staticmethod
+    def cTypeName():
+        return 'void'
+    pass
 class Float(object):
     @staticmethod
     def cTypeName():

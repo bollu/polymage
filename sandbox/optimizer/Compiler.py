@@ -8,7 +8,13 @@ sys.path.insert(0, '../codegen')
 
 from Constructs import *
 import Poly as opt
-from Queue import Queue
+
+# More Python 3 vs 2 mojo
+try:
+    import queue
+except ImportError:
+    import Queue as queue
+
 import TargetCx86 as Cgen
 from collections import OrderedDict
 
@@ -923,7 +929,7 @@ class PipeLine:
         # assumes that there are no cycles in the pipeline stage graph this has 
         # assumption has to be revisited when dealing with more complex pipelines.
         stages = {}
-        q = Queue()
+        q = queue()
         for compObj in self._outputs:
             q.put(compObj)
         while not q.empty():
