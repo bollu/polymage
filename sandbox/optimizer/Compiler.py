@@ -1,7 +1,15 @@
-from constructs import *
-import poly as opt
+# Making things compatible for python 3
+# Yet to figure out how to make range like xrange
+from __future__ import absolute_import, division, print_function
+
+import sys
+sys.path.insert(0, '../frontend')
+sys.path.insert(0, '../codegen')
+
+from Constructs import *
+import Poly as opt
 from Queue import Queue
-import target_c as Cgen
+import TargetCx86 as Cgen
 from collections import OrderedDict
 
 import pygraphviz as pgv
@@ -14,8 +22,7 @@ def islExprToCgen(expr, prologueStmts = None):
             expr.get_op_type() == opt.isl._isl.ast_op_type.member or 
             expr.get_op_type() == opt.isl._isl.ast_op_type.cond or
             expr.get_op_type() == opt.isl._isl.ast_op_type.select):
-            print expr.get_op_type()
-            assert False
+            assert False, expr.get_op_type()
         if expr.get_op_type() == opt.isl._isl.ast_op_type.min:
             numArgs = expr.get_op_n_arg()
             cmin = Cgen.cMin(islExprToCgen(expr.get_op_arg(0), prologueStmts),
