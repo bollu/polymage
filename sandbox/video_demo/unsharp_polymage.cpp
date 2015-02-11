@@ -3,166 +3,104 @@
 #include <malloc.h>
 #include <cmath>
 #include <string.h>
-
 #define isl_min(x,y) ((x) < (y) ? (x) : (y))
 #define isl_max(x,y) ((x) > (y) ? (x) : (y))
 #define isl_floord(n,d) (((n)<0) ? -((-(n)+(d)-1)/(d)) : (n)/(d))
-extern "C" void unsharp_mask_par(int  C, int  R, float thresh, float weight, const void * input_void, void * mask_void)
+extern "C" void  pipeline_mask(int  C, int  R, float  threshold, float  weight, void * img_void_arg, void * mask_void_arg)
 {
-    float *input = (float *)input_void;
-    float *mask = (float *)mask_void;
+  unsigned char * img_flip;
+  img_flip = (unsigned char *) (img_void_arg);
+  float * mask_flip;
+  mask_flip = (float *) (mask_void_arg);
 
-  //mask = (float *) (malloc((sizeof(float ) * ((3 * R) * C))));
+    float * img = (float *)malloc(sizeof(float) * 3 * (R+4) * (C+4));
+    float * mask = (float *)malloc(sizeof(float) * 3 * R * C);
+    #pragma omp parallel for schedule(static)
+    for(int i = 0; i < R+4; i++)
+        for(int j = 0; j< C+4; j++)
+            for(int c = 0; c < 3; c++)
+                img[c*(R+4)*(C+4) + i*(C+4) + j] = ((float)img_flip[i*(C+4)*3 + j*3 + c]) / 255.0f;
+
   #pragma omp parallel for schedule(static)
-  for (int  _T_i1 = 0; (_T_i1 <= ((R + 1) / 64)); _T_i1 = (_T_i1 + 1))
+  for (int  _T_i1 = 0; (_T_i1 <= ((R + 1) / 32)); _T_i1 = (_T_i1 + 1))
   {
-    float  blurx[3][64][70];
-    float  blury[3][64][70];
-    float  sharpen[3][64][70];
-    for (int  _T_i2 = -1; (_T_i2 <= ((C + 3) / 64)); _T_i2 = (_T_i2 + 1))
+    float  blurx[3][32][262];
+    float  blury[3][32][262];
+    float  sharpen[3][32][262];
+    for (int  _T_i2 = -1; (_T_i2 <= ((C + 3) / 256)); _T_i2 = (_T_i2 + 1))
     {
       for (int  _i0 = 0; (_i0 <= 2); _i0 = (_i0 + 1))
       {
-        int  _ct19 = (((R + 1) < ((64 * _T_i1) + 63))? (R + 1): ((64 * _T_i1) + 63));
-        int  _ct20 = ((2 > (64 * _T_i1))? 2: (64 * _T_i1));
-        for (int  _i1 = _ct20; (_i1 <= _ct19); _i1 = (_i1 + 1))
+        int  _ct0 = (((R + 1) < ((32 * _T_i1) + 31))? (R + 1): ((32 * _T_i1) + 31));
+        int  _ct1 = ((2 > (32 * _T_i1))? 2: (32 * _T_i1));
+        for (int  _i1 = _ct1; (_i1 <= _ct0); _i1 = (_i1 + 1))
         {
-          int  _ct21 = (((C + 3) < ((64 * _T_i2) + 69))? (C + 3): ((64 * _T_i2) + 69));
-          int  _ct22 = ((0 > (64 * _T_i2))? 0: (64 * _T_i2));
+          int  _ct2 = (((C + 3) < ((256 * _T_i2) + 261))? (C + 3): ((256 * _T_i2) + 261));
+          int  _ct3 = ((0 > (256 * _T_i2))? 0: (256 * _T_i2));
           #pragma ivdep
-          for (int  _i2 = _ct22; (_i2 <= _ct21); _i2 = (_i2 + 1))
+          for (int  _i2 = _ct3; (_i2 <= _ct2); _i2 = (_i2 + 1))
           {
-            blurx[_i0][((-64 * _T_i1) + _i1)][((-64 * _T_i2) + _i2)] = (((((input[(((_i0 * ((R + 4) * (C + 4))) + ((-2 + _i1) * (C + 4))) + _i2)] * 0.0625f) + (input[(((_i0 * ((R + 4) * (C + 4))) + ((-1 + _i1) * (C + 4))) + _i2)] * 0.25f)) + (input[(((_i0 * ((R + 4) * (C + 4))) + (_i1 * (C + 4))) + _i2)] * 0.375f)) + (input[(((_i0 * ((R + 4) * (C + 4))) + ((1 + _i1) * (C + 4))) + _i2)] * 0.25f)) + (input[(((_i0 * ((R + 4) * (C + 4))) + ((2 + _i1) * (C + 4))) + _i2)] * 0.0625f));
+            blurx[_i0][((-32 * _T_i1) + _i1)][((-256 * _T_i2) + _i2)] = (((((img[(((_i0 * ((R + 4) * (C + 4))) + ((-2 + _i1) * (C + 4))) + _i2)] * 0.0625f) + (img[(((_i0 * ((R + 4) * (C + 4))) + ((-1 + _i1) * (C + 4))) + _i2)] * 0.25f)) + (img[(((_i0 * ((R + 4) * (C + 4))) + (_i1 * (C + 4))) + _i2)] * 0.375f)) + (img[(((_i0 * ((R + 4) * (C + 4))) + ((1 + _i1) * (C + 4))) + _i2)] * 0.25f)) + (img[(((_i0 * ((R + 4) * (C + 4))) + ((2 + _i1) * (C + 4))) + _i2)] * 0.0625f));
           }
         }
       }
       for (int  _i0 = 0; (_i0 <= 2); _i0 = (_i0 + 1))
       {
-        int  _ct23 = (((R + 1) < ((64 * _T_i1) + 63))? (R + 1): ((64 * _T_i1) + 63));
-        int  _ct24 = ((2 > (64 * _T_i1))? 2: (64 * _T_i1));
-        for (int  _i1 = _ct24; (_i1 <= _ct23); _i1 = (_i1 + 1))
+        int  _ct4 = (((R + 1) < ((32 * _T_i1) + 31))? (R + 1): ((32 * _T_i1) + 31));
+        int  _ct5 = ((2 > (32 * _T_i1))? 2: (32 * _T_i1));
+        for (int  _i1 = _ct5; (_i1 <= _ct4); _i1 = (_i1 + 1))
         {
-          int  _ct25 = (((C + 1) < ((64 * _T_i2) + 68))? (C + 1): ((64 * _T_i2) + 68));
-          int  _ct26 = ((2 > ((64 * _T_i2) + 1))? 2: ((64 * _T_i2) + 1));
+          int  _ct6 = (((C + 1) < ((256 * _T_i2) + 260))? (C + 1): ((256 * _T_i2) + 260));
+          int  _ct7 = ((2 > ((256 * _T_i2) + 1))? 2: ((256 * _T_i2) + 1));
           #pragma ivdep
-          for (int  _i2 = _ct26; (_i2 <= _ct25); _i2 = (_i2 + 1))
+          for (int  _i2 = _ct7; (_i2 <= _ct6); _i2 = (_i2 + 1))
           {
-            blury[_i0][((-64 * _T_i1) + _i1)][((-64 * _T_i2) + _i2)] = (((((blurx[_i0][((-64 * _T_i1) + _i1)][(-2 + ((-64 * _T_i2) + _i2))] * 0.0625f) + (blurx[_i0][((-64 * _T_i1) + _i1)][(-1 + ((-64 * _T_i2) + _i2))] * 0.25f)) + (blurx[_i0][((-64 * _T_i1) + _i1)][((-64 * _T_i2) + _i2)] * 0.375f)) + (blurx[_i0][((-64 * _T_i1) + _i1)][(1 + ((-64 * _T_i2) + _i2))] * 0.25f)) + (blurx[_i0][((-64 * _T_i1) + _i1)][(2 + ((-64 * _T_i2) + _i2))] * 0.0625f));
+            blury[_i0][((-32 * _T_i1) + _i1)][((-256 * _T_i2) + _i2)] = (((((blurx[_i0][((-32 * _T_i1) + _i1)][(-2 + ((-256 * _T_i2) + _i2))] * 0.0625f) + (blurx[_i0][((-32 * _T_i1) + _i1)][(-1 + ((-256 * _T_i2) + _i2))] * 0.25f)) + (blurx[_i0][((-32 * _T_i1) + _i1)][((-256 * _T_i2) + _i2)] * 0.375f)) + (blurx[_i0][((-32 * _T_i1) + _i1)][(1 + ((-256 * _T_i2) + _i2))] * 0.25f)) + (blurx[_i0][((-32 * _T_i1) + _i1)][(2 + ((-256 * _T_i2) + _i2))] * 0.0625f));
           }
         }
       }
       for (int  _i0 = 0; (_i0 <= 2); _i0 = (_i0 + 1))
       {
-        int  _ct27 = (((R + 1) < ((64 * _T_i1) + 63))? (R + 1): ((64 * _T_i1) + 63));
-        int  _ct28 = ((2 > (64 * _T_i1))? 2: (64 * _T_i1));
-        for (int  _i1 = _ct28; (_i1 <= _ct27); _i1 = (_i1 + 1))
+        int  _ct8 = (((R + 1) < ((32 * _T_i1) + 31))? (R + 1): ((32 * _T_i1) + 31));
+        int  _ct9 = ((2 > (32 * _T_i1))? 2: (32 * _T_i1));
+        for (int  _i1 = _ct9; (_i1 <= _ct8); _i1 = (_i1 + 1))
         {
-          int  _ct29 = (((C + 1) < ((64 * _T_i2) + 67))? (C + 1): ((64 * _T_i2) + 67));
-          int  _ct30 = ((2 > ((64 * _T_i2) + 2))? 2: ((64 * _T_i2) + 2));
+          int  _ct10 = (((C + 1) < ((256 * _T_i2) + 259))? (C + 1): ((256 * _T_i2) + 259));
+          int  _ct11 = ((2 > ((256 * _T_i2) + 2))? 2: ((256 * _T_i2) + 2));
           #pragma ivdep
-          for (int  _i2 = _ct30; (_i2 <= _ct29); _i2 = (_i2 + 1))
+          for (int  _i2 = _ct11; (_i2 <= _ct10); _i2 = (_i2 + 1))
           {
-            sharpen[_i0][((-64 * _T_i1) + _i1)][((-64 * _T_i2) + _i2)] = ((input[(((_i0 * ((R + 4) * (C + 4))) + (_i1 * (C + 4))) + _i2)] * (1 + weight)) + (blury[_i0][((-64 * _T_i1) + _i1)][((-64 * _T_i2) + _i2)] * -(weight)));
+            sharpen[_i0][((-32 * _T_i1) + _i1)][((-256 * _T_i2) + _i2)] = ((img[(((_i0 * ((R + 4) * (C + 4))) + (_i1 * (C + 4))) + _i2)] * (1 + weight)) + (blury[_i0][((-32 * _T_i1) + _i1)][((-256 * _T_i2) + _i2)] * -(weight)));
           }
         }
       }
       for (int  _i0 = 0; (_i0 <= 2); _i0 = (_i0 + 1))
       {
-        int  _ct31 = (((R + 1) < ((64 * _T_i1) + 63))? (R + 1): ((64 * _T_i1) + 63));
-        int  _ct32 = ((2 > (64 * _T_i1))? 2: (64 * _T_i1));
-        for (int  _i1 = _ct32; (_i1 <= _ct31); _i1 = (_i1 + 1))
+        int  _ct12 = (((R + 1) < ((32 * _T_i1) + 31))? (R + 1): ((32 * _T_i1) + 31));
+        int  _ct13 = ((2 > (32 * _T_i1))? 2: (32 * _T_i1));
+        for (int  _i1 = _ct13; (_i1 <= _ct12); _i1 = (_i1 + 1))
         {
-          int  _ct33 = (((C + 1) < ((64 * _T_i2) + 66))? (C + 1): ((64 * _T_i2) + 66));
-          int  _ct34 = ((2 > ((64 * _T_i2) + 3))? 2: ((64 * _T_i2) + 3));
+          int  _ct14 = (((C + 1) < ((256 * _T_i2) + 258))? (C + 1): ((256 * _T_i2) + 258));
+          int  _ct15 = ((2 > ((256 * _T_i2) + 3))? 2: ((256 * _T_i2) + 3));
           #pragma ivdep
-          for (int  _i2 = _ct34; (_i2 <= _ct33); _i2 = (_i2 + 1))
+          for (int  _i2 = _ct15; (_i2 <= _ct14); _i2 = (_i2 + 1))
           {
-            float  _ct35 = input[(((_i0 * ((R + 4) * (C + 4))) + (_i1 * (C + 4))) + _i2)];
-            float  _ct36 = sharpen[_i0][((-64 * _T_i1) + _i1)][((-64 * _T_i2) + _i2)];
-            float  _ct37 = ((std::abs((input[(((_i0 * ((R + 4) * (C + 4))) + (_i1 * (C + 4))) + _i2)] - blury[_i0][((-64 * _T_i1) + _i1)][((-64 * _T_i2) + _i2)])) < thresh)? _ct35: _ct36);
-            mask[(((_i0 * (R * C)) + ((_i1 - 2) * C)) + (_i2 - 2))] = _ct37;
+            float  _ct16 = img[(((_i0 * ((R + 4) * (C + 4))) + (_i1 * (C + 4))) + _i2)];
+            float  _ct17 = sharpen[_i0][((-32 * _T_i1) + _i1)][((-256 * _T_i2) + _i2)];
+            float  _ct18 = ((std::abs((img[(((_i0 * ((R + 4) * (C + 4))) + (_i1 * (C + 4))) + _i2)] - blury[_i0][((-32 * _T_i1) + _i1)][((-256 * _T_i2) + _i2)])) < threshold)? _ct16: _ct17);
+            mask[(((_i0 * (R * C)) + ((_i1 - 2) * C)) + (_i2 - 2))] = _ct18;
           }
         }
       }
     }
   }
-}
-extern "C" void unsharp_mask(int  C, int  R, float thresh, float weight, const void * input_void, void * mask_void)
-{
-    float *input = (float *)input_void;
-    float *mask = (float *)mask_void;
 
-  //mask = (float *) (malloc((sizeof(float ) * ((3 * R) * C))));
-  for (int  _T_i1 = 0; (_T_i1 <= ((R + 1) / 64)); _T_i1 = (_T_i1 + 1))
-  {
-    float  blurx[3][64][70];
-    float  blury[3][64][70];
-    float  sharpen[3][64][70];
-    for (int  _T_i2 = -1; (_T_i2 <= ((C + 3) / 64)); _T_i2 = (_T_i2 + 1))
-    {
-      for (int  _i0 = 0; (_i0 <= 2); _i0 = (_i0 + 1))
-      {
-        int  _ct19 = (((R + 1) < ((64 * _T_i1) + 63))? (R + 1): ((64 * _T_i1) + 63));
-        int  _ct20 = ((2 > (64 * _T_i1))? 2: (64 * _T_i1));
-        for (int  _i1 = _ct20; (_i1 <= _ct19); _i1 = (_i1 + 1))
-        {
-          int  _ct21 = (((C + 3) < ((64 * _T_i2) + 69))? (C + 3): ((64 * _T_i2) + 69));
-          int  _ct22 = ((0 > (64 * _T_i2))? 0: (64 * _T_i2));
-          #pragma ivdep
-          for (int  _i2 = _ct22; (_i2 <= _ct21); _i2 = (_i2 + 1))
-          {
-            blurx[_i0][((-64 * _T_i1) + _i1)][((-64 * _T_i2) + _i2)] = (((((input[(((_i0 * ((R + 4) * (C + 4))) + ((-2 + _i1) * (C + 4))) + _i2)] * 0.0625f) + (input[(((_i0 * ((R + 4) * (C + 4))) + ((-1 + _i1) * (C + 4))) + _i2)] * 0.25f)) + (input[(((_i0 * ((R + 4) * (C + 4))) + (_i1 * (C + 4))) + _i2)] * 0.375f)) + (input[(((_i0 * ((R + 4) * (C + 4))) + ((1 + _i1) * (C + 4))) + _i2)] * 0.25f)) + (input[(((_i0 * ((R + 4) * (C + 4))) + ((2 + _i1) * (C + 4))) + _i2)] * 0.0625f));
-          }
-        }
-      }
-      for (int  _i0 = 0; (_i0 <= 2); _i0 = (_i0 + 1))
-      {
-        int  _ct23 = (((R + 1) < ((64 * _T_i1) + 63))? (R + 1): ((64 * _T_i1) + 63));
-        int  _ct24 = ((2 > (64 * _T_i1))? 2: (64 * _T_i1));
-        for (int  _i1 = _ct24; (_i1 <= _ct23); _i1 = (_i1 + 1))
-        {
-          int  _ct25 = (((C + 1) < ((64 * _T_i2) + 68))? (C + 1): ((64 * _T_i2) + 68));
-          int  _ct26 = ((2 > ((64 * _T_i2) + 1))? 2: ((64 * _T_i2) + 1));
-          #pragma ivdep
-          for (int  _i2 = _ct26; (_i2 <= _ct25); _i2 = (_i2 + 1))
-          {
-            blury[_i0][((-64 * _T_i1) + _i1)][((-64 * _T_i2) + _i2)] = (((((blurx[_i0][((-64 * _T_i1) + _i1)][(-2 + ((-64 * _T_i2) + _i2))] * 0.0625f) + (blurx[_i0][((-64 * _T_i1) + _i1)][(-1 + ((-64 * _T_i2) + _i2))] * 0.25f)) + (blurx[_i0][((-64 * _T_i1) + _i1)][((-64 * _T_i2) + _i2)] * 0.375f)) + (blurx[_i0][((-64 * _T_i1) + _i1)][(1 + ((-64 * _T_i2) + _i2))] * 0.25f)) + (blurx[_i0][((-64 * _T_i1) + _i1)][(2 + ((-64 * _T_i2) + _i2))] * 0.0625f));
-          }
-        }
-      }
-      for (int  _i0 = 0; (_i0 <= 2); _i0 = (_i0 + 1))
-      {
-        int  _ct27 = (((R + 1) < ((64 * _T_i1) + 63))? (R + 1): ((64 * _T_i1) + 63));
-        int  _ct28 = ((2 > (64 * _T_i1))? 2: (64 * _T_i1));
-        for (int  _i1 = _ct28; (_i1 <= _ct27); _i1 = (_i1 + 1))
-        {
-          int  _ct29 = (((C + 1) < ((64 * _T_i2) + 67))? (C + 1): ((64 * _T_i2) + 67));
-          int  _ct30 = ((2 > ((64 * _T_i2) + 2))? 2: ((64 * _T_i2) + 2));
-          #pragma ivdep
-          for (int  _i2 = _ct30; (_i2 <= _ct29); _i2 = (_i2 + 1))
-          {
-            sharpen[_i0][((-64 * _T_i1) + _i1)][((-64 * _T_i2) + _i2)] = ((input[(((_i0 * ((R + 4) * (C + 4))) + (_i1 * (C + 4))) + _i2)] * (1 + weight)) + (blury[_i0][((-64 * _T_i1) + _i1)][((-64 * _T_i2) + _i2)] * -(weight)));
-          }
-        }
-      }
-      for (int  _i0 = 0; (_i0 <= 2); _i0 = (_i0 + 1))
-      {
-        int  _ct31 = (((R + 1) < ((64 * _T_i1) + 63))? (R + 1): ((64 * _T_i1) + 63));
-        int  _ct32 = ((2 > (64 * _T_i1))? 2: (64 * _T_i1));
-        for (int  _i1 = _ct32; (_i1 <= _ct31); _i1 = (_i1 + 1))
-        {
-          int  _ct33 = (((C + 1) < ((64 * _T_i2) + 66))? (C + 1): ((64 * _T_i2) + 66));
-          int  _ct34 = ((2 > ((64 * _T_i2) + 3))? 2: ((64 * _T_i2) + 3));
-          #pragma ivdep
-          for (int  _i2 = _ct34; (_i2 <= _ct33); _i2 = (_i2 + 1))
-          {
-            float  _ct35 = input[(((_i0 * ((R + 4) * (C + 4))) + (_i1 * (C + 4))) + _i2)];
-            float  _ct36 = sharpen[_i0][((-64 * _T_i1) + _i1)][((-64 * _T_i2) + _i2)];
-            float  _ct37 = ((std::abs((input[(((_i0 * ((R + 4) * (C + 4))) + (_i1 * (C + 4))) + _i2)] - blury[_i0][((-64 * _T_i1) + _i1)][((-64 * _T_i2) + _i2)])) < thresh)? _ct35: _ct36);
-            mask[(((_i0 * (R * C)) + ((_i1 - 2) * C)) + (_i2 - 2))] = _ct37;
-          }
-        }
-      }
-    }
-  }
+    #pragma omp parallel for schedule(static)
+    for(int i = 0; i < R; i++)
+        for(int j = 0; j< C; j++)
+            for(int c = 0; c < 3; c++)
+                mask_flip[i*C*3 + j*3 + c] = mask[c*R*C + i*C + j];
+
+    free(img);
+    free(mask);
 }
