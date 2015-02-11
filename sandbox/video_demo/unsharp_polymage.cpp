@@ -13,12 +13,12 @@ extern "C" void  pipeline_mask(int  C, int  R, float  threshold, float  weight, 
   float * mask_flip;
   mask_flip = (float *) (mask_void_arg);
 
-    float * img = (float *)malloc(sizeof(float) * 3 * (R+4) * (C+4));
-    #pragma omp parallel for schedule(static)
-    for(int i = 0; i < R+4; i++)
-        for(int j = 0; j< C+4; j++)
-            for(int c = 0; c < 3; c++)
-                img[c*(R+4)*(C+4) + i*(C+4) + j] = ((float)img_flip[i*(C+4)*3 + j*3 + c]) / 255.0f;
+  float * img = (float *)malloc(sizeof(float) * 3 * (R+4) * (C+4));
+  #pragma omp parallel for schedule(static)
+  for(int i = 0; i < R+4; i++)
+      for(int j = 0; j< C+4; j++)
+          for(int c = 0; c < 3; c++)
+              img[c*(R+4)*(C+4) + i*(C+4) + j] = ((float)img_flip[i*(C+4)*3 + j*3 + c]) / 255.0f;
 
   #pragma omp parallel for schedule(static)
   for (int  _T_i1 = 0; (_T_i1 <= ((R + 1) / 32)); _T_i1 = (_T_i1 + 1))
@@ -94,5 +94,5 @@ extern "C" void  pipeline_mask(int  C, int  R, float  threshold, float  weight, 
     }
   }
 
-    free(img);
+  free(img);
 }

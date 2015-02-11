@@ -56,8 +56,8 @@ while(cap.isOpened()):
         res = res.reshape(rows-4, cols-4, 3)
     elif bilateral_mode:
         res = np.zeros((rows, cols), np.float32)
-        bilateral(ctypes.c_int(cols), \
-                  ctypes.c_int(rows), \
+        bilateral(ctypes.c_int(cols+56), \
+                  ctypes.c_int(rows+56), \
                   ctypes.c_void_p(frame.ctypes.data), \
                   ctypes.c_void_p(res.ctypes.data))
     else:
