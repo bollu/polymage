@@ -1,5 +1,5 @@
 CXX=icpc
-CXXFLAGS=-xhost -openmp -fPIC -shared
+CXXFLAGS=-xhost -openmp -fPIC -shared -O3
 
 all: harris.so bilateral.so unsharp.so
 
