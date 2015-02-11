@@ -12,8 +12,13 @@ libunsharp = ctypes.cdll.LoadLibrary("./unsharp.so")
 libbilateral = ctypes.cdll.LoadLibrary("./bilateral.so")
 
 harris = libharris.pipeline_harris
+harris_naive = libharris.pipeline_harris_naive
+
 unsharp = libunsharp.pipeline_mask
+unsharp_naive = libunsharp.pipeline_mask_naive
+
 bilateral = libbilateral.pipeline_bilateral
+bilateral_naive = libbilateral.pipeline_bilateral_naive
 
 fn = sys.argv[1]
 cap = cv2.VideoCapture(fn)
@@ -21,6 +26,7 @@ cap = cv2.VideoCapture(fn)
 frames = 0
 startTime = time.clock()
 cv_mode = True
+naive_mode = False
 harris_mode = False
 unsharp_mode = False
 bilateral_mode = False
@@ -40,26 +46,52 @@ while(cap.isOpened()):
             gray = np.float32(gray) / 4.0
             res = cv2.cornerHarris(gray, 3, 3, 0.04)
         else:
-            res = np.zeros((rows, cols), np.float32) 
-            harris(ctypes.c_int(cols-2), \
-                   ctypes.c_int(rows-2), \
-                   ctypes.c_void_p(frame.ctypes.data), \
-                   ctypes.c_void_p(res.ctypes.data))
+            if naive_mode:
+                res = np.zeros((rows, cols), np.float32) 
+                harris_naive(ctypes.c_int(cols-2), \
+                             ctypes.c_int(rows-2), \
+                             ctypes.c_void_p(frame.ctypes.data), \
+                             ctypes.c_void_p(res.ctypes.data))
+            else:
+                res = np.zeros((rows, cols), np.float32) 
+                harris(ctypes.c_int(cols-2), \
+                       ctypes.c_int(rows-2), \
+                       ctypes.c_void_p(frame.ctypes.data), \
+                       ctypes.c_void_p(res.ctypes.data))
+
     elif unsharp_mode:
-        res = np.empty((3, rows-4, cols-4), np.float32).ravel()
-        unsharp(ctypes.c_int(cols-4), \
-                ctypes.c_int(rows-4), \
-                ctypes.c_float(thresh), \
-                ctypes.c_float(weight), \
-                ctypes.c_void_p(frame.ctypes.data), \
-                ctypes.c_void_p(res.ctypes.data))
-        res = res.reshape(rows-4, cols-4, 3)
+        if naive_mode:
+            res = np.empty((3, rows-4, cols-4), np.float32).ravel()
+            unsharp_naive(ctypes.c_int(cols-4), \
+                          ctypes.c_int(rows-4), \
+                          ctypes.c_float(thresh), \
+                          ctypes.c_float(weight), \
+                          ctypes.c_void_p(frame.ctypes.data), \
+                          ctypes.c_void_p(res.ctypes.data))
+            res = res.reshape(rows-4, cols-4, 3)
+        else:
+            res = np.empty((3, rows-4, cols-4), np.float32).ravel()
+            unsharp(ctypes.c_int(cols-4), \
+                    ctypes.c_int(rows-4), \
+                    ctypes.c_float(thresh), \
+                    ctypes.c_float(weight), \
+                    ctypes.c_void_p(frame.ctypes.data), \
+                    ctypes.c_void_p(res.ctypes.data))
+            res = res.reshape(rows-4, cols-4, 3)
+
     elif bilateral_mode:
-        res = np.zeros((rows, cols), np.float32)
-        bilateral(ctypes.c_int(cols+56), \
-                  ctypes.c_int(rows+56), \
-                  ctypes.c_void_p(frame.ctypes.data), \
-                  ctypes.c_void_p(res.ctypes.data))
+        if naive_mode:
+            res = np.zeros((rows, cols), np.float32)
+            bilateral_naive(ctypes.c_int(cols+56), \
+                            ctypes.c_int(rows+56), \
+                            ctypes.c_void_p(frame.ctypes.data), \
+                            ctypes.c_void_p(res.ctypes.data))
+        else:
+            res = np.zeros((rows, cols), np.float32)
+            bilateral(ctypes.c_int(cols+56), \
+                      ctypes.c_int(rows+56), \
+                      ctypes.c_void_p(frame.ctypes.data), \
+                      ctypes.c_void_p(res.ctypes.data))
     else:
         res = frame
 
@@ -71,7 +103,10 @@ while(cap.isOpened()):
     if cv_mode and harris_mode:
         draw_str(res, (40, 80),  "Pipeline        :  " + str("OpenCV"))
     elif bilateral_mode or harris_mode or unsharp_mode:
-        draw_str(res, (40, 80),  "Pipeline        :  " + str("PolyMage"))
+        if naive_mode:
+            draw_str(res, (40, 80),  "Pipeline        :  " + str("PolyMage (Naive)"))
+        else:
+            draw_str(res, (40, 80),  "Pipeline        :  " + str("PolyMage (Opt)"))
     else:
         draw_str(res, (40, 80),  "Pipeline        :  ")
 
@@ -91,6 +126,8 @@ while(cap.isOpened()):
         break
     if ch == ord(' '):
         cv_mode = not cv_mode
+    if ch == ord('n'):
+        naive_mode = not naive_mode
     if ch == ord('h'):
         harris_mode = not harris_mode
         bilateral_mode = False
