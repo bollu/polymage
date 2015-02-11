@@ -45,7 +45,6 @@ while(cap.isOpened()):
                    ctypes.c_int(rows-2), \
                    ctypes.c_void_p(frame.ctypes.data), \
                    ctypes.c_void_p(res.ctypes.data))
-        res = cv2.cvtColor(res, cv2.COLOR_GRAY2RGB)     
     elif unsharp_mode:
         res = np.empty((3, rows-4, cols-4), np.float32).ravel()
         unsharp(ctypes.c_int(cols-4), \

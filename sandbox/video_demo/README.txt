@@ -2,9 +2,9 @@ Compiling the cpp file as a shared library
 ==========================================
 icpc -xhost -openmp -fPIC -shared -o <file>.so <file>.cpp
 
-icpc -xhost -openmp -fPIC -shared -o harris.so harris_polymage.cpp
-icpc -xhost -openmp -fPIC -shared -o bilateral.so bilateral_polymage.cpp
-icpc -xhost -openmp -fPIC -shared -o unsharp.so unsharp_polymage.cpp
+icpc -O3 -xhost -openmp -fPIC -shared -o harris.so harris_polymage.cpp
+icpc -O3 -xhost -openmp -fPIC -shared -o bilateral.so bilateral_polymage.cpp
+icpc -O3 -xhost -openmp -fPIC -shared -o unsharp.so unsharp_polymage.cpp
 
 Run the python script as
 
