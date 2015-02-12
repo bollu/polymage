@@ -478,6 +478,7 @@ extern "C" void  pipeline_bilateral_naive(int  C, int  R, void * input_void_arg,
       filtered[((0 + ((_i1 - 24) * (-56 + C))) + (_i2 - 24))] = _ct2;
     }
   }
+  free(input);
   free(gray);
   free(grid);
   free(blurz);
