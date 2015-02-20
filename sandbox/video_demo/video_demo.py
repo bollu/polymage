@@ -4,12 +4,13 @@ import time
 import cv2
 import sys
 
-from common import clock, draw_str, StatValue
+from common import clock, draw_str, StatValue, image_clamp
 
 # load polymage shared libraries
 libharris = ctypes.cdll.LoadLibrary("./harris.so")
 libunsharp = ctypes.cdll.LoadLibrary("./unsharp.so")
 libbilateral = ctypes.cdll.LoadLibrary("./bilateral.so")
+liblaplacian = ctypes.cdll.LoadLibrary("./laplacian.so")
 
 harris = libharris.pipeline_harris
 harris_naive = libharris.pipeline_harris_naive
@@ -20,19 +21,29 @@ unsharp_naive = libunsharp.pipeline_mask_naive
 bilateral = libbilateral.pipeline_bilateral
 bilateral_naive = libbilateral.pipeline_bilateral_naive
 
+laplacian = liblaplacian.pipeline_laplacian
+laplacian_naive = liblaplacian.pipeline_laplacian_naive
+
 fn = sys.argv[1]
 cap = cv2.VideoCapture(fn)
 
 frames = 0
 startTime = time.clock()
+
 cv_mode = True
 naive_mode = False
+
 harris_mode = False
 unsharp_mode = False
 bilateral_mode = False
+laplacian_mode = False
 
 thresh = 0.001
 weight = 3
+
+levels = 4
+alpha = 1.0/(levels-1)
+beta = 1.0
 
 while(cap.isOpened()):
     ret, frame = cap.read()
@@ -79,6 +90,28 @@ while(cap.isOpened()):
                     ctypes.c_void_p(res.ctypes.data))
             res = res.reshape(rows-4, cols-4, 3)
 
+    elif laplacian_mode:
+        total_pad = 92
+        # result array
+        res = np.zeros((rows, cols, 3), np.uint16).ravel()
+
+        if naive_mode:
+            laplacian_naive(ctypes.c_int(cols+total_pad), \
+                            ctypes.c_int(rows+total_pad), \
+                            ctypes.c_float(alpha), \
+                            ctypes.c_float(beta), \
+                            ctypes.c_void_p(frame.ctypes.data), \
+                            ctypes.c_void_p(res.ctypes.data))
+        else:
+            laplacian(ctypes.c_int(cols+total_pad), \
+                      ctypes.c_int(rows+total_pad), \
+                      ctypes.c_float(alpha), \
+                      ctypes.c_float(beta), \
+                      ctypes.c_void_p(frame.ctypes.data), \
+                      ctypes.c_void_p(res.ctypes.data))
+
+        res = res.reshape(rows,cols,3)
+
     elif bilateral_mode:
         if naive_mode:
             res = np.zeros((rows, cols), np.float32)
@@ -97,12 +130,12 @@ while(cap.isOpened()):
 
     frameEnd = clock()
 
-    cv2.rectangle(res, (0, 0), (750, 150), (255, 255, 255), thickness=cv2.cv.CV_FILLED)
+    #cv2.rectangle(res, (0, 0), (750, 150), (255, 255, 255), thickness=cv2.cv.CV_FILLED)
 
     draw_str(res, (40, 40),      "frame interval :  %.1f ms" % (frameEnd*1000 - frameStart*1000))
     if cv_mode and harris_mode:
         draw_str(res, (40, 80),  "Pipeline        :  " + str("OpenCV"))
-    elif bilateral_mode or harris_mode or unsharp_mode:
+    elif bilateral_mode or harris_mode or unsharp_mode or laplacian_mode:
         if naive_mode:
             draw_str(res, (40, 80),  "Pipeline        :  " + str("PolyMage (Naive)"))
         else:
@@ -116,6 +149,8 @@ while(cap.isOpened()):
         draw_str(res, (40, 120), "Benchmark    :  " + str("Bilateral Grid"))
     elif unsharp_mode:
         draw_str(res, (40, 120), "Benchmark    :  " + str("Unsharp Mask"))
+    elif laplacian_mode:
+        draw_str(res, (40, 120), "Benchmark    :  " + str("Local Laplacian"))
     else:
         draw_str(res, (40, 120), "Benchmark    :  ")
 
@@ -132,14 +167,22 @@ while(cap.isOpened()):
         harris_mode = not harris_mode
         bilateral_mode = False
         unsharp_mode = False
+        laplacian_mode = False
     if ch == ord('u'):
         unsharp_mode = not unsharp_mode
+        bilateral_mode = False
+        harris_mode = False
+        laplacian_mode = False
+    if ch == ord('l'):
+        laplacian_mode = not laplacian_mode
+        unsharp_mode = False
         bilateral_mode = False
         harris_mode = False
     if ch == ord('b'):
         bilateral_mode = not bilateral_mode
         harris_mode = False
         unsharp_mode = False
+        laplacian_mode = False
     frames += 1
 
 cap.release()

@@ -21,97 +21,100 @@ extern "C" void  pipeline_bilateral(int  C, int  R, void * input_void_arg, void 
   float * grid;
   grid = (float *) (malloc((sizeof(float ) * (((2 * (((((R - 1) / 8) - 1) - 1) + 1)) * (((((C - 1) / 8) - 1) - 1) + 1)) * 15))));
 
-  int _R = R-56;
-  int _C = C-56;
-  for (int _i0 = 24; _i0 < _R+24; _i0++)
+  int off_left = 24;
+  int total_pad = 56;
+
+  int _R = R-total_pad;
+  int _C = C-total_pad;
+  for (int _i0 = off_left; _i0 < _R+off_left; _i0++)
   {
-    for (int _i1 = 24; _i1 < _C+24; _i1++)
+    for (int _i1 = off_left; _i1 < _C+off_left; _i1++)
     {
       for (int _i2 = 0; _i2 <= 2; _i2++)
       {
-        input[_i0 * C * 3 + _i1 * 3 + _i2] = input_orig[(_i0-24)*(_C)*3 + (_i1-24)*3 + _i2];
+        input[_i0 * C * 3 + _i1 * 3 + _i2] = input_orig[(_i0-off_left)*(_C)*3 + (_i1-off_left)*3 + _i2];
       }
     }
   }
-  for (int _i0 = 24; _i0 < _R+24; _i0++)
+  for (int _i0 = off_left; _i0 < _R+off_left; _i0++)
   {
-    for (int _i1 = 0; _i1 < 24; _i1++)
+    for (int _i1 = 0; _i1 < off_left; _i1++)
     {
       for (int _i2 = 0; _i2 <= 2; _i2++)
       {
-        input[_i0 * C * 3 + _i1 * 3 + _i2] = input[(_i0) * C * 3 + 24 * 3 + _i2];
+        input[_i0 * C * 3 + _i1 * 3 + _i2] = input[(_i0) * C * 3 + off_left * 3 + _i2];
       }
     }
   }
-  for (int _i0 = 24; _i0 < _R+24; _i0++)
+  for (int _i0 = off_left; _i0 < _R+off_left; _i0++)
   {
-    for (int _i1 = _C+24; _i1 < C; _i1++)
+    for (int _i1 = _C+off_left; _i1 < C; _i1++)
     {
       for (int _i2 = 0; _i2 <= 2; _i2++)
       {
-        input[_i0 * C * 3 + _i1 * 3 + _i2] = input[(_i0) * C * 3 + (_C+15) * 3 + _i2];
+        input[_i0 * C * 3 + _i1 * 3 + _i2] = input[(_i0) * C * 3 + (_C+(off_left-1)) * 3 + _i2];
       }
     }
   }
 
-  for (int _i0 = 0; _i0 < 24; _i0++)
+  for (int _i0 = 0; _i0 < off_left; _i0++)
   {
-    for (int _i1 = 0; _i1 < 24; _i1++)
+    for (int _i1 = 0; _i1 < off_left; _i1++)
     {
       for (int _i2 = 0; _i2 <= 2; _i2++)
       {
-        input[_i0 * C * 3 + _i1 * 3 + _i2] = input[24 * C * 3 + 24 * 3 + _i2];
+        input[_i0 * C * 3 + _i1 * 3 + _i2] = input[off_left * C * 3 + off_left * 3 + _i2];
       }
     }
   }
-  for (int _i0 = 0; _i0 < 24; _i0++)
+  for (int _i0 = 0; _i0 < off_left; _i0++)
   {
-    for (int _i1 = 24; _i1 < _C+24; _i1++)
+    for (int _i1 = off_left; _i1 < _C+off_left; _i1++)
     {
       for (int _i2 = 0; _i2 <= 2; _i2++)
       {
-        input[_i0 * C * 3 + _i1 * 3 + _i2] = input[24 * C * 3 + _i1 * 3 + _i2];
+        input[_i0 * C * 3 + _i1 * 3 + _i2] = input[off_left * C * 3 + _i1 * 3 + _i2];
       }
     }
   }
-  for (int _i0 = 0; _i0 < 24; _i0++)
+  for (int _i0 = 0; _i0 < off_left; _i0++)
   {
-    for (int _i1 = _C+24; _i1 < C; _i1++)
+    for (int _i1 = _C+off_left; _i1 < C; _i1++)
     {
       for (int _i2 = 0; _i2 <= 2; _i2++)
       {
-        input[_i0 * C * 3 + _i1 * 3 + _i2] = input[24 * C * 3 + (_C+15) * 3 + _i2];
+        input[_i0 * C * 3 + _i1 * 3 + _i2] = input[off_left * C * 3 + (_C+(off_left-1)) * 3 + _i2];
       }
     }
   }
 
-  for (int _i0 = _R+24; _i0 < R; _i0++)
+  for (int _i0 = _R+off_left; _i0 < R; _i0++)
   {
-    for (int _i1 = 0; _i1 < 24; _i1++)
+    for (int _i1 = 0; _i1 < off_left; _i1++)
     {
       for (int _i2 = 0; _i2 <= 2; _i2++)
       {
-        input[_i0 * C * 3 + _i1 * 3 + _i2] = input[(_R+15) * C * 3 + 24 * 3 + _i2];
+        input[_i0 * C * 3 + _i1 * 3 + _i2] = input[(_R+(off_left-1)) * C * 3 + off_left * 3 + _i2];
       }
     }
   }
-  for (int _i0 = _R+24; _i0 < R; _i0++)
+  for (int _i0 = _R+off_left; _i0 < R; _i0++)
   {
-    for (int _i1 = 24; _i1 < _C+24; _i1++)
+    for (int _i1 = off_left; _i1 < _C+off_left; _i1++)
     {
       for (int _i2 = 0; _i2 <= 2; _i2++)
       {
-        input[_i0 * C * 3 + _i1 * 3 + _i2] = input[(_R+15) * C + _i1 * 3 + _i2];
+        input[_i0 * C * 3 + _i1 * 3 + _i2] = input[(_R+(off_left-1)) * C + _i1 * 3 + _i2];
       }
     }
   }
-  for (int _i0 = _R+24; _i0 < R; _i0++)
+  for (int _i0 = _R+off_left; _i0 < R; _i0++)
   {
-    for (int _i1 = _C+24; _i1 < C; _i1++)
+    for (int _i1 = _C+off_left; _i1 < C; _i1++)
     {
       for (int _i2 = 0; _i2 <= 2; _i2++)
       {
-        input[_i0 * C * 3 + _i1 * 3 + _i2] = input[(_R+15) * C * 3 + (_C+15) * 3 + _i2];
+        input[_i0 * C * 3 + _i1 * 3 + _i2] = input[(_R+(off_left-1)) * C * 3 + (_C+(off_left-1)) * 3 + _i2];
       }
     }
   }
