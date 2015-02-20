@@ -57,43 +57,39 @@ while(cap.isOpened()):
             gray = np.float32(gray) / 4.0
             res = cv2.cornerHarris(gray, 3, 3, 0.04)
         else:
+            res = np.empty((rows, cols), np.float32) 
             if naive_mode:
-                res = np.zeros((rows, cols), np.float32) 
                 harris_naive(ctypes.c_int(cols-2), \
                              ctypes.c_int(rows-2), \
                              ctypes.c_void_p(frame.ctypes.data), \
                              ctypes.c_void_p(res.ctypes.data))
             else:
-                res = np.zeros((rows, cols), np.float32) 
                 harris(ctypes.c_int(cols-2), \
                        ctypes.c_int(rows-2), \
                        ctypes.c_void_p(frame.ctypes.data), \
                        ctypes.c_void_p(res.ctypes.data))
 
     elif unsharp_mode:
+        res = np.empty((rows-4, cols-4, 3), np.float32)
         if naive_mode:
-            res = np.empty((3, rows-4, cols-4), np.float32).ravel()
             unsharp_naive(ctypes.c_int(cols-4), \
                           ctypes.c_int(rows-4), \
                           ctypes.c_float(thresh), \
                           ctypes.c_float(weight), \
                           ctypes.c_void_p(frame.ctypes.data), \
                           ctypes.c_void_p(res.ctypes.data))
-            res = res.reshape(rows-4, cols-4, 3)
         else:
-            res = np.empty((3, rows-4, cols-4), np.float32).ravel()
             unsharp(ctypes.c_int(cols-4), \
                     ctypes.c_int(rows-4), \
                     ctypes.c_float(thresh), \
                     ctypes.c_float(weight), \
                     ctypes.c_void_p(frame.ctypes.data), \
                     ctypes.c_void_p(res.ctypes.data))
-            res = res.reshape(rows-4, cols-4, 3)
 
     elif laplacian_mode:
         total_pad = 92
         # result array
-        res = np.zeros((rows, cols, 3), np.uint16).ravel()
+        res = np.empty((rows, cols, 3), np.uint8)
 
         if naive_mode:
             laplacian_naive(ctypes.c_int(cols+total_pad), \
@@ -110,17 +106,14 @@ while(cap.isOpened()):
                       ctypes.c_void_p(frame.ctypes.data), \
                       ctypes.c_void_p(res.ctypes.data))
 
-        res = res.reshape(rows,cols,3)
-
     elif bilateral_mode:
+        res = np.empty((rows, cols), np.float32)
         if naive_mode:
-            res = np.zeros((rows, cols), np.float32)
             bilateral_naive(ctypes.c_int(cols+56), \
                             ctypes.c_int(rows+56), \
                             ctypes.c_void_p(frame.ctypes.data), \
                             ctypes.c_void_p(res.ctypes.data))
         else:
-            res = np.zeros((rows, cols), np.float32)
             bilateral(ctypes.c_int(cols+56), \
                       ctypes.c_int(rows+56), \
                       ctypes.c_void_p(frame.ctypes.data), \
@@ -130,7 +123,7 @@ while(cap.isOpened()):
 
     frameEnd = clock()
 
-    #cv2.rectangle(res, (0, 0), (750, 150), (255, 255, 255), thickness=cv2.cv.CV_FILLED)
+    cv2.rectangle(res, (0, 0), (750, 150), (255, 255, 255), thickness=cv2.cv.CV_FILLED)
 
     draw_str(res, (40, 40),      "frame interval :  %.1f ms" % (frameEnd*1000 - frameStart*1000))
     if cv_mode and harris_mode:
