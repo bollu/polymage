@@ -4,7 +4,7 @@ from __future__ import absolute_import, division, print_function
 
 from fractions import Fraction
 import sys
-sys.path.insert(0, '../frontend')
+sys.path.insert(0, '../../frontend')
 from Constructs import *
 from Bounds import *
 
