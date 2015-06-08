@@ -6,7 +6,7 @@ from fractions import Fraction
 import sys
 sys.path.insert(0, '../../frontend')
 from Constructs import *
-from Bounds import *
+from Expression import *
 
 # Have to change the string comparision tests to something
 # better. Maybe eval the rexpression at the point.

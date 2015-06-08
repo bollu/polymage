@@ -428,7 +428,7 @@ class Case(object):
     def __init__(self, _cond, _expr):
         _expr = Value.numericToValue(_expr)
         assert(isinstance(_cond, Condition))
-        assert(isinstance(_expr, (AbstractExpression, Accumulate)))
+        assert(isinstance(_expr, (AbstractExpression, Reduce)))
         self._cond  = _cond
         self._expr  = _expr
     @property
@@ -457,10 +457,10 @@ class Op(object):
     Min = 1
     Max = 2
 
-class Accumulate(object):
+class Reduce(object):
     def __init__(self, _accRef, _expr, _opTyp):
         assert isinstance(_accRef, Reference)
-        assert isinstance(_accRef.objectRef, Accumulator)
+        assert isinstance(_accRef.objectRef, Reduction)
         _expr = Value.numericToValue(_expr)
         assert isinstance(_expr, AbstractExpression)
         assert _opTyp in [Op.Sum, Op.Min, Op.Max]
@@ -497,7 +497,7 @@ class Accumulate(object):
             opStr = 'Max'
         else:
             assert False
-        return 'Accumulate(' + self._accRef.__str__() + ' = ' + \
+        return 'Reduce(' + self._accRef.__str__() + ' = ' + \
                  self._accRef.__str__() + ',' + self._expr.__str__() + \
                  ' ' + opStr + ')'
 
@@ -645,7 +645,7 @@ class Image(Function):
         dim_str = ", ".join([dim.__str__() for dim in self._dims])
         return self._name.__str__() + "(" + dim_str + ")"
 
-class Accumulator(Function):
+class Reduction(Function):
     def __init__(self, _varDom, _redDom, _typ, _name):
         Function.__init__(self, _varDom, _typ, _name)
         # Gives the domain of the reduction. Reduction domain of each variable is 
@@ -699,7 +699,7 @@ class Accumulator(Function):
         self._body = []
         for case in _def:
             case = Value.numericToValue(case)
-            assert(isinstance(case, (Case, Accumulate)))
+            assert(isinstance(case, (Case, Reduce)))
             # check if the Case and Expression constructs only use
             # function variables and global parameters
     

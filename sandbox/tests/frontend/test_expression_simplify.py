@@ -6,7 +6,7 @@ from fractions import Fraction
 import sys
 sys.path.insert(0, '../../frontend')
 from Constructs import *
-from Bounds import *
+from Expression import *
 
 def test_simplify():
     N = Parameter(UInt, "N")
