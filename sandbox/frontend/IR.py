@@ -96,8 +96,8 @@ class Group:
                      ", ".join([ item.name for item in self._parentObjs]) + '\n' 
         return comp_str + '\n' + parent_str + '\n' + self._polyrep.__str__()
 
-class PipeLine:
-    def __init__(self, _paramConstraints, _outputs):
+class Pipeline:
+    def __init__(self, _ctx, _outputs, _paramConstraints):
         # Name of the pipleline is a concatenation of the names of the 
         # pipeline outputs.
         _name = ""
@@ -105,10 +105,11 @@ class PipeLine:
             _name = _name + out.name
         self._name   = _name
         
+        self._ctx = _ctx
         self._outputs = _outputs
         self._paramConstraints = _paramConstraints
         
-        # Create a group for each pipeline input / function / reduction
+        # Create a group for each pipeline function / reduction
         self._groups = self.createGroups()
 
         # Determine the parent and child groups for each group
@@ -118,7 +119,7 @@ class PipeLine:
         self._parents, self._children = self.buildGroupGraph()
 
         # Store the initial pipeline graph. The compiler can modify 
-        # the pipeline by inlining groups.
+        # the pipeline by inlining functions.
         self._initialGraph = self.drawPipelineGraph()
 
         # Make a list of all the input groups
@@ -188,10 +189,13 @@ class PipeLine:
         return G
 
     def buildGroupGraph(self):
-        # Find all the computation objects that are required for the pipeline,
-        # create groups for the computation and the depedency graph. This step 
-        # assumes that there are no cycles in the pipeline group graph this has 
-        # assumption has to be revisited when dealing with more complex pipelines.
+        """
+          Find all the computation objects that are required for the pipeline,
+          create groups for the computation and the depedency graph. This step
+          assumes that there are no cycles in the pipeline group graph this has
+          assumption has to be revisited when dealing with more complex
+          pipelines.
+        """
         groups = {}
         q = queue()
         for compObj in self._outputs:
@@ -215,11 +219,13 @@ class PipeLine:
         return groups
 
     def boundsCheckPass(self):
-        """ Bounds check pass analyzes if function values used in the compute 
-            objects are within the domain of the functions. Static analysis 
-            is only possible when the references to function values are regular
+        """ 
+            Bounds check pass analyzes if function values used in the compute
+            objects are within the domain of the functions. Static analysis is
+            only possible when the references to function values are regular
             i.e. they are not data dependent. We restrict ourselves to affine
-            references."""
+            references.
+        """
         for group in self._groups.values():
             for child in group.childGroups:
                 opt.checkRefs(child, group)              
@@ -235,8 +241,10 @@ class PipeLine:
                 opt.checkRefs(group, inpGroup)
 
     def inlinePass(self):
-        """ Inline pass takes all the inlining decisions and inlines functions 
-            at their use points in other groups."""
+        """ 
+            Inline pass takes all the inlining decisions and inlines functions 
+            at their use points in other groups.
+        """
         # Guidelines for inlining
         # -- Inlining functions which have multiple case constructs can quickly 
         #    turn out to be messy code generation nightmare.

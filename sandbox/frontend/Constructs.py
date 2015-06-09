@@ -183,7 +183,7 @@ class Cast(AbstractExpression):
     def clone(self):
         return Cast(self._typ, self._expr.clone())
     
-    def inlineRefs(self, refToExprMap):
+    def replaceReferences(self, refToExprMap):
         self._expr = substituteRefs(self._expr, refToExprMap)
 
     def __str__(self):
@@ -224,8 +224,8 @@ class Select(AbstractExpression):
             objs += [self]
         return list(set(objs))
 
-    def inlineRefs(self, refToExprMap):
-        self._cond.inlineRefs(refToExprMap)
+    def replaceReferences(self, refToExprMap):
+        self._cond.replaceReferences(refToExprMap)
         self._trueExpr = substituteRefs(self._trueExpr, refToExprMap)
         self._falseExpr = substituteRefs(self._falseExpr, refToExprMap)
     
@@ -376,13 +376,13 @@ class Condition(object):
         objs = self._left.collect(objType) + self._right.collect(objType)
         return list(set(objs))
 
-    def inlineRefs(self, refToExprMap):
+    def replaceReferences(self, refToExprMap):
         if(isinstance(self._left, Condition)):
-            self._left.inlineRefs(refToExprMap) 
+            self._left.replaceReferences(refToExprMap) 
         else:
             self._left = substituteRefs(self._left, refToExprMap) 
         if(isinstance(self._right, Condition)):
-            self._right.inlineRefs(refToExprMap)
+            self._right.replaceReferences(refToExprMap)
         else:
             self._right = substituteRefs(self._right, refToExprMap) 
 
@@ -444,8 +444,8 @@ class Case(object):
         objs = self._cond.collect(objType) + self._expr.collect(objType)
         return list(set(objs))
 
-    def inlineRefs(self, refToExprMap):
-        self._cond.inlineRefs(refToExprMap)
+    def replaceReferences(self, refToExprMap):
+        self._cond.replaceReferences(refToExprMap)
         self._expr = substituteRefs(self._expr, refToExprMap)
 
     def __str__(self):
@@ -476,7 +476,7 @@ class Reduce(object):
     def expression(self):
         return self._expr
 
-    def inlineRefs(self, refToExprMap):
+    def replaceReferences(self, refToExprMap):
         self._expr = substituteRefs(self._expr, refToExprMap)     
         self._accRef = substituteRefs(self._accRef, refToExprMap)     
     
@@ -509,9 +509,9 @@ class Function(object):
         # Variables of the function
         self._variables = None
 
-        # Gives the domain of each variable. Domain of each variable is expected
-        # to be over integers. Function evaluation in the lexicographic order of 
-        # the domain is assumed to be valid.
+        # Gives the domain of each variable. Domain of each variable is
+        # expected to be over integers. Function evaluation in the
+        # lexicographic order of the domain is assumed to be valid.
 
         assert(len(_varDom[0]) == len(_varDom[1]))
         for i in range(0, len(_varDom[0])):
@@ -531,11 +531,8 @@ class Function(object):
         self._varDomain = _varDom[1]
 
         # * Body of a function is composed of Case and Expression constructs.
-        # * The Case constructs are expected to be non-overlapping.
-        # * If multiple Case constructs are satisfied at a point the value 
-        #   can be defined by any one of them
-        # * All the Case constructs followed by an Expression construct are 
-        #   ignored.
+        # * The Case constructs are expected to be non-overlapping. Therefore,
+        #   value at each point in the function domain is uniquely defined.
         self._body      = None
 
     @property
@@ -580,12 +577,11 @@ class Function(object):
             assert(isinstance(arg, AbstractExpression))
         return Reference(self, args)
 
-    def inlineRefs(self, refToExprMap):
+    def replaceReferences(self, refToExprMap):
         numCases = len(self._body)
-        # MOD -> disallow more than one instance of a definition without a Case
         for i in range(0, numCases):
             if isinstance(self._body[i], Case):
-                self._body[i].inlineRefs(refToExprMap)
+                self._body[i].replaceReferences(refToExprMap)
             else:
                 self._body[i] = substituteRefs(self._body[i], refToExprMap)
 

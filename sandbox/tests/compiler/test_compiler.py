@@ -4,11 +4,13 @@ from __future__ import absolute_import, division, print_function
 
 from fractions import Fraction
 import sys
-sys.path.insert(0, '../optimizer')
+sys.path.insert(0, '../../optimizer')
+sys.path.insert(0, '../../frontend')
 
 from Compiler import *
+from Constructs import *
 
-def harris_corner():
+def test_harris_corner():
     
     R = Parameter(Int, "R")
     C = Parameter(Int, "C")
@@ -69,3 +71,5 @@ def harris_corner():
 
     harris = Function(([x, y], [row, col]), Float, "harris")
     harris.defn = [ Case(condRed, det(x, y) - 0.04 * trace(x, y) * trace(x, y)) ]
+
+    pipeline = buildPipeline([harris])
