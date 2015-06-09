@@ -1,5 +1,7 @@
 CXX=icpc
 CXX_FLAGS=-ansi-alias -ipo -openmp -O3 -xhost
+#CXX=g++
+#CXX_FLAGS=-O3 -march=native -mtune=native -fopenmp
 LIBS=-L /usr/local/lib/ 
 LD_FLAGS=-lopencv_imgproc -lopencv_core -lopencv_highgui
 APP_FLAGS=-DTIME -DSHOW
