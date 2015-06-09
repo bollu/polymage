@@ -4,11 +4,33 @@ from __future__ import absolute_import, division, print_function
 from Constructs import *
 
 def isAffine(expr, includeDiv = True, includeModulo = False):
+    """
+        Function to determine if an expression is affine or not. The input
+        is a binary expression tree. It recursively checks if the left and right 
+        sub expressions are affine. Determines if the entire expression is 
+        affine using the following rules:
+
+        affine +,-,* constant = affine 
+        constant +,-,* affine = affine 
+        affine +,- affine  = affine
+        affine *,/ affine = non-affine
+        non-affine operand always results in an non-affine expression
+
+        Divisions and modulo operators are considered affine if the appropriate 
+        option is specified. 
+
+        This function is meant to work on straight forward expressions it can
+        be easily tricked into conservatively saying that the expression is 
+        not affine. For example -x^3 + x^3 will be non affine. 
+
+        Making the expression anaylsis more robust will require integration 
+        with a symbolic math package. 
+    """
     expr = Value.numericToValue(expr)
     assert(isinstance(expr, AbstractExpression)
            or isinstance(expr, Condition))
     if (isinstance(expr, Value)):
-        return (expr.typ == Int) or ((expr.typ == Rational) and includeDiv)
+        return (expr.typ is Int) or ((expr.typ is Rational) and includeDiv)
     elif (isinstance(expr, Variable)):
         return True
     elif (isinstance(expr, Reference)):
@@ -131,7 +153,7 @@ def getConstantFromExpr(expr, affine=False):
     assert(isinstance(expr, AbstractExpression))
     if (isinstance(expr, Value)):
         if affine:
-            assert (expr.typ == Int) or (expr.typ == Rational)
+            assert (expr.typ is Int) or (expr.typ is Rational)
         return expr.value 
     elif (isinstance(expr, Variable)):
         return 0
@@ -153,7 +175,7 @@ def isConstantExpr(expr, affine = False):
     assert(isinstance(expr, AbstractExpression))
     if (isinstance(expr, Value)):
         if affine:
-            return (expr.typ == Int) or (expr.typ == Rational)
+            return (expr.typ is Int) or (expr.typ is Rational)
         return True 
     elif (isinstance(expr, Variable)):
         return False

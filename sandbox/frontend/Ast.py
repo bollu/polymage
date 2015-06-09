@@ -8,12 +8,11 @@ from Types import *
 
 class AbstractExpression(object):
     """ AbstractExpression class is a tree representation for expressions
-        involving binary arithmetic comparison and unary operations over
-        function, accumulator and image references, variables, parameters and
-        constants. Users are not expected to directly create expressions. 
-        The arithmetic operators are overloaded therefore expressions in
-        parameters, variables and references will automatically be converted 
-        in to an expression tree.
+    involving binary arithmetic comparison and unary operations over function,
+    reduction and image references, variables, parameters and constants. Users
+    are not expected to directly create expressions.  The arithmetic operators
+    are overloaded therefore expressions in parameters, variables and
+    references will automatically be converted in to an expression tree.
     """
     def typeCheck(func):
         def checked(self, other):
