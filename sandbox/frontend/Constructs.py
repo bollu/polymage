@@ -17,9 +17,9 @@ class Max(InbuiltFunction):
     def getType(self):
         return getType(self._args[0])
 
-    def clone(self):
-        cloneArgs = [ arg.clone() for arg in self._args ]
-        return Max(cloneArgs[0], cloneArgs[1])
+    def _clone(self):
+        _cloneArgs = [ arg._clone() for arg in self._args ]
+        return Max(_cloneArgs[0], _cloneArgs[1])
 
     def __str__(self):
         leftStr = self._args[0].__str__()
@@ -37,9 +37,9 @@ class Min(InbuiltFunction):
     def getType(self):
         return getType(self._args[0])
 
-    def clone(self):
-        cloneArgs = [ arg.clone() for arg in self._args ]
-        return Min(cloneArgs[0], cloneArgs[1])
+    def _clone(self):
+        _cloneArgs = [ arg._clone() for arg in self._args ]
+        return Min(_cloneArgs[0], _cloneArgs[1])
 
     def __str__(self):
         leftStr = self._args[0].__str__()
@@ -54,9 +54,9 @@ class Pow(InbuiltFunction):
     def getType(self):
         return Double
 
-    def clone(self):
-        cloneArgs = [ arg.clone() for arg in self._args ]
-        return Pow(cloneArgs[0], cloneArgs[1])
+    def _clone(self):
+        _cloneArgs = [ arg._clone() for arg in self._args ]
+        return Pow(_cloneArgs[0], _cloneArgs[1])
 
     def __str__(self):
         leftStr = self._args[0].__str__()
@@ -70,9 +70,9 @@ class Powf(InbuiltFunction):
     def getType(self):
         return Float
 
-    def clone(self):
-        cloneArgs = [ arg.clone() for arg in self._args ]
-        return Powf(cloneArgs[0], cloneArgs[1])
+    def _clone(self):
+        _cloneArgs = [ arg._clone() for arg in self._args ]
+        return Powf(_cloneArgs[0], _cloneArgs[1])
 
     def __str__(self):
         leftStr = self._args[0].__str__()
@@ -86,8 +86,8 @@ class Exp(InbuiltFunction):
     def getType(self):
         return Double
 
-    def clone(self):
-        return Exp(self._args[0].clone())
+    def _clone(self):
+        return Exp(self._args[0]._clone())
 
     def __str__(self):
         return "std::exp(" +  self._args[0].__str__() +  ")"
@@ -99,8 +99,8 @@ class Sin(InbuiltFunction):
     def getType(self):
         return Double
 
-    def clone(self):
-        return Sin(self._args[0].clone())
+    def _clone(self):
+        return Sin(self._args[0]._clone())
 
     def __str__(self):
         return "std::sin(" +  self._args[0].__str__() +  ")"
@@ -112,8 +112,8 @@ class Cos(InbuiltFunction):
     def getType(self):
         return Double
 
-    def clone(self):
-        return Cos(self._args[0].clone())
+    def _clone(self):
+        return Cos(self._args[0]._clone())
 
     def __str__(self):
         return "std::cos(" +  self._args[0].__str__() +  ")"
@@ -125,8 +125,8 @@ class Sqrt(InbuiltFunction):
     def getType(self):
         return Double
 
-    def clone(self):
-        return Sqrt(self._args[0].clone())
+    def _clone(self):
+        return Sqrt(self._args[0]._clone())
 
     def __str__(self):
         return "std::sqrt(" +  self._args[0].__str__() +  ")"
@@ -138,8 +138,8 @@ class Sqrtf(InbuiltFunction):
     def getType(self):
         return Float
 
-    def clone(self):
-        return Sqrtf(self._args[0].clone())
+    def _clone(self):
+        return Sqrtf(self._args[0]._clone())
 
     def __str__(self):
         return "std::sqrtf(" +  self._args[0].__str__() +  ")"
@@ -151,8 +151,8 @@ class Abs(InbuiltFunction):
     def getType(self):
         return getType(self._args[0])
 
-    def clone(self):
-        return Abs(self._args[0].clone())
+    def _clone(self):
+        return Abs(self._args[0]._clone())
 
     def __str__(self):
         return "std::abs(" +  self._args[0].__str__() +  ")"
@@ -180,8 +180,8 @@ class Cast(AbstractExpression):
             objs += [self]
         return list(set(objs))
 
-    def clone(self):
-        return Cast(self._typ, self._expr.clone())
+    def _clone(self):
+        return Cast(self._typ, self._expr._clone())
     
     def replaceReferences(self, refToExprMap):
         self._expr = substituteRefs(self._expr, refToExprMap)
@@ -229,9 +229,9 @@ class Select(AbstractExpression):
         self._trueExpr = substituteRefs(self._trueExpr, refToExprMap)
         self._falseExpr = substituteRefs(self._falseExpr, refToExprMap)
     
-    def clone(self):
-        return Select(self._cond.clone(), self._trueExpr.clone(), 
-                      self._falseExpr.clone())
+    def _clone(self):
+        return Select(self._cond._clone(), self._trueExpr._clone(), 
+                      self._falseExpr._clone())
 
     def __str__(self):
         condStr = self._cond.__str__()
@@ -261,7 +261,7 @@ class Variable(AbstractExpression):
     def typ(self):
         return self._typ
 
-    def clone(self):
+    def _clone(self):
         return self
 
     def __str__(self):
@@ -325,9 +325,9 @@ class Reference(AbstractExpression):
     def arguments(self):
         return self._args
 
-    def clone(self):
-        cloneArgs = [ arg.clone() for arg in self._args]
-        return Reference(self._obj, cloneArgs)
+    def _clone(self):
+        _cloneArgs = [ arg._clone() for arg in self._args]
+        return Reference(self._obj, _cloneArgs)
 
     def collect(self, objType):
         objs = []
@@ -366,9 +366,9 @@ class Condition(object):
     def conditional(self):
         return self._cond
    
-    def clone(self):
-        return Condition(self._left.clone(), self._cond, 
-                         self._right.clone())
+    def _clone(self):
+        return Condition(self._left._clone(), self._cond, 
+                         self._right._clone())
 
     def collect(self, objType):
         if (type(self) is objType):

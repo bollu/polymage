@@ -41,7 +41,8 @@ class Group:
                                 if not isinstance(ref.objectRef, Image)]))
         self._inputs = list(set([ref.objectRef for ref in refs \
                             if isinstance(ref.objectRef, Image)]))
-        # Create a polyhedral representation
+        # Create a polyhedral representation if possible
+        # TODO add a check to see if such a representation is possible
         self._polyrep = opt.PolyRep(_ctx, self, _paramConstraints)
         
     @property
@@ -71,22 +72,29 @@ class Group:
         return polyhedral
 
     def orderComputeObjs(self):
+        # Order stores the numbering of each compute object 
+        # when topologically sorted.
         order = {}
+        # Initialize all the initial numbering to zero for
+        # all compute objects in the group
         for comp in self.computeObjs:
             order[comp] = 0
-        # Doing a topological sort the easy way
+        # Doing a topological sort in an iterative fashion
         change = True
         while(change):
             change = False
             for comp in self.computeObjs:
-                # filter self references
+                # get the references to compute objects
                 refs = comp.getObjects(Reference)
-                refs = [ref for ref in refs if not ref.objectRef == comp]
-                parentObjs = list(set([ref.objectRef for ref in refs\
-                                  if not isinstance(ref.objectRef, Image)]))
+                # filter self references
+                refs = [ref for ref in refs if not ref.objectRef == comp and \
+                                               not isinstance(ref.objectRef, Image)]
+                # Only keep a single instance of objects refered to 
+                # and filter out reference 
+                parentObjs = list(set([ref.objectRef for ref in refs]))
                 for pobj in parentObjs:
                     if (pobj in order  and (order[pobj] >= order[comp])):
-                        order[comp] += 1
+                        order[comp] = order[pobj] + 1
                         change = True
         return order
     
@@ -150,6 +158,47 @@ class Pipeline:
     def originalGraph(self):
         return self._intialGraph
 
+    def createGroups(self):
+        """
+          Create a pipeline graph where the nodes are group and the edges
+          represent the dependences between the groups.
+          Find all the computation objects that are required for the pipeline,
+          create groups for the computation and the depedency graph. This step
+          assumes that there are no cycles in the pipeline group graph this has
+          assumption has to be revisited when dealing with more complex
+          pipelines.
+        """
+        # Clone the computation objects i.e. functions and reductions
+
+
+        # Construct a parent and child mapping 
+
+        # Modify the references in the cloned objects (which refer to 
+        # the original objects) 
+
+        # Create groups with each computation object in a separate group
+        groups = {}
+        q = queue()
+        for compObj in self._outputs:
+            q.put(compObj)
+        while not q.empty():
+            obj = q.get()
+            if obj not in groups:
+                groups[obj] = Group([obj], self._ctx, self._paramConstraints,
+                                    self._paramEstimates, self._tileSizes,
+                                    self._sizeThreshold, self._groupSize, 
+                                    self._outputs)                
+                if len(groups[obj].parentObjs) != 0:
+                    for r in groups[obj].parentObjs:
+                        q.put(r)
+        
+        for obj in groups:
+            for pobj in groups[obj].parentObjs:
+                groups[pobj].childGroups.append(groups[obj])
+                groups[obj].parentGroups.append(groups[pobj])
+        
+        return groups
+
     def getParameters(self):
         params=[]
         for group in self._groups.values():
@@ -188,35 +237,7 @@ class Pipeline:
         G.layout(prog='dot')
         return G
 
-    def buildGroupGraph(self):
-        """
-          Find all the computation objects that are required for the pipeline,
-          create groups for the computation and the depedency graph. This step
-          assumes that there are no cycles in the pipeline group graph this has
-          assumption has to be revisited when dealing with more complex
-          pipelines.
-        """
-        groups = {}
-        q = queue()
-        for compObj in self._outputs:
-            q.put(compObj)
-        while not q.empty():
-            obj = q.get()
-            if obj not in groups:
-                groups[obj] = Group([obj], self._ctx, self._paramConstraints,
-                                    self._paramEstimates, self._tileSizes,
-                                    self._sizeThreshold, self._groupSize, 
-                                    self._outputs)                
-                if len(groups[obj].parentObjs) != 0:
-                    for r in groups[obj].parentObjs:
-                        q.put(r)
-        
-        for obj in groups:
-            for pobj in groups[obj].parentObjs:
-                groups[pobj].childGroups.append(groups[obj])
-                groups[obj].parentGroups.append(groups[pobj])
-        
-        return groups
+    
 
     def boundsCheckPass(self):
         """ 
