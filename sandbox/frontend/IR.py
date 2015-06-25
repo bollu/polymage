@@ -13,6 +13,41 @@ except ImportError:
 
 import pygraphviz as pgv
 
+def getParentsFromCompObj(comp):
+    refs = comp.getObjects(Reference)
+    # Filter out self and image references 
+    refs = [ ref for ref in refs if not ref.objectRef == comp and \
+                                 not isinstance(ref.objectRef, Image) ]
+    return list(set([ref.objectRef for ref in refs]))
+
+def getCompObjsAndDependenceMaps(outputs):
+    """
+    Find all the compute objects required for the outputs and
+    also builds parent and children maps for the compute objects
+    """
+    compObjs = []
+    compObjsParents = {}
+    compObjsChildren = {}
+    q = queue.Queue()
+    for compObj in outputs:
+        q.put(compObj)
+    while not q.empty():
+        obj = q.get()
+        parentObjs = getParentsFromCompObj(obj)
+        if obj not in compObjs:
+            compObjs.append(obj)
+            compObjsParents[obj] = parentObjs
+            for parobj in parentObjs:
+                if parobj in compObjsChildren:
+                    if obj not in compObjsChildren[parobj]:
+                        compObjsChildren[parobj].append(obj)
+                else:
+                    compObjsChildren[parobj] = [obj]                        
+            if len(parentObjs) != 0:
+                for r in parentObjs:
+                    q.put(r)
+    return compObjs, compObjsParents, compObjsChildren
+
 class Group:
     """ 
         Group is a part of the pipeline which realizes a set of computation
@@ -32,28 +67,15 @@ class Group:
         refs = []
 
         for comp in self._computeObjs:
-            # Filter out self references
-            currRefs = comp.getObjects(Reference)
-            currRefs = [ ref for ref in currRefs if not ref.objectRef == comp ]
-            refs = refs + currRefs
+            refs += refs + getParentsFromCompObj(comp)
 
-        self._parentObjs = list(set([ref.objectRef for ref in refs \
-                                if not isinstance(ref.objectRef, Image)]))
-        self._inputs = list(set([ref.objectRef for ref in refs \
-                            if isinstance(ref.objectRef, Image)]))
         # Create a polyhedral representation if possible
         # TODO add a check to see if such a representation is possible
         self._polyrep = opt.PolyRep(_ctx, self, _paramConstraints)
         
     @property
-    def parentObjs(self):
-        return self._parentObjs
-    @property
     def computeObjs(self):
         return self._computeObjs
-    @property
-    def inputs(self):
-        return self._inputs
     @property
     def polyRep(self):
         return self._polyrep
@@ -116,9 +138,27 @@ class Pipeline:
         self._ctx = _ctx
         self._outputs = _outputs
         self._paramConstraints = _paramConstraints
-        
+
+        # Maps from a compute object to its parents and children
+        compObjs, compObjsParents, compObjsChildren = \
+                                getCompObjsAndDependenceMaps(self._outputs)
+
+        # TODO see if there is a cyclic dependency between the compute objects
+        # self references are not treated as cycles
+
+        # Clone the computation objects i.e. functions and reductions
+        self._cloneMap = {}
+        for comp in compObjs:
+            self._cloneMap[comp] = comp.clone()
+
+        # Modify the references in the cloned objects (which refer to 
+        # the original objects) 
+    
+
         # Create a group for each pipeline function / reduction
-        self._groups = self.createGroups()
+        self._groups, self._groupParents, self._groupChildren = \
+                                self.buildInitialGraph(compObjs, compObjsParents, 
+                                                       compObjsChildren)
 
         # Determine the parent and child groups for each group
         # _parents is a map from a group to a list of parent groups
@@ -158,46 +198,19 @@ class Pipeline:
     def originalGraph(self):
         return self._intialGraph
 
-    def createGroups(self):
+    def getParentGroupsOfGroup(self, group, compObjToGroupMap):
+        pass
+
+    def buildIntialGraph(self, objs, parents, children):
         """
-          Create a pipeline graph where the nodes are group and the edges
-          represent the dependences between the groups.
-          Find all the computation objects that are required for the pipeline,
-          create groups for the computation and the depedency graph. This step
-          assumes that there are no cycles in the pipeline group graph this has
-          assumption has to be revisited when dealing with more complex
-          pipelines.
+          Create a pipeline graph where the nodes are a group and the edges
+          represent the dependences between the groups. The initial graph
+          has each compute object in a separate group. 
         """
-        # Clone the computation objects i.e. functions and reductions
 
-
-        # Construct a parent and child mapping 
-
-        # Modify the references in the cloned objects (which refer to 
-        # the original objects) 
 
         # Create groups with each computation object in a separate group
-        groups = {}
-        q = queue()
-        for compObj in self._outputs:
-            q.put(compObj)
-        while not q.empty():
-            obj = q.get()
-            if obj not in groups:
-                groups[obj] = Group([obj], self._ctx, self._paramConstraints,
-                                    self._paramEstimates, self._tileSizes,
-                                    self._sizeThreshold, self._groupSize, 
-                                    self._outputs)                
-                if len(groups[obj].parentObjs) != 0:
-                    for r in groups[obj].parentObjs:
-                        q.put(r)
-        
-        for obj in groups:
-            for pobj in groups[obj].parentObjs:
-                groups[pobj].childGroups.append(groups[obj])
-                groups[obj].parentGroups.append(groups[pobj])
-        
-        return groups
+
 
     def getParameters(self):
         params=[]
