@@ -47,7 +47,7 @@ def addConstraintsFromList(obj, localSpace, constraintList, constraintAlloc):
         obj = obj.add_constraint(c)
     return obj
 
-def addConstriants(obj, ineqs, eqs):
+def addConstraints(obj, ineqs, eqs):
     space = obj.get_space()
     if (isinstance(obj, isl.Map)):
         for bmap in obj.get_basic_maps():
@@ -100,7 +100,7 @@ def extractValueDependence(part, ref, refPolyDom):
 
             coeff[('constant', 0)] = getConstantFromExpr(arg, affine = True)
             coeff[sourceDims[i]] = -1
-            rel = addConstriants(rel, [], [coeff])
+            rel = addConstraints(rel, [], [coeff])
     if not rel.is_empty():
         deps.append(PolyDep(ref.objectRef, part.comp, rel))
     return deps 
@@ -184,12 +184,12 @@ class PolyRep(object):
         self._varCount = 0
         self._funcCount = 0
 
-        self.extractPolyRepFromStage(_paramConstraints)
+        self.extractPolyRepFromGroup(_paramConstraints)
             
         #self.fusedSchedule(_paramEstimates)
         #self.simpleSchedule(_paramEstimates)
    
-    def extractPolyRepFromStage(self, paramConstraints):
+    def extractPolyRepFromGroup(self, paramConstraints):
         compObjs = self.group.orderComputeObjs()
         numObjs = len(compObjs.items())
 
@@ -297,11 +297,11 @@ class PolyRep(object):
         schedMap = isl.BasicMap.universe(space)
         # Adding the domain constraints
         [ineqs, eqs] = formatDomainConstraints(domains, varNames)
-        schedMap = addConstriants(schedMap, ineqs, eqs)
+        schedMap = addConstraints(schedMap, ineqs, eqs)
 
         # Adding the parameter constraints
         [paramIneqs, paramEqs] = formatConjunctConstraints(contextConds)
-        schedMap = addConstriants(schedMap, paramIneqs, paramEqs)
+        schedMap = addConstraints(schedMap, paramIneqs, paramEqs)
 
         return schedMap
 
@@ -331,7 +331,7 @@ class PolyRep(object):
                     if(affine):
                         [conjunctIneqs, conjunctEqs] = \
                                 formatConjunctConstraints(conjunct)
-                        sched = addConstriants(sched, conjunctIneqs, conjunctEqs)
+                        sched = addConstraints(sched, conjunctIneqs, conjunctEqs)
                         parts = self.makePolyParts(sched, case.expression, None,
                                                    comp, align, scale, levelNo) 
                         for part in parts:
@@ -358,13 +358,13 @@ class PolyRep(object):
         # where the default expression has to be applied. 
 
         #sched = isl.BasicMap.identity(self.polyspace)
-        #sched = addConstriants(sched, ineqs, eqs)
+        #sched = addConstraints(sched, ineqs, eqs)
         # Adding stage identity constraint
         #levelCoeff = {}
         #levelCoeff[varDims[0]] = -1
         #levelCoeff[('constant', 0)] = compObjs[comp]
-        #sched = addConstriants(sched, [], [levelCoeff])
-        #sched = addConstriants(sched, paramIneqs, paramEqs)
+        #sched = addConstraints(sched, [], [levelCoeff])
+        #sched = addConstraints(sched, paramIneqs, paramEqs)
 
         #for part in self.polyParts[comp]:
         #    sched = sched.subtract_range(part.sched.range())
@@ -444,7 +444,7 @@ class PolyRep(object):
                     leftCoeff[('in', dimIn)] = -modConst
                     eqs.append(leftCoeff)
 
-                    trueSched = addConstriants(trueSched, [], eqs)
+                    trueSched = addConstraints(trueSched, [], eqs)
                     trueSched = trueSched.project_out(isl._isl.dim_type.in_, 
                                                       dimIn, 1)
                     brokenParts.append((trueSched, expr.trueExpression))
@@ -475,7 +475,7 @@ class PolyRep(object):
                     coeff[('constant', 0)] = modConst - 1
                     ineqs.append(coeff)
 
-                    falseSched = addConstriants(falseSched, ineqs, eqs)
+                    falseSched = addConstraints(falseSched, ineqs, eqs)
                     falseSched = falseSched.project_out(isl._isl.dim_type.in_,
                                                         dimIn, 2)                    
                     brokenParts.append((falseSched, expr.falseExpression))
