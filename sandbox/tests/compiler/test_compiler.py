@@ -73,3 +73,7 @@ def test_harris_corner():
     harris.defn = [ Case(condRed, det(x, y) - 0.04 * trace(x, y) * trace(x, y)) ]
 
     pipeline = buildPipeline([harris])
+
+    filename = 'graph.dot'
+    pipeline.originalGraph.write(filename)
+    

@@ -9,48 +9,6 @@ def optimizeSchedule(partScheds, dependencies):
     # The pluto optimizer can be used to optimize the schedule for comparision.
     pass
 
-def stripMineSchedule(sched, dim, size):
-    sched = sched.insert_dims(isl._isl.dim_type.out, dim, 1)
-    name = sched.get_dim_name(isl._isl.dim_type.out, 1 + dim) 
-    sched = sched.set_dim_name(isl._isl.dim_type.out, dim, 'S_' + name)
-    ineqs = []
-    #  size*(Ti) <= i <= size*(Ti) + size - 1
-    coeff = {}
-    coeff[('out', dim)] = sizes[dim - startDim] 
-    coeff[('constant', 0)] = sizes[dim - startDim] - 1
-    coeff[('out', numDims + dim)] = -1
-    ineqs.append(coeff)
-
-    coeff = {}
-    coeff[('out', dim)] = -sizes[dim - startDim] 
-    coeff['out', numDims + dim] = 1
-    ineqs.append(coeff) 
-    sched = addConstriants(sched, ineqs, [])
-
-    return sched
-
-def tileSchedule(sched, dim, size, overlapOffset = 0):
-    # Extend space to accomodate the tiling dimensions
-    sched = sched.insert_dims(isl._isl.dim_type.out, dim, 1)
-    # Create the tile dimensions and their constraints
-    name = sched.get_dim_name(isl._isl.dim_type.out, 1 + dim) 
-    sched = sched.set_dim_name(isl._isl.dim_type.out, dim, '_T' + name)
-
-    ineqs = []
-    #  size*(Ti) <= i <= size*(Ti) + size - 1
-    coeff = {}
-    coeff[('out', dim)] = size 
-    coeff[('constant', 0)] = size - 1 + overlapOffset
-    coeff[('out', 1 + dim)] = -1
-    ineqs.append(coeff)
-
-    coeff = {}
-    coeff[('out', dim)] = -size 
-    coeff['out', 1 + dim] = 1
-    ineqs.append(coeff) 
-    sched = addConstriants(sched, ineqs, [])
-    return (sched, ('rect', name, '_T' + name, size))
-
 def addConstraintsFromList(obj, localSpace, constraintList, constraintAlloc):
     for const in constraintList:
         c = constraintAlloc(localSpace)
@@ -148,7 +106,7 @@ def extractValueDependence(part, ref, refPolyDom):
 
 class PolyPart(object):
     def __init__(self, _sched, _expr, _pred, _comp, _align, 
-                 _scale, _stageNo, _liveout):
+                 _scale, _levelNo, _liveout):
         self.sched = _sched
         self.expr = _expr
         self.pred = _pred
@@ -171,7 +129,7 @@ class PolyPart(object):
         # constructing the polypart. These are changed by the
         # alignment and loop scaling passes. Both these passes 
         # attempt to improve locality and uniformize dependencies.
-        self.stageNo = _stageNo
+        self.levelNo = _levelNo
         self.dimTileInfo = {}
         self.dimScratchSize = {}
         self.parallelSchedDims = []
@@ -212,33 +170,140 @@ class PolyDep(object):
 
 class PolyRep(object):
     """ The PolyRep class is the polyhedral representation of a 
-        stage. It gives piece-wise domain and schedule for a stage.
-        Polyhedral transformations modify the piece-wise domains as 
-        well as the schedules.
+        group. It gives piece-wise domain and schedule for each compute
+        object in the group. Polyhedral transformations modify the 
+        piece-wise domains as well as the schedules.
     """
-    def __init__(self, _ctx, _stage, _paramConstraints, _paramEstimates, 
-                 _tileSizes, _sizeThreshold, _groupSize, _outputs):
-        self.stage = _stage
+    def __init__(self, _ctx, _group, _paramConstraints):
+        self.group = _group
         self.ctx = _ctx
         self.polyParts = {}
         self.polyDoms = {}
         self.polyast = []        
-        self.groups = []
-        self.outputs = _outputs
-        self.tileSizes = _tileSizes
-        self.sizeThreshold = _sizeThreshold
-        self.groupSize = _groupSize
 
         self._varCount = 0
         self._funcCount = 0
 
-        if(_stage.isPolyhedral()):
-            # Currently doing extraction only when all the computeObjs
-            # domains are affine. This can be revisited later. 
-            self.extractPolyRepFromStage(_paramConstraints)
-            self.fusedSchedule(_paramEstimates)
-            #self.simpleSchedule(_paramEstimates)
-    
+        self.extractPolyRepFromStage(_paramConstraints)
+            
+        #self.fusedSchedule(_paramEstimates)
+        #self.simpleSchedule(_paramEstimates)
+   
+   def extractPolyRepFromStage(self, paramConstraints):
+        compObjs = self.group.orderComputeObjs()
+        numObjs = len(compObjs.items())
+
+        # Comute the max dimensionality of the compute objects
+        def maxDim(objs):
+            dim = 0
+            for comp in objs:
+                if type(comp) == Reduction:
+                    dim = max(dim, len(comp.reductionVariables))
+                    dim = max(dim, len(comp.variables))
+                elif type(comp) == Function or type(comp) == Image:
+                    dim = max(dim, len(comp.variables))
+            return dim
+
+        dim = maxDim(compObjs)
+        # Get all the parameters used in the group compute objects
+        params = []
+        for comp in compObjs:
+            params = params + comp.getObjects(Parameter)
+        params = list(set(params))
+        paramNames = [param.name for param in params]        
+
+        # Represent all the constraints specified on the parameters relevant
+        # to the group.
+        contextConds = self.formatParamConstraints(paramConstraints, params)
+                    
+        # The [t] is for the stage dimension
+        scheduleNames = ['_t'] + [ self.getVarName()  for i in xrange(0, dim) ]
+
+        for comp in compObjs:
+            if (type(comp) == Function or type(comp) == Image):
+                self.extractPolyRepFromFunction(comp, scheduleNames, paramNames,
+                                                contextConds, compObjs[comp] + 1,
+                                                paramConstraints)
+            elif (type(comp) == Reduction):
+                self.extractPolyRepFromReduction(comp, scheduleNames, paramNames,
+                                                 contextConds, compObjs[comp] + 1,
+                                                 paramConstraints)
+            else:
+                assert False
+        
+    def formatParamConstraints(self, paramConstraints, params):
+        contextConds = []
+        for paramConst in paramConstraints:
+            # Only consider parameter constraints of parameters
+            # given in params.
+            paramsInConst = paramConst.collect(Parameter)
+            contextAdd = True
+            for p in paramsInConst:
+                if p not in params:
+                    contextAdd = False
+            # Only add the constraint if it is affine and has no conjunctions. 
+            # Handling conjunctions can be done but will require more care.
+            if contextAdd and isAffine(paramConst):
+                paramConstConjunct = paramConst.splitToConjuncts()
+                if len(paramConstConjunct) == 1:
+                    contextConds.append(paramConst)
+        return contextConds
+
+    def extractPolyRepFromFunction(self, comp, scheduleNames, paramNames,
+                                   contextConds, levelNo, paramConstraints):
+        schedMap = self.createSchedSpace(comp.variables, comp.domain, 
+                                         scheduleNames, paramNames, 
+                                         contextConds)
+
+        polyDom = PolyDomain(schedMap.domain(), comp)
+        id_ = isl.Id.alloc(self.ctx, comp.name, polyDom)
+        polyDom.domSet = polyDom.domSet.set_tuple_id(id_)
+        self.polyDoms[comp] = polyDom
+
+        self.createPolyPartsFromDefinition(comp, schedMap, levelNo, 
+                                           scheduleNames, comp.domain)
+
+    def extractPolyRepFromReduction(self, comp, scheduleNames, paramNames,
+                                    contextConds, levelNo, paramConstraints):
+        schedMap = self.createSchedSpace(comp.reductionVariables, 
+                                         comp.reductionDomain, 
+                                         scheduleNames, paramNames, 
+                                         contextConds)
+
+        polyDom = PolyDomain(schedMap.domain(), comp)
+        id_ = isl.Id.alloc(self.ctx, comp.name, polyDom)
+        polyDom.domSet = polyDom.domSet.set_tuple_id(id_)
+        self.polyDoms[comp] = polyDom
+
+        self.createPolyPartsFromDefinition(comp, schedMap, levelNo, 
+                                           scheduleNames,
+                                           comp.reductionDomain)
+
+        domMap = self.createSchedSpace(comp.variables, comp.domain, 
+                                       scheduleNames, paramNames, 
+                                       contextConds)
+
+        self.createPolyPartsFromDefault(comp, domMap, levelNo, scheduleNames)
+
+    def createSchedSpace(self, variables, domains, scheduleNames, paramNames,
+                         contextConds):
+        # Variable names for refrerring to dimensions
+        varNames = [ variables[i].name for i in xrange(0, len(variables)) ]        
+        space = isl.Space.create_from_names(self.ctx, in_ = varNames,
+                                                     out = scheduleNames,
+                                                     params = paramNames)
+
+        schedMap = isl.BasicMap.universe(space)
+        # Adding the domain constraints
+        [ineqs, eqs] = formatDomainConstraints(domains, varNames)
+        schedMap = addConstriants(schedMap, ineqs, eqs)
+
+        # Adding the parameter constraints
+        [paramIneqs, paramEqs] = formatConjunctConstraints(contextConds)
+        schedMap = addConstriants(schedMap, paramIneqs, paramEqs)
+
+        return schedMap
+
     def generateCode(self):
         self.polyast = []
         if self.polyParts:
@@ -260,87 +325,8 @@ class PolyRep(object):
                 polystr = polystr + '\n' + aststr
         return polystr
    
-    def formatParamConstraints(self, paramConstraints, params):
-        contextConds = []
-        for paramConst in paramConstraints:
-            paramsInConst = paramConst.collect(Parameter)
-            contextAdd = True
-            for p in paramsInConst:
-                if p not in params:
-                    contextAdd = False
-            if contextAdd and isAffine(paramConst):
-                paramConstConjunct = paramConst.splitToConjuncts()
-                if len(paramConstConjunct) == 1:
-                    contextConds.append(paramConst)
-        return contextConds             
-
-    def extractPolyRepFromStage(self, paramConstraints):
-        compObjs = self.stage.orderComputeObjs()
-        sortedCompObjs = sorted(compObjs.items(), key=lambda s: s[1])
-        stageDomMin = sortedCompObjs[0][1]
-        numObjs = len(sortedCompObjs)
-        stageDomMax = sortedCompObjs[numObjs -1][1] + 1
-
-        # Comute the max dimensionality of the space and collect the parameters.
-        def maxDim(objs):
-            dim = 0
-            for comp in objs:
-                if type(comp) == Accumulator:
-                    dim = max(dim, len(comp.reductionVariables))
-                    dim = max(dim, len(comp.variables))
-                elif type(comp) == Function or type(comp) == Image:
-                    dim = max(dim, len(comp.variables))
-            return dim
-
-        params = []
-        dim = maxDim(compObjs)
-        for comp in compObjs:
-            params = params + comp.getObjects(Parameter)
-        params = list(set(params))
-        paramNames = [param.name for param in params]        
-
-        contextConds = self.formatParamConstraints(paramConstraints, params)
-                    
-        # Have to revisit this hopefully there is a better way to do this
-        # than just concatenating an '
-        # The [t] is for the stage dimension
-        scheduleNames = ['_t'] + [ self.getVarName()  for i in xrange(0, dim) ]
-
-        for comp in compObjs:
-            if (type(comp) == Function or type(comp) == Image):
-                self.extractPolyRepFromFunction(comp, scheduleNames, paramNames,
-                                                contextConds, compObjs[comp] + 1,
-                                                paramConstraints)
-            elif (type(comp) == Accumulator):
-                self.extractPolyRepFromAccumulator(comp, scheduleNames, paramNames,
-                                                   contextConds, compObjs[comp] + 1,
-                                                   paramConstraints)
-            else:
-                assert False
-                    
-        # Check if the basic sets in the domain are non-empty and non-overlapping
-        # This might not always be feasible since we allow for non-affine 
-        # approximations. Can runtime checks be generated?
-
-    def createSchedSpace(self, variables, domains, scheduleNames, paramNames,
-                         contextConds):
-        # Variable names for refrerring to dimensions
-        varNames = [ variables[i].name for i in xrange(0, len(variables)) ]        
-        space = isl.Space.create_from_names(self.ctx, in_ = varNames,
-                                                     out = scheduleNames,
-                                                     params = paramNames)
-
-        schedMap = isl.BasicMap.universe(space)
-        # Adding the domain constraints
-        [ineqs, eqs] = formatDomainConstraints(domains, varNames)
-        schedMap = addConstriants(schedMap, ineqs, eqs)
-
-        [paramIneqs, paramEqs] = formatConjunctConstraints(contextConds)
-        schedMap = addConstriants(schedMap, paramIneqs, paramEqs)
-        return schedMap
-   
     def makePolyParts(self, sched, expr, pred, comp, align, scale, 
-                      stageNo, liveout):
+                      levelNo, liveout):
         # Detect selects with modulo constraints and split into 
         # multiple parts. This technique can also be applied to the
         # predicate but for now we focus on selects.
@@ -427,7 +413,7 @@ class PolyRep(object):
 
         if not brokenParts:
             polyPart = PolyPart(sched, expr, pred, comp, list(align), 
-                                list(scale), stageNo, liveout)
+                                list(scale), levelNo, liveout)
             id_ = isl.Id.alloc(self.ctx, comp.name, polyPart)                            
             polyPart.sched = polyPart.sched.set_tuple_id(
                                           isl._isl.dim_type.in_, id_)
@@ -435,14 +421,14 @@ class PolyRep(object):
         else:
             for bsched, bexpr in brokenParts:
                 polyPart = PolyPart(bsched, bexpr, pred, comp, list(align), 
-                                    list(scale), stageNo, liveout)
+                                    list(scale), levelNo, liveout)
                 id_ = isl.Id.alloc(self.ctx, comp.name, polyPart)                            
                 polyPart.sched = polyPart.sched.set_tuple_id(
                                           isl._isl.dim_type.in_, id_)
                 polyParts.append(polyPart)
         return polyParts       
 
-    def createPolyPartsFromDefinition(self, comp, schedMap, stageNo, 
+    def createPolyPartsFromDefinition(self, comp, schedMap, levelNo, 
                                       scheduleNames, domain):
         self.polyParts[comp] = []
         for case in comp.definition:
@@ -472,14 +458,14 @@ class PolyRep(object):
                         sched = addConstriants(sched, conjunctIneqs, conjunctEqs)
                         # Create a user pointer, tuple name and add it to the map
                         parts = self.makePolyParts(sched, case.expression, None,
-                                                   comp, align, scale, stageNo, 
+                                                   comp, align, scale, levelNo, 
                                                    liveout)
                         for part in parts:
                             self.polyParts[comp].append(part)
                     else:
                         parts = self.makePolyParts(sched, case.expression, 
                                                    case.condition, comp, align, 
-                                                   scale, stageNo, liveout)
+                                                   scale, levelNo, liveout)
 
                         for part in parts:
                             self.polyParts[comp].append(part)
@@ -487,7 +473,7 @@ class PolyRep(object):
                 assert(isinstance(case, AbstractExpression) or 
                         isinstance(case, Accumulate))
                 parts = self.makePolyParts(sched, case, None, comp, 
-                                           align, scale, stageNo, liveout)
+                                           align, scale, levelNo, liveout)
                 for part in parts:
                     self.polyParts[comp].append(part)
         # Subtract all the part domains to find the domain where the
@@ -517,25 +503,6 @@ class PolyRep(object):
         #        polyPart.sched = polyPart.sched.set_tuple_id(
         #                                   isl._isl.dim_type.in_, id_)
         #        self.polyParts[comp].append(polyPart)
-        
-    def extractPolyRepFromFunction(self, comp, scheduleNames, paramNames,
-                                   contextConds, stageNo, paramConstraints):
-        self.polyDoms[comp] = self.extractPolyDomFromComp(comp, paramConstraints)
-        schedMap = self.createSchedSpace(comp.variables, comp.domain, scheduleNames,
-                                         paramNames, contextConds)
-        self.createPolyPartsFromDefinition(comp, schedMap, stageNo, scheduleNames,
-                                           comp.domain)
-
-    def extractPolyRepFromAccumulator(self, comp, scheduleNames, paramNames,
-                                      contextConds, stageNo, paramConstraints):
-        self.polyDoms[comp] = self.extractPolyDomFromComp(comp, paramConstraints)
-        schedMap = self.createSchedSpace(comp.reductionVariables, comp.reductionDomain, 
-                                         scheduleNames, paramNames, contextConds)
-        self.createPolyPartsFromDefinition(comp, schedMap, stageNo, scheduleNames,
-                                           comp.reductionDomain)
-        domMap = self.createSchedSpace(comp.variables, comp.domain, scheduleNames, 
-                                       paramNames, contextConds)
-        self.createPolyPartsFromDefault(comp, domMap, stageNo, scheduleNames)
 
     def defaultAlignAndScale(self, sched, domain):
         dimOut = sched.dim(isl._isl.dim_type.out)
@@ -546,42 +513,16 @@ class PolyRep(object):
             scale.append(domain[i].step.value)
         return (align, scale)
 
-    def createPolyPartsFromDefault(self, comp, schedMap, stageNo, scheduleNames):
+    def createPolyPartsFromDefault(self, comp, schedMap, levelNo, scheduleNames):
         sched = schedMap.copy()
         align, scale = self.defaultAlignAndScale(sched, comp.domain)
 
         assert(isinstance(comp.default, AbstractExpression))
         polyPart = PolyPart(sched, comp.default, None, comp,
-                            align, scale, stageNo - 1, False)
+                            align, scale, levelNo - 1, False)
         id_ = isl.Id.alloc(self.ctx, comp.name, polyPart)
         polyPart.sched = polyPart.sched.set_tuple_id(isl._isl.dim_type.in_, id_)
         self.polyParts[comp].append(polyPart)
-
-    def extractPolyDomFromComp(self, comp, paramConstraints):
-        varNames = [ var.name for var in comp.variables ]
-        domMapNames = [ name +'\'' for name in varNames]
-        params = []
-        for interval in comp.domain:
-            params = params + interval.collect(Parameter)
-        params = list(set(params))
-        paramNames = [ param.name for param in params ]
-
-        space = isl.Space.create_from_names(self.ctx, in_ = varNames,
-                                                      out = domMapNames,
-                                                      params = paramNames)
-        domMap = isl.BasicMap.universe(space)
-        # Adding the domain constraints
-        [ineqs, eqs] = formatDomainConstraints(comp.domain, varNames)
-        domMap = addConstriants(domMap, ineqs, eqs)
-       
-        paramConds = self.formatParamConstraints(paramConstraints, params) 
-        [paramIneqs, paramEqs] = formatConjunctConstraints(paramConds)
-        domMap = addConstriants(domMap, paramIneqs, paramEqs)
-
-        polyDom = PolyDomain(domMap.domain(), comp)
-        id_ = isl.Id.alloc(self.ctx, comp.name, polyDom)
-        polyDom.domSet = polyDom.domSet.set_tuple_id(id_)
-        return polyDom
 
     def computeDependencies(self):
         # Extract dependencies. In case the dependencies cannot be exactly 
@@ -611,8 +552,8 @@ class PolyRep(object):
         if isinstance(parentPart.comp, Accumulator):
             for i in xrange(1, dimOut):
                 depVec[i] = '*'
-            depVec[0] = childPart.stageNo - parentPart.stageNo
-            return (depVec, parentPart.stageNo)
+            depVec[0] = childPart.levelNo - parentPart.levelNo
+            return (depVec, parentPart.levelNo)
 
         for i in xrange(0, numArgs):
             arg = ref.arguments[i]
@@ -719,7 +660,7 @@ class PolyRep(object):
                 depVec[parentVarSchedDim] = '*'
 
         assert depVec[0] == '-'
-        depVec[0] = childPart.stageNo - parentPart.stageNo
+        depVec[0] = childPart.levelNo - parentPart.levelNo
         for i in xrange(0, dimOut):
             if (depVec[i] == '-'):
                 depVec[i] = 0
@@ -742,73 +683,7 @@ class PolyRep(object):
         #                aff = (dimDiff.get_pieces())[0][1]
         #                val = aff.get_constant_val()
         #                depVec[i] = (val.get_num_si())/(val.get_den_si())
-        return (depVec, parentPart.stageNo)
-
-    def getGroupDependenceVectors(self, group, scaleMap = None):
-        depVecs = []   
-        for part in group:
-            refs = part.getPartRefs()
-            for ref in refs:
-                if ref.objectRef in self.polyParts:
-                    for pp in self.polyParts[ref.objectRef]:
-                        if pp not in group:
-                            continue
-                        depVec = self.getDependenceVector(pp, part, ref, 
-                                                          scaleMap)
-                        depVecs.append(depVec)  
-        return depVecs
-
-    def alignWithGroup(self, part, group):
-
-        def getDomainDimsInvolved(sched, arg):
-            domDims = []
-            if (isAffine(arg)):
-                coeff = getAffineVarAndParamCoeff(arg)
-                for item in coeff:
-                    if type(item) == Variable:
-                        dim = sched.find_dim_by_name(isl._isl.dim_type.in_,
-                                                     item.name)
-                        domDims.append(dim)
-            return domDims
-
-        dimIn      = part.sched.dim(isl._isl.dim_type.in_)
-        refs       = part.getPartRefs()
-        # Avoiding Input references this should be revisited at some point
-        parentRefs = [ ref for ref in refs \
-                       if ref.objectRef in self.polyParts ]
-        dimAlignMap = {}           
-        for ref in parentRefs:
-            parentParts = self.polyParts[ref.objectRef]
-            # Filter out self references
-            groupParentParts = [ pp for pp in parentParts \
-                                 if pp in group and pp != part]
-            if not groupParentParts:
-                continue
-            numArgs = len(ref.arguments)
-            for i in xrange(0, numArgs):
-                arg = ref.arguments[i]
-                domDims = getDomainDimsInvolved(part.sched, arg)
-                # This can get tricky with multiple parts have to revisit
-                for repParentPart in groupParentParts:
-                    for dim in domDims:
-                        if dim not in dimAlignMap:
-                            dimAlignMap[dim] = [repParentPart.align[i]]
-                        if repParentPart.align[i] not in dimAlignMap[dim]:
-                            dimAlignMap[dim].append(repParentPart.align[i])
-
-        newAlign = [ '-' for i in xrange(0, part.sched.dim(isl._isl.dim_type.in_))]
-        for i in xrange(0, dimIn):
-            alignDim = None
-            # Check if the dimension is uniquely mapped
-            if i in dimAlignMap and len(dimAlignMap[i]) == 1:
-                alignDim = dimAlignMap[i][0]
-            # Remove the assigned dimension from the maps    
-            for dim in dimAlignMap:
-                if alignDim in dimAlignMap[dim]:
-                    dimAlignMap[dim].remove(alignDim)
-            if alignDim is not None:
-                newAlign[i] = alignDim
-        return newAlign 
+        return (depVec, parentPart.levelNo)
 
     def alignParts(self):
         """ Embeds parts whose dimension is smaller than the schedule space."""
@@ -920,16 +795,6 @@ class PolyRep(object):
             return True
         return False
 
-    def isGroupDependentOnPart(self, group, parentPart):
-        for part in group:
-            refs = part.getPartRefs()
-            # This can be more precise
-            objRefs = [ ref.objectRef for ref in refs\
-                         if ref.objectRef == parentPart.comp]
-            if len(objRefs) > 0:
-                return True
-        return False
-
     def isParent(self, part1, part2): 
         refs    = part2.getPartRefs()
         objRefs = [ ref.objectRef for ref in refs\
@@ -937,13 +802,6 @@ class PolyRep(object):
         if len(objRefs) > 0:
             return True
         return False
-
-    def estimateReuse(self, part1, part2):
-        """Gives an estimate of data reuse between the two poly parts."""
-        # A very naive cost model
-        if self.isParent(part1, part2):
-            return 1
-        return 0
 
     def getDomainDimCoeffs(self, sched, arg):
         domDimCoeff = {}
@@ -1063,68 +921,6 @@ class PolyRep(object):
             if offset[i] == '-':
                 offset[i] = 0
         return (scale, offset)
-
-    def findParentGroups(self, part, groups):
-        parentParts = []
-        for comp in self.polyParts:
-            for p in self.polyParts[comp]:
-                if self.isParent(p, part):
-                    parentParts.append(p)
-        parentGroups = []        
-        for p in parentParts:        
-            for g in groups:
-                if (p in g) and (g not in parentGroups):
-                    parentGroups.append(g)
-        return parentGroups
-
-    def findChildGroups(self, parentGroup, groups):
-        childGroups = []
-        for p in parentGroup:
-            for child in groups:
-                if child != parentGroup and\
-                  self.isGroupDependentOnPart(child, p) and\
-                  child not in childGroups:
-                    childGroups.append(child)
-        return childGroups             
-
-    def findLeafGroups(self, groups):
-        leafGroups = []
-        for i in xrange(0, len(groups)):
-            isLeaf = True
-            for p in groups[i]:
-                for j in xrange(0, len(groups)):
-                    if j!=i and self.isGroupDependentOnPart(groups[j], p):
-                        isLeaf = False
-            if isLeaf:
-                leafGroups.append(groups[i])
-        return leafGroups
-
-    def simpleGroup(self, paramEstimates, single = True):
-        compObjs = self.stage.orderComputeObjs()
-        sortedCompObjs = sorted(compObjs.items(), key=lambda s: (s[1], s[0].name))
-        # Create a reuse matrix among the poly parts
-        assert(len(sortedCompObjs) >= 1)
-        parts = []
-        groups = []
-        if single:
-            group = []
-            for comp in [item[0] for item in sortedCompObjs]:
-                for part in self.polyParts[comp]:
-                    group.append(part)
-            if group:
-                groups.append(group)
-        else:    
-            for comp in [item[0] for item in sortedCompObjs]:
-                if self.isCompSelfDependent(comp) or True:
-                    group = []
-                    for part in self.polyParts[comp]:
-                        group.append(part)
-                    if group:
-                        groups.append(group)
-                else:
-                    for part in self.polyParts[comp]:
-                        groups.append([part])
-        return groups        
     
     def createGroupScaleMap(self, group):
         groupScaleMap = {}
@@ -1168,979 +964,6 @@ class PolyRep(object):
         else:
             dimSize = interval.lowerBound - interval.upperBound + 1
         return substituteVars(dimSize, paramValMap)
-
-    def groupStages(self, paramEstimates):
-        compObjs = self.stage.orderComputeObjs()
-        sortedCompObjs = sorted(compObjs.items(), key=lambda s: (s[1], s[0].name))
-        # Create a reuse matrix among the poly parts
-        parts = []
-        for comp in [item[0] for item in sortedCompObjs]:
-            parts = parts + self.polyParts[comp]
-        reuse = {}
-        relScaleFactors = {}
-        for i in xrange(0, len(parts)):
-            for j in xrange(0, len(parts)):
-                reuse[(parts[i], parts[j])] = self.estimateReuse(parts[i], parts[j])
-                # Skip scaling factor computation for reductions
-                isReduction = isinstance(parts[i].comp, Accumulator) or \
-                              isinstance(parts[j].comp, Accumulator)
-                if (reuse[(parts[i], parts[j])] > 0) and (parts[j] != parts[i]) and \
-                        not isReduction:
-                    relScaleFactors[(parts[i], parts[j])] = \
-                        self.computeRelativeScalingFactors(parts[i], parts[j])
-
-        def scaleToParentGroup(part, group):
-            refs       = part.getPartRefs()
-            # Avoiding Input references this should be revisited at some point
-            parentRefs = [ ref for ref in refs \
-                           if ref.objectRef in self.polyParts ]
-            dimIn = part.sched.dim(isl._isl.dim_type.in_)
-            newScale = [ '-' for i in xrange(0, dimIn)]
-            for ref in parentRefs:
-                parentParts = self.polyParts[ref.objectRef]
-                groupParentParts = [ pp for pp in parentParts \
-                                     if pp in group ]
-                if not groupParentParts:
-                    continue
-                for gpp in groupParentParts:
-                    relScale, offset = relScaleFactors[(gpp, part)]
-                    for i in xrange(0, dimIn):
-                        # Check if the dimension can be scaled
-                        if relScale[i] == '*':
-                            newScale[i] = '*'
-                        else:
-                            # Get the current scaling of the dimension
-                            # aligned to.
-                            alignDim = None
-                            for j in xrange(0, len(gpp.align)):
-                                if gpp.align[j] == part.align[i]:
-                                    if alignDim is None:
-                                        alignDim = j
-                                    else:
-                                        # A dimension cannot be aligned to 
-                                        # multiple schedule dimensions.
-                                        assert False
-                            if alignDim is not None:
-                                currScale = Fraction(gpp.scale[alignDim],
-                                                     part.scale[i])
-                                if newScale[i] == '-':
-                                    newScale[i] = relScale[i] * currScale
-                                elif newScale[i] != currScale * relScale[i]:
-                                    newScale[i] = '*'
-            for i in xrange(0, dimIn):
-                if newScale[i] == '-':
-                    newScale[i] = 1
-            return newScale                
-
-        def isGroupWithPartStencil(group, part, scale):
-            if '*' in scale:
-                return False
-            sm = self.createGroupScaleMap(group)            
-            scaleGroupToPart(group, part, scale, sm)
-            sm[part] = list(part.scale)
-            assert part not in group           
-            normalizeGroupScaling(group + [part], sm)
-            depVecs = self.getGroupDependenceVectors(group + [part], sm)
-
-            for vec, h in depVecs:
-                if '*' in vec:
-                    return False
-            return True
-
-        def getScale(sMap, p, i):
-            if sMap is not None:
-                return sMap[p][i]
-            return p.scale[i]
-
-        def setScale(sMap, p, i, val):
-            if sMap is not None:
-                sMap[p][i] = val
-            else:
-                p.scale[i] = val
-
-        def scaleGroupToPart(group, part, scale, scaleMap = None):
-            for g in group:
-                dimIn = g.sched.dim(isl._isl.dim_type.in_)
-                for j in xrange(0, len(scale)):
-                    if scale[j] != '*':
-                        scaled = False
-                        for i in xrange(0, dimIn):
-                            if g.align[i] == part.align[j]:
-                                assert not scaled
-                                scaled = True
-                                s = Fraction(getScale(scaleMap, g, i), 
-                                             scale[j])
-                                setScale(scaleMap, g, i, s)
-        
-        def normalizeGroupScaling(group, scaleMap = None):
-            dimOut = group[0].sched.dim(isl._isl.dim_type.out)
-            norm = [ 1 for i in xrange(0, dimOut)]
-            for g in group:
-                dimIn = g.sched.dim(isl._isl.dim_type.in_)
-                for j in xrange(0, dimOut):
-                    scaled = False
-                    for i in xrange(0, dimIn):
-                        if g.align[i] == j:
-                            assert not scaled
-                            scaled = True
-                            d = Fraction(getScale(scaleMap, g, i)).denominator
-                            norm[j] = lcm(norm[j], d)
-            # Normalizing the scales of the group
-            for g in group:
-                dimIn = g.sched.dim(isl._isl.dim_type.in_)
-                dimOut = g.sched.dim(isl._isl.dim_type.out)
-                for j in xrange(0, len(norm)):
-                    for i in xrange(0, dimIn):
-                        if g.align[i] == j:
-                            s = getScale(scaleMap, g, i)
-                            setScale(scaleMap, g, i, s * norm[j])
-
-        def getGroupCost(group):
-            return 1
-
-        def estimateGroupCostWithBundle(group, bundle, scale, partSizeMap):
-            return 1
-
-        # Progressive algorithm for grouping stages assigns groups level by 
-        # level trying to maximze reuse and size of stencil groups.
-
-        # Filter out small computations. We characterize a computation as 
-        # small when the domains of parents and the computation itself is 
-        # small to benefit from tiling or parallelization. The parents are
-        # included so that we do not miss out on storage optimzations.
-        def getSmallComputations(pts, estimates):
-            smallParts = []
-            # This can be more precise but for now just estimating the 
-            # size of the part by the size of the computation object.
-
-            # Currentlty the size is just being estimated by the number
-            # of points in the domain. It can be more accurately done 
-            # by considering the arithmetic intensity in the expressions.
-            partSizeMap = {}
-            for p in pts:
-                partSizeMap[p] = self.getPartSize(p, estimates)
-
-            for i in xrange(0, len(pts)):
-                smallPart = False
-                if partSizeMap[pts[i]] != '*':
-                    smallPart = partSizeMap[pts[i]] <= self.sizeThreshold
-                for j in xrange(i+1, len(pts)):
-                    if self.isParent(pts[j], pts[i]):
-                        if partSizeMap[pts[j]] != '*':
-                            smallPart = smallPart and \
-                                        (partSizeMap[pts[j]] > self.sizeThreshold)
-                        else:
-                            smallPart = False
-                if smallPart:
-                    smallParts.append(pts[i])
-            
-            return smallParts, partSizeMap 
-
-        smallParts, partSizeMap = getSmallComputations(parts, paramEstimates)
-
-        # All the parts of a computation which has self dependencies should be
-        # in the same group. Bundle such parts together.
-        smallGroups = []
-        optGroups = self.simpleGroup(paramEstimates, single=False)
-        #print("intial groups begin")
-        #for g in optGroups:
-        #    for p in g:
-        #        print(p.comp.name)
-        #print("intial groups end")
-        initialParts = 0
-        for g in optGroups:
-            initialParts += len(g)
-        for g in optGroups:
-            smallGroup = True
-            for p in g:
-                if not p in smallParts:
-                    smallGroup = False
-            if smallGroup:
-                smallGroups.append(g)
-
-        opt = True
-        while opt:
-            children = {}
-            opt = False
-            for gi in xrange(0, len(optGroups)):
-                children[gi] = self.findChildGroups(optGroups[gi], optGroups)
-            newGroups = [ group for group in optGroups ]
-            for gi in children:
-                isSmall = True
-                isReduction = False
-                for p in optGroups[gi]:
-                    if not p in smallParts:
-                        isSmall = False
-                    if isinstance(p.comp, Accumulator):
-                        isReduction = True
-                #print(len(children[gi]), isSmall)
-                if not isSmall and not isReduction and len(optGroups[gi]) < self.groupSize:
-                    if (len(children[gi]) > 1) and False:
-                        newGroup = [ p for p in optGroups[gi] ]
-                        merge = True
-                        for childGroup in children[gi]:
-                            # Check if all the children can be fused
-                            parentGroups = []
-                            for cp in childGroup:
-                                pgs = self.findParentGroups(cp, newGroups)
-                                for pg in pgs:
-                                    if pg not in parentGroups:
-                                        parentGroups.append(pg)
-                            for pg in parentGroups:
-                                if pg not in children[gi] and pg != optGroups[gi]:
-                                    merge = False
-                        if merge:
-                            print("parent group begin")
-                            for p in optGroups[gi]:
-                                print(p.comp.name)
-                            print("parent groups end")
-                            print("adding groups begin")
-                            for g in children[gi]:
-                                for p in g:
-                                    print(p.comp.name)
-                            print("adding groups end")
-                            for childGroup in children[gi]:
-                                for p in childGroup:
-                                    scale = scaleToParentGroup(p, newGroup)
-                                    scaleGroupToPart(newGroup, p, scale)
-                                newGroup = newGroup + childGroup
-                                newGroups.remove(childGroup)
-                            newGroups.remove(optGroups[gi])
-                            newGroups.append(newGroup)
-                            opt = True
-                            break
-                    elif (len(children[gi]) == 1):
-                        print("parent group begin")
-                        for p in optGroups[gi]:
-                            print(p.comp.name)
-                        print("parent groups end")
-                        print("adding groups begin")
-                        for g in children[gi]:
-                            for p in g:
-                                print(p.comp.name)
-                        print("adding groups end")
-                        newGroup = [ p for p in optGroups[gi] ]
-                        for p in children[gi][0]:
-                            scale = scaleToParentGroup(p, newGroup)
-                            scaleGroupToPart(newGroup, p, scale)
-                        newGroup = newGroup + children[gi][0]
-                        newGroups.remove(children[gi][0])
-                        newGroups.remove(optGroups[gi])
-                        newGroups.append(newGroup)
-                        opt = True
-                        break
-            optGroups = newGroups         
-        #print("final groups begin")
-        #for g in optGroups:
-        #    for p in g:
-        #        print(p.comp.name)
-        #print("final groups end")
-        #print(optGroups)
-        #bundles = [ b for b in bundles if b not in smallGroups ]
-        """
-        for b in bundles:
-            parentGroups = []
-            # Find the leaf parents in the parent groups. This avoids cycles
-            # by construction. The fact that a there are two separate dependent
-            # parent groups means that fusing them was deemed suboptimal. They
-            # are not considered for fusion again. This would leave only the 
-            # leaf group as a choice for fusion.
-
-            #Filter out non leaf groups
-            leafGroups = self.findLeafGroups(optGroups + smallGroups)
-            for p in b:
-                parents = self.findParentGroups(p, leafGroups)
-                parentGroups = parentGroups + parents
-
-            # Filter out the small groups from the parent groups. Since they
-            # are not considered for fusion.
-            parentGroups = [ g for g in parentGroups \
-                             if g not in smallGroups] 
-            otherGroups = [ g for g in optGroups \
-                            if g not in parentGroups ]
-            scales = {}
-
-            for i in xrange(0, len(parentGroups)):
-                scaleList = []
-                for p in b:
-                    scaleList.append(scaleToParentGroup(p, parentGroups[i]))
-                scales[i] = scaleList    
-            
-            # Compute the cost of adding the bundle to each of the candidate
-            # groups. The approach we take now is to either add the bundle to
-            # one of the groups or to merge all of the groups. Parital merging 
-            # is not explored. 
-
-            # The characteristics of a group are captured in the following 
-            # structure - (tile dims, storage, overlap)
-            # (tile dims) indicates the number of dimensions that can be tiled 
-            # profitably. Fusion which reduces the number of tile dims is avoided. 
-            # (storage) gives an estimate of the storage savings original function
-            # sizes vs scratch or modulo buffer sizes.
-            # (overlap) gives an estimate of the fraction of redundant computation
-            # relative to tile sizes that will be done in the group.
-           
-            def isProfitable(cCost, nCost):
-                return True
-
-            candGroups = []
-            for i in xrange(0, len(parentGroups)):
-                currCost = getGroupCost(parentGroups[i])
-                newCost = estimateGroupCostWithBundle(parentGroups[i], b,
-                                                      scales[i], partSizeMap)
-                if isProfitable(currCost, newCost):
-                    candGroups.append(i)
-            
-            mergedGroup = []
-            for i in candGroups:
-                for j in xrange(0, len(b)):
-                    scaleGroupToPart(parentGroups[i], b[j], scales[i][j])
-                mergedGroup = mergedGroup + parentGroups[i]
-            parentGroups = [i for j, i in enumerate(parentGroups)\
-                            if j not in candGroups ]
-            
-            mergedGroup = mergedGroup + b
-            parentGroups.append(mergedGroup)
-            optGroups = parentGroups + otherGroups
-        """ 
-        for group in optGroups:
-            normalizeGroupScaling(group)
-       
-        finalParts = 0
-        for group in optGroups:
-            finalParts += len(group)
-        
-        assert initialParts == finalParts
-        return optGroups
-
-    def baseSchedule(self, paramEstimates):
-        self.alignParts()
-        stageGroups = self.groupStages(paramEstimates)
-        #stageGroups = self.simpleGroup(paramEstimates, single = False)
-
-        for group in stageGroups:
-            time = {}
-
-            for part in group:
-                time[part] = 0
-
-            change = True
-            while change:
-                change = False
-                for part in group:
-                    for parent in group:
-                        if self.isParent(parent, part):
-                            if self.isParent(part, parent):
-                                continue
-                            elif time[part] <= time[parent]:
-                                time[part] = time[parent] + 1
-                                change = True
-
-            for part in group:
-                part.stageNo = time[part]
-                dimIn = part.sched.dim(isl._isl.dim_type.in_)
-                dimOut = part.sched.dim(isl._isl.dim_type.out)
-                [ineqs, eqs] = formatScheduleConstraints(dimIn, dimOut, 
-                                                         part.align, 
-                                                         part.scale,
-                                                         part.stageNo)
-                part.sched = addConstriants(part.sched, ineqs, eqs)
-        self.groups = stageGroups
-        return stageGroups
-
-    def simpleSchedule(self, paramEstimates):
-        """Generate a simple schedule for the stage."""
-        stageGroups = self.baseSchedule(paramEstimates)
-        for i in xrange(0, len(stageGroups)):
-            for p in stageGroups[i]:
-                p.liveout = True           
-
-    def computeTileSlope(self, stageDeps, hmax):
-        # Compute slopes
-        # -- The first dimension in the domain gives the stage order. The slope of
-        #    the tile in each dimension is computed with respect to the stage order.
-        #    The min extent and max extent in the each dimension are computed. The
-        #    hyperplanes representing the min and max extent give the shape of the
-        #    tile in that dimension.
-        if len(stageDeps) < 1 :
-            return ([], [])
-
-        vecLen = len(stageDeps[0][0])
-        slopeMin = [ (0, 1) for i in xrange(0, vecLen - 1) ]
-        slopeMax = [ (0, 1) for i in xrange(0, vecLen - 1) ]
-        # Find max and min widths of dependencies at the base
-        widths = []
-        hmin = min([ dep[1] for dep in stageDeps ])
-        minWidth = [ 0 for i in xrange(0, vecLen - 1)]
-        maxWidth = [ 0 for i in xrange(0, vecLen - 1)]
-        depUnknown = [ False for i in xrange(0, vecLen - 1) ] 
-        for currh in xrange(hmax - 1, hmin - 1, -1):
-            maxW = [ 0 for i in xrange(0, vecLen - 1)]
-            minW = [ 0 for i in xrange(0, vecLen - 1)]
-            hDepVecs = [ depVec for depVec in stageDeps if \
-                         depVec[1] == currh]
-            for depVec, h in hDepVecs:             
-                for i in xrange(0, len(depVec)-1):
-                    if depVec[i+1] == '*':
-                        depUnknown[i] = True
-                        continue
-                    if depVec[i+1] > 0:
-                        maxW[i] = max(maxW[i], depVec[i+1])
-                    if depVec[i+1] < 0:
-                        minW[i] = min(minW[i], depVec[i+1])
-            for i in xrange(0, len(depVec)-1):
-                minWidth[i] = minWidth[i] + minW[i]
-                maxWidth[i] = maxWidth[i] + maxW[i]
-            widths.append((list(minWidth), currh))
-            widths.append((list(maxWidth), currh))
-            #print(widths)
-                    
-        for width, h in widths:
-            scale = hmax - h 
-            for i in xrange(0, vecLen-1):  
-                if ((Fraction(width[i], scale) < 
-                     Fraction(slopeMin[i][0], slopeMin[i][1])) and width[i] < 0):
-                    slopeMin[i] = (width[i], scale)
-                if ((Fraction(width[i], scale) >  
-                     Fraction(slopeMax[i][0], slopeMax[i][1])) and width[i] > 0):
-                    slopeMax[i] = (width[i], scale)
-
-        for i in xrange(0, vecLen-1):             
-            if depUnknown[i]:
-                slopeMin[i] = '*'
-                slopeMax[i] = '*'
-
-        return (slopeMin, slopeMax)           
-
-    def fusedSchedule(self, paramEstimates):
-        """Generate an optimized schedule for the stage."""
-        # Overall Approach
-        # -- Partition the stages into groups
-        #    -- Group together stages which have uniform dependencies across 
-        #       or dependencies that can be uniformized.
-        #    -- Try to group stages which only have inter-stage dependencies.
-        #    -- Intra-stage dependencies are dealt separately. Since they 
-        #       generally inhibit concurrent start.
-        #    -- While grouping the stages use scaled schedules to uniformize
-        #       dependencies. Algorithm to determine scaling factors.
-        #    -- Align the dimensions of stages based on the parameters defining
-        #       the dimension as well as subsequent access of the dimension.
-        #       Can this be done while extracting the polyhedral representation?
-        #    -- Try to reduce the live-range of the stages while grouping. A
-        #       stage which only has consumers within the group can be optimized
-        #       for storage.
-        #    -- Use the estimates of input sizes and number of threads to formulate        
-        #       simple heuristics.
-        stageGroups = self.baseSchedule(paramEstimates)
-        # -- Compute dependencies
-        #    -- Since partitioning might introduce scaling factors. The 
-        #       dependencies have to be computed based on the schedule
-        #       How to extract dependence vectors from dependence polyhedra?
-        #       This might be a better approach than trying to finding the vectors
-        #       in an independent step.
-        stageDeps = {}
-        for i in xrange(0, len(stageGroups)):            
-            stageDeps[i] = self.getGroupDependenceVectors(stageGroups[i])
-            #for g in stageGroups[i]:
-            #    print(g.sched)
-            #    print(g.expr)
-            #print(stageDeps[i])
-
-        # -- Generate a tiled schedule for the group
-        #    -- Stencil groups are groups which have only uniform inter stage 
-        #       dependencies. These stages can be tiled using the overlap or split
-        #       tiling approach.
-        #    -- Intra tile uniform dependencies should be tiled in a pipeline 
-        #       fashion. Can this be folded into the overlap or split tiling strategy
-        #       or needs to be dealt separately?
-        #       Integral images and time iterated computations are important patterns 
-        #       that fall into this category.
-        #    -- For general affine dependencies the pluto algorithm should be used.
-        #       We currently do not focus on general affine dependencies.
-        stencilGroups = []
-        for i in xrange(0, len(stageGroups)):
-            # No point in tiling a group that has no dependencies
-            isStencil = len(stageDeps[i]) > 0 and len(stageGroups[i]) > 1
-            for dep, h in stageDeps[i]:
-                # Skips groups which have self deps
-                if dep[0] == 0:
-                    isStencil = False
-            if isStencil:
-                stencilGroups.append(i)
-            else:
-                for p in stageGroups[i]:
-                    partSize = self.getPartSize(p, paramEstimates)
-                    bigPart = partSize != '*' and partSize > self.sizeThreshold/2
-                    if not self.isPartSelfDependent(p) and bigPart:
-                        # Determine the outer most dim and mark it parallel
-                        # the inner most dim and mark it as vector
-                        parallelDim = None
-                        vecDim = None
-                        for dom in xrange(0, len(p.align)):
-                            interval = p.comp.domain[dom]
-                            if isinstance(p.comp, Accumulator):
-                                interval = p.comp.reductionDomain[dom]
-                            # Since size could be estimated so can interval
-                            # size no need to check.
-                            intSize = self.getDimSize(interval, paramEstimates)
-                            if(getConstantFromExpr(intSize) >= 32):
-                                if parallelDim is not None:
-                                    parallelDim = min(p.align[dom], parallelDim)
-                                else:
-                                    parallelDim = p.align[dom]
-                                    
-                            if(getConstantFromExpr(intSize) >= 4):
-                                if vecDim is not None:
-                                    vecDim = max(p.align[dom], vecDim)
-                                else:
-                                    vecDim = p.align[dom]
-                        if parallelDim is not None:
-                            pDimName = p.sched.get_dim_name(isl._isl.dim_type.out,
-                                                           parallelDim)
-                            p.parallelSchedDims.append(pDimName)
-                        if vecDim is not None:
-                            vDimName = p.sched.get_dim_name(isl._isl.dim_type.out,
-                                                           vecDim)
-                            p.vectorSchedDim.append(vDimName)
-
-            # Find the stages which are not liveout
-            maxStage = max([ p.stageNo for p in stageGroups[i] ])
-            for p in stageGroups[i]:
-                isLiveOut = not isStencil
-                #isLiveOut = True
-                for gn in xrange(0, len(stageGroups)):
-                    if gn != i:
-                        isLiveOut = isLiveOut or self.isGroupDependentOnPart(
-                                                            stageGroups[gn], p)                        
-                if p.stageNo == maxStage:        
-                    p.liveout = True
-                p.liveout = p.liveout or isLiveOut     
-                    
-        for gi in stencilGroups:
-            assert(len(stageGroups[gi]) > 1)
-            hmax = max( [ s.stageNo for s in stageGroups[gi] ] )
-            hmin = min( [ s.stageNo for s in stageGroups[gi] ] )
-            slopeMin, slopeMax = self.computeTileSlope(stageDeps[gi], hmax)
-            #print(slopeMin, slopeMax, hmax - hmin)
-            
-            #self.splitTile(stageGroups[gi], slopeMin, slopeMax)
-            self.overlapTile(stageGroups[gi], slopeMin, slopeMax)
-            print(stageDeps[gi])
-            print(slopeMin, slopeMax, hmax, len(stageGroups[gi]))
-            #for p in stageGroups[gi]:
-            #    print(p.scale, p.comp.name + ' = ' +  p.expr.__str__())
-            #for p in stageGroups[gi]:
-            #    print(p.dimTileInfo)
-
-            # Determine the buffer sizes for stages in each dimension
-            for p in stageGroups[gi]:
-                for dom in p.dimTileInfo:
-                    if p.dimTileInfo[dom][0] != 'none': 
-                        dimName = p.dimTileInfo[dom][1]
-                        tileDimName = p.dimTileInfo[dom][2]
-                        extent = p.dimTileInfo[dom][3]
-                        if p.dimTileInfo[dom][0] == 'overlap':
-                            # Accounting for the overlap region
-                            L = p.dimTileInfo[dom][4]
-                            R = p.dimTileInfo[dom][5]
-                            h = p.dimTileInfo[dom][6]
-                            extent += abs(L * h) + abs(R * h)
-                            baseWidth = h - p.stageNo
-                            #extent += abs(L * h) + abs(R * baseWidth) 
-                        p.dimScratchSize[dom] = \
-                            int(math.ceil(Fraction(extent, p.scale[dom])))
-                        #accName = '_Acc_' + p.sched.get_dim_name(isl._isl.dim_type.in_, dom)
-                        #remName = '_Rem_' + p.sched.get_dim_name(isl._isl.dim_type.in_, dom)
-                        mulName = '_Mul_' + p.sched.get_dim_name(isl._isl.dim_type.in_, dom)
-                        dimIn = p.sched.dim(isl._isl.dim_type.in_)
-                        domId =  p.sched.get_tuple_id(isl._isl.dim_type.in_)
-                        p.sched = p.sched.insert_dims(isl._isl.dim_type.in_, dimIn, 1)
-                        p.sched = p.sched.set_tuple_id(isl._isl.dim_type.in_, domId)
-                        #p.sched = p.sched.set_dim_name(isl._isl.dim_type.in_, dimIn, accName)
-                        #p.sched = p.sched.set_dim_name(isl._isl.dim_type.in_, dimIn+1, remName)
-                        p.sched = p.sched.set_dim_name(isl._isl.dim_type.in_, dimIn, mulName)
-                        schedDim = p.sched.find_dim_by_name(isl._isl.dim_type.out, dimName)
-                        tileDim = p.sched.find_dim_by_name(isl._isl.dim_type.out, tileDimName)
-                        
-                        eqs = []
-                        coeff = {}
-                        coeff[('in', dimIn)] = p.scale[dom]
-                        coeff[('out', schedDim)] = -1
-                        coeff[('out', tileDim)] = p.dimTileInfo[dom][3]
-                        eqs.append(coeff)
-                       
-                        ineqs = []
-                        #coeff = {}
-                        #coeff[('in', dimIn+2)] = p.scale[dom]
-                        #coeff[('in', dimIn+1)] = 1
-                        #coeff[('in', dimIn)] = -1
-                        #eqs.append(coeff)
-
-                        #coeff = {}
-                        #coeff[('in', dimIn+1)] = 1
-                        #coeff[('constant', 0)] = 0
-                        #ineqs.append(coeff)
-
-                        #coeff = {}
-                        #coeff[('in', dimIn+1)] = -1
-                        #coeff[('constant', 0)] = p.scale[dom] - 1
-                        #ineqs.append(coeff)
-
-                        p.sched = addConstriants(p.sched, ineqs, eqs)
-            
-            # Second level storage savings can be achieved by utilizing modulo buffers
-            # in the non-vector dimension. The fastest varying dimension is considered
-            # the vector dimension and by this point should be the inner-most dimension.
-
-            # Disabling this for two reasons
-            # 1) The code generator generates awful code. There is no reason to expect
-            #    it to generate anything nice.
-            # 2) The dimension that has skewing applied to it need not be tiled. This 
-            #    has to be integrated into scheduling itself.
-            """
-            for p in stageGroups[gi]:
-                oneDim = True
-                for dom in p.dimTileInfo:
-                    if p.dimTileInfo[dom][0] == 'overlap' and oneDim:
-                        oneDim = False
-                        dimName = p.dimTileInfo[dom][1]
-                        
-                        # Skewing the dimension
-                        schedDim = p.sched.find_dim_by_name(isl._isl.dim_type.out, dimName)
-                        p.sched = p.sched.insert_dims(isl._isl.dim_type.out, schedDim  + 1, 1)
-                        p.sched = p.sched.set_dim_name(isl._isl.dim_type.out, 
-                                                        schedDim + 1, '_shift' + dimName)
-                        timeDim = p.sched.find_dim_by_name(isl._isl.dim_type.out, '_t')
-
-                        R = p.dimTileInfo[dom][5]
-                        eqs = []
-                        coeff = {}
-                        coeff[('out', schedDim)] = 1
-                        coeff[('out', timeDim)] = abs(R)
-                        coeff[('out', schedDim + 1)] = -1
-                        eqs.append(coeff)
-                        p.sched = addConstriants(p.sched, [], eqs)
-                        p.sched = p.sched.remove_dims(isl._isl.dim_type.out, schedDim, 1)
-                        
-                        # Moving time inside
-                        timeDim = p.sched.find_dim_by_name(isl._isl.dim_type.out, '_t')
-                        p.sched = p.sched.insert_dims(isl._isl.dim_type.out, timeDim, 1)
-                        p.sched = p.sched.set_dim_name(isl._isl.dim_type.out, 
-                                                        timeDim, '_tmp' + dimName)
-                        schedDim = p.sched.find_dim_by_name(isl._isl.dim_type.out, '_shift' + dimName)
-
-                        eqs = []
-                        coeff = {}
-                        coeff[('out', timeDim)] = 1
-                        coeff[('out', schedDim)] = -1
-                        eqs.append(coeff)
-                        p.sched = addConstriants(p.sched, [], eqs)
-                        p.sched = p.sched.remove_dims(isl._isl.dim_type.out, schedDim, 1)
-                        p.sched = p.sched.set_dim_name(isl._isl.dim_type.out, 
-                                                        timeDim, '_shift' + dimName)
-            """
-            # -- Mark parallel dimensions and vector dimensions in each group
-            #    -- Find the outer most parallel dimension which can generate "enough"
-            #       tasks for the given number of threads.
-            #    -- Partial and full tile separation to enable better vectorization.
-            #    -- We currently rely on compiler vectorization. This is quite unreliable.
-            #       We need to revisit the vectorization strategy.
-            for p in stageGroups[gi]:
-                outerParallelDim = None
-                innerVecDim = None
-                for dom in p.dimTileInfo:
-                    if p.dimTileInfo[dom][0] == 'none':
-                        # Either the dimension is too small to be parallelized or 
-                        # is skewed. In both cases the dimension cannot be parallel.
-                        # This can change when we choose to not tile a dimension.
-                        continue
-                    elif p.dimTileInfo[dom][0] == 'overlap':
-                        dimName = p.dimTileInfo[dom][1]
-                        tileDimName = p.dimTileInfo[dom][2]
-                        schedDim = p.sched.find_dim_by_name(isl._isl.dim_type.out, 
-                                                            dimName)
-                        tileDim = p.sched.find_dim_by_name(isl._isl.dim_type.out, 
-                                                            tileDimName)
-                        if outerParallelDim is not None:
-                            outerParallelDim = min(tileDim, outerParallelDim)
-                        else:
-                            outerParallelDim = tileDim
-                        if innerVecDim is not None:
-                            innerVecDim = max(schedDim, innerVecDim)
-                        else:
-                            innerVecDim = schedDim
-
-                if outerParallelDim is not None:
-                    pDimName = p.sched.get_dim_name(isl._isl.dim_type.out,
-                                                    outerParallelDim)
-                    p.parallelSchedDims.append(pDimName)
-                if innerVecDim is not None:
-                    vDimName = p.sched.get_dim_name(isl._isl.dim_type.out,
-                                                    innerVecDim)
-                    p.vectorSchedDim.append(vDimName)
-
-            # Computations which have different scale but map to the same time
-            # generate a lot of conditionals which can hinder performance. This
-            # step separates all computations in a time step by adding an additional 
-            # dimension.
-            compParts = {}
-            for p in stageGroups[gi]:
-                if p.comp in compParts:
-                    compParts[p.comp].append(p)
-                else:
-                    compParts[p.comp] = [p]
-
-            pi = 0
-            for comp in compParts:
-                for p in compParts[comp]:
-                    timeDim = p.sched.find_dim_by_name(isl._isl.dim_type.out, '_t')
-                    p.sched = p.sched.insert_dims(isl._isl.dim_type.out, timeDim + 1, 1)
-                    p.sched = p.sched.set_dim_name(isl._isl.dim_type.out, 
-                                               timeDim + 1, '_o')
-                    eqs = []
-                    coeff = {}
-                    coeff[('constant', 0)] = -pi
-                    coeff[('out', timeDim + 1)] = 1
-                    eqs.append(coeff)
-                    p.sched = addConstriants(p.sched, [], eqs)
-                    pi += 1
-
-            #for p in stageGroups[gi]:
-            #    print(p.sched)
-            #assert False
-
-
-    def moveIndependentDim(self, dim, group, stageDim):
-        # Move the independent dimensions outward of the stage dimension.
-        for part in group:
-            part.sched = part.sched.insert_dims(isl._isl.dim_type.out, 
-                                                stageDim, 1)
-            noDepId = part.sched.get_dim_id(
-                            isl._isl.dim_type.out, dim + 1)
-            noDepName = part.sched.get_dim_name(
-                            isl._isl.dim_type.out, dim + 1)
-            eqs = []
-            coeff = {}
-            coeff[('out', dim+1)] = -1
-            coeff[('out', stageDim)] = 1
-            eqs.append(coeff)
-            part.sched = addConstriants(part.sched, [], eqs)
-            part.sched = part.sched.remove_dims(
-                                isl._isl.dim_type.out, dim+1, 1)
-            part.sched = part.sched.set_dim_name(
-                                    isl._isl.dim_type.out, 
-                                    stageDim, noDepName)
-
-    def getGroupHeight(self, group):
-        minHeight = min( [ part.stageNo for part in group ] )
-        maxHeight = max( [ part.stageNo for part in group ] )
-        return maxHeight - minHeight
-
-    def overlapTile(self, group, slopeMin, slopeMax):
-        stageDim = 0
-        tileDims = 0
-        noTileDims = 0
-        h = self.getGroupHeight(group)
-        numTileDims = 0
-        for i in xrange(1, len(slopeMin) + 1):                    
-            # Check if every stage in the group has enough iteration 
-            # points in the dimension to benefit from tiling.
-            tile = False
-            for part in group:
-                currDim = stageDim + noTileDims + 2*tileDims + 1
-                lowerBound = part.sched.range().dim_min(currDim)
-                upperBound = part.sched.range().dim_max(currDim)
-                size = upperBound.sub(lowerBound)
-                if (size.is_cst() and size.n_piece() == 1):
-                    aff = (size.get_pieces())[0][1]
-                    val = aff.get_constant_val()
-                    if val > self.tileSizes[numTileDims]:
-                        tile = True
-                else:
-                    tile = True
-            if tile and slopeMin[i-1] != '*':        
-                # Altering the schedule by constructing overlapped tiles.
-                for part in group:
-                    # Extend space to accomodate the tiling dimensions
-                    part.sched = part.sched.insert_dims(
-                                    isl._isl.dim_type.out, 
-                                    stageDim + tileDims, 1)
-                    name = part.sched.get_dim_name(
-                                isl._isl.dim_type.out, 
-                                stageDim + noTileDims + 2*tileDims + 2)
-                    part.sched = part.sched.set_dim_name(
-                                    isl._isl.dim_type.out, 
-                                    stageDim + tileDims, 
-                                    '_T' + name)
-                    R = int(math.floor(Fraction(slopeMin[i-1][0], 
-                                                slopeMin[i-1][1])))
-                    L = int(math.ceil(Fraction(slopeMax[i-1][0], 
-                                               slopeMax[i-1][1])))
-                    # L and R are normals to the left and the right 
-                    # bounding hyperplanes of the uniform dependencies
-                
-                    tileSize = self.tileSizes[numTileDims]
-                    # Compute the overlap shift
-                    #print(slopeMax, slopeMin, h, L, R, i-1)
-                    overlapShift = abs(L * (h)) + abs(R * (h))
-                    for j in xrange(0, len(part.align)):
-                        if i == part.align[j]:
-                            assert j not in part.dimTileInfo
-                            if tileSize%part.scale[j] != 0:
-                                tileSize = int(math.ceil(part.scale[j]))
-                            part.dimTileInfo[j] = ('overlap', name, '_T' + name, 
-                                                     tileSize, L, R, h)
-                    ineqs = []
-                    eqs = []
-                    coeff = {}
-                    itDim = stageDim + noTileDims + 2*tileDims + 2
-                    tileDim = stageDim + tileDims
-                    timeDim = stageDim + tileDims + 1
-                    coeff[('out', timeDim)] = -L
-                    coeff[('out', itDim)] = 1
-                    coeff[('out', tileDim)] = -tileSize
-                    ineqs.append(coeff)
-
-                    coeff = {}
-                    coeff[('out', timeDim)] = L
-                    coeff[('out', itDim)] = -1
-                    coeff[('out', tileDim)] = tileSize
-                    coeff[('constant', 0)] = tileSize - 1 + overlapShift
-                    ineqs.append(coeff)
-                
-                    coeff = {}
-                    coeff[('out', timeDim)] = -R
-                    coeff[('out', itDim)] = 1
-                    coeff[('out', tileDim)] = -tileSize
-                    ineqs.append(coeff)
-
-                    coeff = {}
-                    coeff[('out', timeDim)] = R
-                    coeff[('out', itDim)] = -1
-                    coeff[('out', tileDim)] = tileSize
-                    coeff[('constant', 0)] = tileSize + overlapShift - 1
-                    ineqs.append(coeff)
-
-                    priorDom = part.sched.domain()
-                    part.sched = addConstriants(part.sched, ineqs, eqs)
-                    postDom = part.sched.domain()
-               
-                    assert(part.sched.is_empty() == False)
-                    # Tiling should not change the domain that is iterated over               
-                    assert(priorDom.is_equal(postDom))
-                tileDims += 1
-                numTileDims += 1
-            else:
-                #self.moveIndependentDim(i, group, stageDim)
-                name = part.sched.get_dim_name(isl._isl.dim_type.out, stageDim) 
-                for part in group:                        
-                    for j in xrange(0, len(part.align)):
-                        if i == part.align[j]:
-                            assert j not in part.dimTileInfo
-                            part.dimTileInfo[j] = ('none', name)
-                noTileDims += 1
-
-    def splitTile(self, group, slopeMin, slopeMax):
-        stageDim = 0
-        dtileDims = 0
-        numTileDims = 0
-        for i in xrange(1, len(slopeMin) + 1):                    
-            if ((slopeMin[i-1][0] != 0 or slopeMax[i-1][0] !=0)):
-                # Altering the schedule by constructing split tiles.
-                for part in group:
-                    # Extend space to accomodate the tiling dimensions
-                    part.sched = part.sched.insert_dims(
-                                    isl._isl.dim_type.out, 
-                                    stageDim + 2*dtileDims, 2)
-                    # Dimension i is for the orientation of the tiles 
-                    # upward or inverted.
-                    name = part.sched.get_dim_name(
-                                isl._isl.dim_type.out, 
-                                stageDim + 3*dtileDims + 3)
-                    part.sched = part.sched.set_dim_name(
-                                    isl._isl.dim_type.out, 
-                                    stageDim + 2*dtileDims + 1, 
-                                    '_T' + name)
-                    part.sched = part.sched.set_dim_name(
-                                    isl._isl.dim_type.out, 
-                                    stageDim + 2*dtileDims, 
-                                    '_Dir' + name)
-                    
-                    L = (slopeMin[i-1][0], slopeMin[i-1][1])
-                    R = (slopeMax[i-1][0], slopeMax[i-1][1])
-                    # L and R are normals to the left and the right 
-                    # bounding hyperplanes of the uniform dependencies
-                    
-        # Tile size
-        #   -- Pick tile sizes such that there are only two sets of tiles 
-        #      in the time sense .i.e there should be only one fused stage. 
-        #      This has to be revisited when time iterated computations are 
-        #      incorporated
-                    #offset = 3*tileSize/4
-                    tileSize = self.tileSizes[numTileDims]
-                    offset = tileSize/2
-                    ineqs = []
-                    eqs = []
-                    coeff = {}
-                    coeff[('out', stageDim + 2*dtileDims + 2)] = L[0]
-                    coeff[('out', stageDim + 3*dtileDims + 3)] = L[1]
-                    coeff[('out', stageDim + 2*dtileDims + 1)] = -tileSize
-                    ineqs.append(coeff)
-
-                    coeff = {}
-                    coeff[('out', stageDim + 2*dtileDims + 2)] = -L[0]
-                    coeff[('out', stageDim + 3*dtileDims + 3)] = -L[1]
-                    coeff[('out', stageDim + 2*dtileDims + 1)] = tileSize
-                    coeff[('constant', 0)] = tileSize - 1
-                    ineqs.append(coeff)
-                    
-                    coeff = {}
-                    coeff[('out', stageDim + 2*dtileDims + 2)] = R[0]
-                    coeff[('out', stageDim + 3*dtileDims + 3)] = R[1]
-                    coeff[('out', stageDim + 2*dtileDims + 1)] = -tileSize 
-                    coeff[('out', stageDim + 2*dtileDims)] = -tileSize 
-                    coeff[('constant', 0)] = -offset
-                    ineqs.append(coeff)
-
-                    coeff = {}
-                    coeff[('out', stageDim + 2*dtileDims + 2)] = -R[0]
-                    coeff[('out', stageDim + 3*dtileDims + 3)] = -R[1]
-                    coeff[('out', stageDim + 2*dtileDims + 1)] = tileSize
-                    coeff[('out', stageDim + 2*dtileDims)] = tileSize 
-                    coeff[('constant', 0)] = tileSize + offset - 1
-                    ineqs.append(coeff)
-
-                    coeff = {}
-                    coeff[('out', stageDim + 2*dtileDims)] = 1
-                    coeff[('constant', 0)] = 1
-                    ineqs.append(coeff)
-
-                    coeff = {}
-                    coeff[('out', stageDim + 2*dtileDims)] = -1
-                    coeff[('constant', 0)] = 0
-                    ineqs.append(coeff)
-
-                    #eqsUpward = eqs[:]
-                    #eqsDown = eqs[:]
-                    #coeff = {}
-                    #coeff[('out', stageDim + 2*dtileDims)] = -1
-                    #coeff[('constant', 0)] = 0
-                    #eqsUpward.append(coeff)
-
-                    #coeff = {}
-                    #coeff[('out', stageDim + 2*dtileDims)] = 1
-                    #coeff[('constant', 0)] = 1
-                    #eqsDown.append(coeff)
-
-                    #schedUp = addConstriants(part.sched, ineqs, eqsUpward)
-                    #schedDown = addConstriants(part.sched, ineqs, eqsDown)                                
-                    #part.sched = schedUp.union(schedDown)
-                    part.sched = addConstriants(part.sched, ineqs, eqs)
-                    assert(part.sched.is_empty() == False)
-                dtileDims += 1
-                numTileDims += 1
-            else:
-                stageDim = self.moveIndependentDim(i, group, stageDim)
 
     def buildAst(self):
         sortedGroups = []
@@ -2209,7 +1032,7 @@ def mapCoeffToDim(coeff):
             coeff[('in', var.name)] = coeffval
     return coeff
 
-def formatScheduleConstraints(dimIn, dimOut, align, scale, stageNo):
+def formatScheduleConstraints(dimIn, dimOut, align, scale, levelNo):
     ineqCoeff = []
     eqCoeff   = []
     dimSet = [ False for i in xrange(0, dimOut) ]
@@ -2226,7 +1049,7 @@ def formatScheduleConstraints(dimIn, dimOut, align, scale, stageNo):
     # Adding stage identity constraint
     stageCoeff = {}
     stageCoeff[('out', 0)] = -1
-    stageCoeff[('constant', 0)] = stageNo
+    stageCoeff[('constant', 0)] = levelNo
     eqCoeff.append(stageCoeff)
 
     for i in xrange(1, dimOut):
@@ -2303,105 +1126,6 @@ def formatConjunctConstraints(conjunct):
             coeff[('constant', 0)] = leftConst - rightConst
             eqCoeff.append(coeff)
     return [ineqCoeff, eqCoeff]
-
-def checkRefs(childStage, parentStage):
-    # Check refs works only on non-fused stages. It can be made to
-    # work with fused stages as well. However, it might serve very
-    # little use.
-    assert (not childStage.isFused() and not parentStage.isFused())
-    parentFunc = parentStage.computeObjs[0]
-    childObj   = childStage.computeObjs[0]
-
-    # Only verifying if both child and  parent stage have a polyhedral 
-    # representation
-    if childStage.polyRep.polyParts and parentStage.polyRep.polyDoms:
-        for childPart in childStage.polyRep.polyParts[childObj]:
-            # Compute dependence relations between child and parent
-            childRefs = childPart.getPartRefs()
-            if childPart.pred:
-                childRefs += childPart.pred.collect(Reference)
-            # It is not generally feasible to check the validity of
-            # and access when the reference is not affine. 
-            # Approximations can be done but for now skipping them.
-            def affineParentRef(ref, parentFunc):
-                affine = True
-                for arg in ref.arguments:
-                    affine = affine and isAffine(arg) 
-                return affine and ref.objectRef == parentFunc    
-            childRefs = [ ref for ref in childRefs if \
-                            affineParentRef(ref, parentFunc)]
-
-            deps = []
-            for ref in childRefs:
-                deps += extractValueDependence(childPart, ref, 
-                             parentStage.polyRep.polyDoms[parentFunc])
-            for dep in deps:
-                diff = dep.rel.range().subtract(
-                        parentStage.polyRep.polyDoms[parentFunc].domSet)
-                if(not diff.is_empty()):
-                    raise TypeError("Reference out of domain", childStage, 
-                                     parentStage, diff)
-
-def inline(childStage, parentStage, noSplit = False):
-    refToInlineExprMap = {}
-    # Inling currently only handles non-fused stages
-    assert (not childStage.isFused() and not parentStage.isFused())
-    # Computation object in the parent stage can only be a function     
-    parentFunc = parentStage.computeObjs[0]
-    assert isinstance(parentFunc, Function)
-    childObj  = childStage.computeObjs[0]
-
-    # Simple scalar functions which are defined on a non-bounded 
-    # integer domain can be inlined.
-    # TODO
-
-    # Inlining only if both child and parent stage have a polyhedral
-    # representation
-    if childStage.polyRep.polyParts and parentStage.polyRep.polyParts: 
-        for childPart in childStage.polyRep.polyParts[childObj]:
-            # Compute dependence relations between child and parent
-            childRefs = childPart.getPartRefs()
-            if childPart.pred:
-                childRefs += childPart.pred.collect(Reference)
-            childRefs = [ ref for ref in childRefs if ref.objectRef == parentFunc]
-
-            deps = []
-            for ref in childRefs:
-                deps += extractValueDependence(childPart, ref, 
-                            parentStage.polyRep.polyDoms[parentFunc])
-            
-            # Check if all the values come from the same parent part
-            depToPartMap = {}
-            for dep in deps:
-                accessRegion = dep.rel.range().copy().reset_tuple_id()
-                diff = dep.rel.range().copy().reset_tuple_id()
-                for parentPart in parentStage.polyRep.polyParts[parentFunc]:
-                    partRegion = parentPart.sched.domain().copy().reset_tuple_id()
-                    partdiff = accessRegion.subtract(partRegion)
-                    diff = diff.subtract(partRegion)
-                    if(partdiff.is_empty()):
-                        depToPartMap[dep] = parentPart
-                if (not diff.is_empty()):
-                    assert False, "Inlining cannot be done."
-
-            parts = list(set(depToPartMap.values()))
-            singlePart = (len(parts) == 1)
-
-            if(singlePart):
-                parentExpr = parts[0].expr
-                if parts[0].pred:
-                    inline = False
-                else:
-                    inlineDeps = []
-                    for ref in childRefs:
-                        refToInlineExprMap[ref] = parentExpr
-            elif(noSplit):
-                pass
-            else:
-                pass
-    else:
-        pass
-    return refToInlineExprMap
 
 def getParamsInvolved(sched, dim):
     numParams = sched.domain().n_param()

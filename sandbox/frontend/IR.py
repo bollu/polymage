@@ -71,6 +71,7 @@ class Group:
             assert(not isinstance(comp, Image))
 
         self._compObjs  = _compObjs
+        self._polyrep = None
         refs = []
 
         for comp in self._compObjs:
@@ -80,8 +81,15 @@ class Group:
                             if isinstance(ref.objectRef, Image)]))
 
         # Create a polyhedral representation if possible
-        # TODO add a check to see if such a representation is possible
-        # self._polyrep = opt.PolyRep(_ctx, self, _paramConstraints)
+        polyhedral = True
+
+        # Currently doing extraction only when all the computeObjs
+        # domains are affine. This can be revisited later. 
+        for comp in self.group.computeObjs:
+            if (not comp.hasBoundedIntegerDomain()):
+                polyhedral = False
+        if polyhedral:
+            self._polyrep = opt.PolyRep(_ctx, self, _paramConstraints)     
         
     @property
     def computeObjs(self):
@@ -119,14 +127,7 @@ class Group:
         while(change):
             change = False
             for comp in self.compObjs:
-                # get the references to compute objects
-                refs = comp.getObjects(Reference)
-                # filter self references
-                refs = [ref for ref in refs if not ref.objectRef == comp and \
-                                               not isinstance(ref.objectRef, Image)]
-                # Only keep a single instance of objects refered to 
-                # and filter out reference 
-                parentObjs = list(set([ref.objectRef for ref in refs]))
+                parentObjs = getParentsFromCompObj(comp)
                 for pobj in parentObjs:
                     if (pobj in order  and (order[pobj] >= order[comp])):
                         order[comp] = order[pobj] + 1
@@ -211,7 +212,7 @@ class Pipeline:
 
     @property
     def originalGraph(self):
-        return self._intialGraph
+        return self._initialGraph
     
     def buildInitialGroups(self, compObjs, compObjsParents, compObjsChildren):
         """
@@ -245,7 +246,7 @@ class Pipeline:
         for obj in self._compObjs:
             for pobj in self._compObjsParents[obj]:
                 G.add_edge(pobj.name, obj.name)
-        
+        # TODO add input nodes to the graph 
         for i in range(0, len(groupList)):
             subGraphNodes = []
             for obj in self._compObjs:
@@ -355,7 +356,8 @@ class Pipeline:
                 groupList = [ decChild(s) for s in groupList ] 
             level = level + 1
         return sorted(groupOrder.items(), key=lambda s: s[1])
-   
+  
+    # TODO printing the pipeline 
     def __str__(self):
         return_str = "Final Group: " + self._name + "\n"
         for s in self._groups:
