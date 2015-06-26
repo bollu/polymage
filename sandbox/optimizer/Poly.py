@@ -1,5 +1,6 @@
 import islpy as isl
 from Constructs import *
+from Expression import *
 import math as math
 
 def lcm(a, b):
@@ -105,8 +106,8 @@ def extractValueDependence(part, ref, refPolyDom):
     return deps 
 
 class PolyPart(object):
-    def __init__(self, _sched, _expr, _pred, _comp, _align, 
-                 _scale, _levelNo, _liveout):
+    def __init__(self, _sched, _expr, _pred, _comp, 
+                 _align, _scale, _levelNo):
         self.sched = _sched
         self.expr = _expr
         self.pred = _pred
@@ -134,7 +135,6 @@ class PolyPart(object):
         self.dimScratchSize = {}
         self.parallelSchedDims = []
         self.vectorSchedDim = []
-        self.liveout = _liveout
     
     def getPartRefs(self):
         refs = self.expr.collect(Reference)
@@ -189,7 +189,7 @@ class PolyRep(object):
         #self.fusedSchedule(_paramEstimates)
         #self.simpleSchedule(_paramEstimates)
    
-   def extractPolyRepFromStage(self, paramConstraints):
+    def extractPolyRepFromStage(self, paramConstraints):
         compObjs = self.group.orderComputeObjs()
         numObjs = len(compObjs.items())
 
@@ -217,7 +217,7 @@ class PolyRep(object):
         contextConds = self.formatParamConstraints(paramConstraints, params)
                     
         # The [t] is for the stage dimension
-        scheduleNames = ['_t'] + [ self.getVarName()  for i in xrange(0, dim) ]
+        scheduleNames = ['_t'] + [ self.getVarName()  for i in range(0, dim) ]
 
         for comp in compObjs:
             if (type(comp) == Function or type(comp) == Image):
@@ -283,12 +283,13 @@ class PolyRep(object):
                                        scheduleNames, paramNames, 
                                        contextConds)
 
-        self.createPolyPartsFromDefault(comp, domMap, levelNo, scheduleNames)
+        # Initializing the reduction earlier than any other function
+        self.createPolyPartsFromDefault(comp, domMap, -1 , scheduleNames)
 
     def createSchedSpace(self, variables, domains, scheduleNames, paramNames,
                          contextConds):
         # Variable names for refrerring to dimensions
-        varNames = [ variables[i].name for i in xrange(0, len(variables)) ]        
+        varNames = [ variables[i].name for i in range(0, len(variables)) ]        
         space = isl.Space.create_from_names(self.ctx, in_ = varNames,
                                                      out = scheduleNames,
                                                      params = paramNames)
@@ -304,29 +305,100 @@ class PolyRep(object):
 
         return schedMap
 
-    def generateCode(self):
-        self.polyast = []
-        if self.polyParts:
-            self.buildAst()
+    def createPolyPartsFromDefinition(self, comp, schedMap, levelNo, 
+                                      scheduleNames, domain):
+        self.polyParts[comp] = []
+        for case in comp.defn:
+            sched = schedMap.copy()
 
-    def __str__(self):
-        polystr = ""
-        for comp in self.polyParts:
-            for part in self.polyParts[comp]:
-                polystr = polystr + part.__str__() + '\n'
+            # The basic schedule is an identity schedule appended with 
+            # a level dimension. The level dimension gives the ordering 
+            # of the compute objects within a group.
 
-        if (self.polyast != []):
-            for ast in self.polyast:
-                printer = isl.Printer.to_str(self.ctx)
-                printer = printer.set_output_format(isl.format.C)
-                printOpts = isl.AstPrintOptions.alloc(self.ctx) 
-                printer = ast.print_(printer, printOpts)
-                aststr = printer.get_str()
-                polystr = polystr + '\n' + aststr
-        return polystr
-   
-    def makePolyParts(self, sched, expr, pred, comp, align, scale, 
-                      levelNo, liveout):
+            align, scale = self.defaultAlignAndScale(sched)
+            
+            if (isinstance(case, Case)):
+                # Dealing with != and ||. != can be replaced with < || >. 
+                # and || splits the domain into two.
+                splitConjuncts = case.condition.splitToConjuncts()
+                for conjunct in splitConjuncts:
+                    # If the condition is non-affine it is stored as a 
+                    # predicate for the expression. An affine condition 
+                    # is added to the domain.
+                    affine = True
+                    for cond in conjunct:
+                        affine = affine and isAffine(cond.lhs) and isAffine(cond.rhs)
+                    if(affine):
+                        [conjunctIneqs, conjunctEqs] = \
+                                formatConjunctConstraints(conjunct)
+                        sched = addConstriants(sched, conjunctIneqs, conjunctEqs)
+                        parts = self.makePolyParts(sched, case.expression, None,
+                                                   comp, align, scale, levelNo) 
+                        for part in parts:
+                            self.polyParts[comp].append(part)
+                    else:
+                        parts = self.makePolyParts(sched, case.expression, 
+                                                   case.condition, comp, align, 
+                                                   scale, levelNo)
+
+                        for part in parts:
+                            self.polyParts[comp].append(part)
+            else:
+                assert(isinstance(case, AbstractExpression) or 
+                        isinstance(case, Accumulate))
+                parts = self.makePolyParts(sched, case, None, comp, 
+                                           align, scale, levelNo)
+                for part in parts:
+                    self.polyParts[comp].append(part)
+
+        # TODO adding a boundary padding and default to the function 
+        # will help DSL usability. 
+
+        # An attempt to subtract all the part domains to find the domain 
+        # where the default expression has to be applied. 
+
+        #sched = isl.BasicMap.identity(self.polyspace)
+        #sched = addConstriants(sched, ineqs, eqs)
+        # Adding stage identity constraint
+        #levelCoeff = {}
+        #levelCoeff[varDims[0]] = -1
+        #levelCoeff[('constant', 0)] = compObjs[comp]
+        #sched = addConstriants(sched, [], [levelCoeff])
+        #sched = addConstriants(sched, paramIneqs, paramEqs)
+
+        #for part in self.polyParts[comp]:
+        #    sched = sched.subtract_range(part.sched.range())
+        #    if (sched.is_empty()):
+        #        break
+        #if(not sched.fast_is_empty()):
+        #    bmapList = []
+        #    if (isinstance(sched, isl.BasicMap)):
+        #        bmapList.append(sched)
+        #    else:
+        #        sched.foreach_basic_map(bmapList.append)
+        #    for bmap in bmapList:    
+        #        polyPart = PolyPart(bmap, comp.default, None, comp)
+        #        id_ = isl.Id.alloc(self.ctx, comp.name, polyPart)                            
+        #        polyPart.sched = polyPart.sched.set_tuple_id(
+        #                                   isl._isl.dim_type.in_, id_)
+        #        self.polyParts[comp].append(polyPart)
+
+    def createPolyPartsFromDefault(self, comp, schedMap, levelNo, 
+                                   scheduleNames):
+        sched = schedMap.copy()
+        align, scale = self.defaultAlignAndScale(sched)
+
+        assert(isinstance(comp.default, AbstractExpression))
+        polyPart = PolyPart(sched, comp.default, None, comp,
+                            align, scale, levelNo, False)
+
+        id_ = isl.Id.alloc(self.ctx, comp.name, polyPart)
+        polyPart.sched = \
+                polyPart.sched.set_tuple_id(isl._isl.dim_type.in_, id_)
+        self.polyParts[comp].append(polyPart)
+
+    def makePolyParts(self, sched, expr, pred, comp, 
+                      align, scale, levelNo):
         # Detect selects with modulo constraints and split into 
         # multiple parts. This technique can also be applied to the
         # predicate but for now we focus on selects.
@@ -408,12 +480,12 @@ class PolyRep(object):
                                                         dimIn, 2)                    
                     brokenParts.append((falseSched, expr.falseExpression))
 
-                    #print(trueSched)
-                    #print(falseSched)
-
+        # Note the align and scale lists are cloned otherwise all the 
+        # parts will be sharing the same alignment and scaling
         if not brokenParts:
             polyPart = PolyPart(sched, expr, pred, comp, list(align), 
-                                list(scale), levelNo, liveout)
+                                list(scale), levelNo)
+            # Create a user pointer, tuple name and add it to the map
             id_ = isl.Id.alloc(self.ctx, comp.name, polyPart)                            
             polyPart.sched = polyPart.sched.set_tuple_id(
                                           isl._isl.dim_type.in_, id_)
@@ -421,108 +493,46 @@ class PolyRep(object):
         else:
             for bsched, bexpr in brokenParts:
                 polyPart = PolyPart(bsched, bexpr, pred, comp, list(align), 
-                                    list(scale), levelNo, liveout)
+                                    list(scale), levelNo)
+                # Create a user pointer, tuple name and add it to the map
                 id_ = isl.Id.alloc(self.ctx, comp.name, polyPart)                            
                 polyPart.sched = polyPart.sched.set_tuple_id(
                                           isl._isl.dim_type.in_, id_)
                 polyParts.append(polyPart)
-        return polyParts       
+        return polyParts
 
-    def createPolyPartsFromDefinition(self, comp, schedMap, levelNo, 
-                                      scheduleNames, domain):
-        self.polyParts[comp] = []
-        for case in comp.definition:
-            sched = schedMap.copy()
-            liveout = comp in self.outputs
-
-            # The basic schedule is an identity schedule appended with 
-            # a stage dimension. The stage dimension gives the ordering 
-            # of the stages.
-
-            align, scale = self.defaultAlignAndScale(sched, domain)
-            
-            if (isinstance(case, Case)):
-                # Dealing with != and ||. != can be replaced with < || >. 
-                # and || splits the domain into two.
-                splitConjuncts = case.condition.splitToConjuncts()
-                for conjunct in splitConjuncts:
-                    # If the condition is non-affine it is stored as a 
-                    # predicate for the expression. An affine condition 
-                    # is added to the domain.
-                    affine = True
-                    for cond in conjunct:
-                        affine = affine and isAffine(cond.lhs) and isAffine(cond.rhs)
-                    if(affine):
-                        [conjunctIneqs, conjunctEqs] = \
-                                formatConjunctConstraints(conjunct)
-                        sched = addConstriants(sched, conjunctIneqs, conjunctEqs)
-                        # Create a user pointer, tuple name and add it to the map
-                        parts = self.makePolyParts(sched, case.expression, None,
-                                                   comp, align, scale, levelNo, 
-                                                   liveout)
-                        for part in parts:
-                            self.polyParts[comp].append(part)
-                    else:
-                        parts = self.makePolyParts(sched, case.expression, 
-                                                   case.condition, comp, align, 
-                                                   scale, levelNo, liveout)
-
-                        for part in parts:
-                            self.polyParts[comp].append(part)
-            else:
-                assert(isinstance(case, AbstractExpression) or 
-                        isinstance(case, Accumulate))
-                parts = self.makePolyParts(sched, case, None, comp, 
-                                           align, scale, levelNo, liveout)
-                for part in parts:
-                    self.polyParts[comp].append(part)
-        # Subtract all the part domains to find the domain where the
-        # default expression has to be applied
-        #sched = isl.BasicMap.identity(self.polyspace)
-        #sched = addConstriants(sched, ineqs, eqs)
-        # Adding stage identity constraint
-        #stageCoeff = {}
-        #stageCoeff[varDims[0]] = -1
-        #stageCoeff[('constant', 0)] = compObjs[comp]
-        #sched = addConstriants(sched, [], [stageCoeff])
-        #sched = addConstriants(sched, paramIneqs, paramEqs)
-
-        #for part in self.polyParts[comp]:
-        #    sched = sched.subtract_range(part.sched.range())
-        #    if (sched.is_empty()):
-        #        break
-        #if(not sched.fast_is_empty()):
-        #    bmapList = []
-        #    if (isinstance(sched, isl.BasicMap)):
-        #        bmapList.append(sched)
-        #    else:
-        #        sched.foreach_basic_map(bmapList.append)
-        #    for bmap in bmapList:    
-        #        polyPart = PolyPart(bmap, comp.default, None, comp)
-        #        id_ = isl.Id.alloc(self.ctx, comp.name, polyPart)                            
-        #        polyPart.sched = polyPart.sched.set_tuple_id(
-        #                                   isl._isl.dim_type.in_, id_)
-        #        self.polyParts[comp].append(polyPart)
-
-    def defaultAlignAndScale(self, sched, domain):
+    def defaultAlignAndScale(self, sched):
         dimOut = sched.dim(isl._isl.dim_type.out)
         dimIn = sched.dim(isl._isl.dim_type.in_)
-        align = [ i+1 for i in xrange(0, dimIn) ]
-        scale = []
-        for i in xrange(0, dimIn):
-            scale.append(domain[i].step.value)
+        # align[i] = j means input dimension i is mapped to output 
+        # dimension j
+        align = [ i+1 for i in range(0, dimIn) ]
+        # the default scaling in each dimension is set to 1 i.e., the
+        # schedule dimension correspoinding to input dimension will be 
+        # scaled by 1
+        scale = [ 1 for i in range(0, dimIn) ]
         return (align, scale)
 
-    def createPolyPartsFromDefault(self, comp, schedMap, levelNo, scheduleNames):
-        sched = schedMap.copy()
-        align, scale = self.defaultAlignAndScale(sched, comp.domain)
+    def generateCode(self):
+        self.polyast = []
+        if self.polyParts:
+            self.buildAst()
 
-        assert(isinstance(comp.default, AbstractExpression))
-        polyPart = PolyPart(sched, comp.default, None, comp,
-                            align, scale, levelNo - 1, False)
-        id_ = isl.Id.alloc(self.ctx, comp.name, polyPart)
-        polyPart.sched = polyPart.sched.set_tuple_id(isl._isl.dim_type.in_, id_)
-        self.polyParts[comp].append(polyPart)
+    def __str__(self):
+        polystr = ""
+        for comp in self.polyParts:
+            for part in self.polyParts[comp]:
+                polystr = polystr + part.__str__() + '\n'
+
+        if (self.polyast != []):
+            for ast in self.polyast:
+                printer = isl.Printer.to_str(self.ctx)
+                printer = printer.set_output_format(isl.format.C)
+                printOpts = isl.AstPrintOptions.alloc(self.ctx) 
+                printer = ast.print_(printer, printOpts)
+                aststr = printer.get_str()
+                polystr = polystr + '\n' + aststr
+        return polystr
 
     def computeDependencies(self):
         # Extract dependencies. In case the dependencies cannot be exactly 
@@ -959,10 +969,7 @@ class PolyRep(object):
             assert isinstance(est[0], Parameter)
             paramValMap[est[0]] = Value.numericToValue(est[1])
 
-        if interval.step.value > 0:
-            dimSize = interval.upperBound - interval.lowerBound + 1
-        else:
-            dimSize = interval.lowerBound - interval.upperBound + 1
+        dimSize = interval.upperBound - interval.lowerBound + 1
         return substituteVars(dimSize, paramValMap)
 
     def buildAst(self):
@@ -1023,7 +1030,8 @@ class PolyRep(object):
         return name
 
 def mapCoeffToDim(coeff):
-    for var in coeff.keys():
+    variables = list(coeff.keys())
+    for var in variables:
         coeffval = coeff[var]
         coeff.pop(var)
         if (isinstance(var, Parameter)):
@@ -1036,22 +1044,22 @@ def formatScheduleConstraints(dimIn, dimOut, align, scale, levelNo):
     ineqCoeff = []
     eqCoeff   = []
     dimSet = [ False for i in xrange(0, dimOut) ]
+    # Adding identity constraint for each dimension
     for i in xrange(0, dimIn):
         coeff = {}
-        # Have to convert the iterator to non-zero range. Currently if the 
-        # step is negative the iterator will take negative values.
         coeff[('out', align[i])] = 1
         assert scale[i] >= 1
         coeff[('in', i)] = -1 * scale[i]
         eqCoeff.append(coeff)
         dimSet[align[i]] = True
 
-    # Adding stage identity constraint
-    stageCoeff = {}
-    stageCoeff[('out', 0)] = -1
-    stageCoeff[('constant', 0)] = levelNo
-    eqCoeff.append(stageCoeff)
+    # Setting the leading schedule dimension to level
+    levelCoeff = {}
+    levelCoeff[('out', 0)] = -1
+    levelCoeff[('constant', 0)] = levelNo
+    eqCoeff.append(levelCoeff)
 
+    # Setting the remaining dimensions to zero
     for i in xrange(1, dimOut):
         if not dimSet[i]:
             coeff = {}
@@ -1064,7 +1072,7 @@ def formatDomainConstraints(domain, varNames):
     ineqCoeff = []
     eqCoeff   = []
     domLen = len(domain)
-    for i in xrange(0, domLen):
+    for i in range(0, domLen):
         coeff = {}
         interval = domain[i]
 
@@ -1093,7 +1101,7 @@ def formatDomainConstraints(domain, varNames):
     return [ineqCoeff, eqCoeff]
 
 def formatConjunctConstraints(conjunct):
-    # Check if the condition is a conjunction
+    # TODO check if the condition is a conjunction
     ineqCoeff = []
     eqCoeff = []
     for cond in conjunct:

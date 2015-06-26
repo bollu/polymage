@@ -272,17 +272,13 @@ class Parameter(Variable):
         Variable.__init__(self, _typ, _name)
     
 class Interval(object):
-    def __init__(self, _typ,  _lb, _ub, _step=1):
+    def __init__(self, _typ,  _lb, _ub):
         _lb   = Value.numericToValue(_lb)
         _ub   = Value.numericToValue(_ub)
-        _step = Value.numericToValue(_step)
         assert(isinstance(_lb, AbstractExpression))
         assert(isinstance(_ub, AbstractExpression))
-        assert(isinstance(_step, AbstractExpression))
-        assert(type(_step.value) == int)
         self._lb   = _lb
         self._ub   = _ub
-        self._step = _step
         self._typ  = _typ
  
     @property 
@@ -292,9 +288,6 @@ class Interval(object):
     def upperBound(self):
         return self._ub
     @property 
-    def step(self):
-        return self._step
-    @property 
     def typ(self):
         return self._typ
 
@@ -303,16 +296,14 @@ class Interval(object):
             return [self]
         objs = self._lb.collect(objType)
         objs += self._ub.collect(objType)
-        objs += self._step.collect(objType)
         return list(set(objs))
 
     def clone(self):
-        return Interval(self._typ, self._lb.clone(), 
-                        self._ub.clone(), self._step)
+        return Interval(self._typ, self._lb.clone(), self._ub.clone())
 
     def __str__(self):
         return '(' + self._lb.__str__() + ', ' +\
-               self._ub.__str__() + ', ' + self._step.__str__() + ')'
+               self._ub.__str__() + ')'
 
 class Reference(AbstractExpression):
     def __init__(self, _obj, _args):
@@ -653,7 +644,7 @@ class Image(Function):
         i = 0
         for dim in self._dims:
             # Just assuming it will not be more that UInt
-            intervals.append(Interval(UInt, 0, dim-1, 1))
+            intervals.append(Interval(UInt, 0, dim-1))
             variables.append(Variable(UInt, "_" + _name + str(i)))
             i = i + 1
         Function.__init__(self, (variables, intervals), _typ, _name)
@@ -784,3 +775,71 @@ class Reduction(Function):
                     caseStr + '\n' + "Default: " + self._default.__str__()
         else:
             return self._name
+        
+def isAffine(expr, includeDiv = True, includeModulo = False):
+    """
+        Function to determine if an expression is affine or not. The input
+        is a binary expression tree. It recursively checks if the left and right 
+        sub expressions are affine. Determines if the entire expression is 
+        affine using the following rules:
+
+        affine +,-,* constant = affine 
+        constant +,-,* affine = affine 
+        affine +,- affine  = affine
+        affine *,/ affine = non-affine
+        non-affine operand always results in an non-affine expression
+
+        Divisions and modulo operators are considered affine if the appropriate 
+        option is specified. 
+
+        This function is meant to work on straight forward expressions it can
+        be easily tricked into conservatively saying that the expression is 
+        not affine. For example -x^3 + x^3 will be non affine. 
+
+        Making the expression anaylsis more robust will require integration 
+        with a symbolic math package. 
+    """
+    expr = Value.numericToValue(expr)
+    assert(isinstance(expr, AbstractExpression)
+           or isinstance(expr, Condition))
+    if (isinstance(expr, Value)):
+        return (expr.typ is Int) or ((expr.typ is Rational) and includeDiv)
+    elif (isinstance(expr, Variable)):
+        return True
+    elif (isinstance(expr, Reference)):
+        return False
+    elif (isinstance(expr, AbstractBinaryOpNode)):
+        leftCheck = isAffine(expr.left, includeDiv, includeModulo)
+        rightCheck = isAffine(expr.right, includeDiv, includeModulo)
+        # Bad coding style I suppose. Have to fix this
+        if (leftCheck and rightCheck):
+            if (expr.op in ['+','-']):
+                return True
+            elif(expr.op in ['*']):
+                if(not (expr.left.has(Variable) or expr.left.has(Parameter)) or 
+                    not (expr.right.has(Variable) or expr.right.has(Parameter))):
+                    return True
+                else:
+                    return False
+            elif(expr.op in ['/'] and includeDiv):
+                if (not (expr.right.has(Variable) or expr.right.has(Parameter))):
+                    return True
+                else:
+                    return False
+            elif(expr.op in ['%'] and includeModulo):
+                if (not (expr.right.has(Variable) or expr.right.has(Parameter))):
+                    return isAffine(expr.left, includeDiv, False)
+                else:
+                    return False
+            else:
+                return False
+        else:
+            return False
+    elif (isinstance(expr, AbstractUnaryOpNode)):
+        return isAffine(expr.child, includeDiv, includeModulo)
+    elif (isinstance(expr, Condition)):
+        return isAffine(expr.lhs, includeDiv, includeModulo) and \
+               isAffine(expr.rhs, includeDiv, includeModulo)
+    elif (isinstance(expr, (Select, Cast, InbuiltFunction))):
+        return False
+    raise TypeError(type(expr))

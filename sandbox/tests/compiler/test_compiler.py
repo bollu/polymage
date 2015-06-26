@@ -17,8 +17,8 @@ def test_harris_corner():
     x = Variable(Int, "x")
     y = Variable(Int, "y")
 
-    row = Interval(Int, 0, R+1, 1)
-    col = Interval(Int, 0, C+1, 1)
+    row = Interval(Int, 0, R+1)
+    col = Interval(Int, 0, C+1)
 
     cond = Condition(x, '>=', 1) & Condition(x, '<=', R) & \
            Condition(y, '<=', C) & Condition(y, '>=', 1)

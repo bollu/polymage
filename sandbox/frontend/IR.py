@@ -3,7 +3,9 @@
 from __future__ import absolute_import, division, print_function
 
 import sys
+sys.path.insert(0, '../optimizer')
 from Constructs import *
+import Poly as opt
 
 # More Python 3 vs 2 mojo
 try:
@@ -85,11 +87,11 @@ class Group:
 
         # Currently doing extraction only when all the computeObjs
         # domains are affine. This can be revisited later. 
-        for comp in self.group.computeObjs:
+        for comp in self._compObjs:
             if (not comp.hasBoundedIntegerDomain()):
                 polyhedral = False
         if polyhedral:
-            self._polyrep = opt.PolyRep(_ctx, self, _paramConstraints)     
+            self._polyrep = opt.PolyRep(_ctx, self, _paramConstraints) 
         
     @property
     def computeObjs(self):
@@ -120,13 +122,13 @@ class Group:
         order = {}
         # Initialize all the initial numbering to zero for
         # all compute objects in the group
-        for comp in self.compObjs:
+        for comp in self._compObjs:
             order[comp] = 0
         # Doing a topological sort in an iterative fashion
         change = True
         while(change):
             change = False
-            for comp in self.compObjs:
+            for comp in self._compObjs:
                 parentObjs = getParentsFromCompObj(comp)
                 for pobj in parentObjs:
                     if (pobj in order  and (order[pobj] >= order[comp])):
