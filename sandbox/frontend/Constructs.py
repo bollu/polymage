@@ -325,6 +325,10 @@ class Reference(AbstractExpression):
     @property
     def objectRef(self):
         return self._obj
+
+    def _replaceRefObject(self, cloneObj):
+        self._obj = cloneObj
+
     @property
     def arguments(self):
         return self._args

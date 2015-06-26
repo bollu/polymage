@@ -46,6 +46,13 @@ def getCompObjsAndDependenceMaps(outputs):
             if len(parentObjs) != 0:
                 for r in parentObjs:
                     q.put(r)
+
+    for comp in compObjs:
+        if comp not in compObjsParents:
+            compObjsParents[comp] = []
+        if comp not in compObjsChildren:
+            compObjsChildren[comp] = []
+
     return compObjs, compObjsParents, compObjsChildren
 
 class Group:
@@ -56,39 +63,45 @@ class Group:
         computation objects when possible.
     """
     # Construct a group from a set of language functions / reductions
-    def __init__(self, _ctx, _computeObjs, _paramConstraints):
+    def __init__(self, _ctx, _compObjs, _paramConstraints):
         # All the computation constructs in the language derive from the
         # Function class. Input images cannot be part of a group.
-        for comp in _computeObjs:
+        for comp in _compObjs:
             assert(isinstance(comp, Function))
             assert(not isinstance(comp, Image))
 
-        self._computeObjs  = _computeObjs
+        self._compObjs  = _compObjs
         refs = []
 
-        for comp in self._computeObjs:
-            refs += refs + getParentsFromCompObj(comp)
+        for comp in self._compObjs:
+            refs += comp.getObjects(Reference)
+
+        self._inputs = list(set([ref.objectRef for ref in refs \
+                            if isinstance(ref.objectRef, Image)]))
 
         # Create a polyhedral representation if possible
         # TODO add a check to see if such a representation is possible
-        self._polyrep = opt.PolyRep(_ctx, self, _paramConstraints)
+        # self._polyrep = opt.PolyRep(_ctx, self, _paramConstraints)
         
     @property
     def computeObjs(self):
-        return self._computeObjs
+        return self._compObjs
     @property
     def polyRep(self):
         return self._polyrep
+    @property
+    def inputs(self):
+        return self._inputs
 
     def getParameters(self):
         params = []
-        for comp in self._computeObjs:
+        for comp in self._compObjs:
             params = params + comp.getObjects(Parameter)
         return list(set(params))
 
     def isPolyhedral(self):
         polyhedral = True
-        for comp in self._computeObjs:
+        for comp in self._compObjs:
             if (not comp.hasBoundedIntegerDomain()):
                 polyhedral = False
         return polyhedral
@@ -99,13 +112,13 @@ class Group:
         order = {}
         # Initialize all the initial numbering to zero for
         # all compute objects in the group
-        for comp in self.computeObjs:
+        for comp in self.compObjs:
             order[comp] = 0
         # Doing a topological sort in an iterative fashion
         change = True
         while(change):
             change = False
-            for comp in self.computeObjs:
+            for comp in self.compObjs:
                 # get the references to compute objects
                 refs = comp.getObjects(Reference)
                 # filter self references
@@ -121,7 +134,7 @@ class Group:
         return order
     
     def __str__(self):
-        comp_str  = "\n\n".join([comp.__str__() for comp in self._computeObjs]) + '\n'
+        comp_str  = "\n\n".join([comp.__str__() for comp in self._compObjs]) + '\n'
         parent_str = "Parent Objects: " + \
                      ", ".join([ item.name for item in self._parentObjs]) + '\n' 
         return comp_str + '\n' + parent_str + '\n' + self._polyrep.__str__()
@@ -136,35 +149,38 @@ class Pipeline:
         self._name   = _name
         
         self._ctx = _ctx
-        self._outputs = _outputs
+        self._orgOutputs = _outputs
         self._paramConstraints = _paramConstraints
 
         # Maps from a compute object to its parents and children
-        compObjs, compObjsParents, compObjsChildren = \
-                                getCompObjsAndDependenceMaps(self._outputs)
-
+        self._orgCompObjs, _ , _ = \
+                                getCompObjsAndDependenceMaps(self._orgOutputs)
         # TODO see if there is a cyclic dependency between the compute objects
         # self references are not treated as cycles
 
         # Clone the computation objects i.e. functions and reductions
         self._cloneMap = {}
-        for comp in compObjs:
+        for comp in self._orgCompObjs:
             self._cloneMap[comp] = comp.clone()
+        self._outputs = [ self._cloneMap[obj] for obj in self._orgOutputs]     
 
         # Modify the references in the cloned objects (which refer to 
-        # the original objects) 
-    
+        # the original objects)  
+        for comp in self._orgCompObjs:
+            refs = comp.getObjects(Reference)
+            for ref in refs:
+                if not isinstance(ref.objectRef, Image): 
+                    ref._replaceRefObject(self._cloneMap[ref.objectRef])
 
-        # Create a group for each pipeline function / reduction
+        self._compObjs, self._compObjsParents, self._compObjsChildren = \
+                                getCompObjsAndDependenceMaps(self._outputs)            
+
+        # Create a group for each pipeline function / reduction and compute
+        # maps for parent and child relations between the groups
         self._groups, self._groupParents, self._groupChildren = \
-                                self.buildInitialGraph(compObjs, compObjsParents, 
-                                                       compObjsChildren)
-
-        # Determine the parent and child groups for each group
-        # _parents is a map from a group to a list of parent groups
-        # _children is a map from a group to a list of child groups
-
-        self._parents, self._children = self.buildGroupGraph()
+                                        self.buildInitialGroups(self._compObjs, 
+                                                                self._compObjsParents,
+                                                                self._compObjsChildren)
 
         # Store the initial pipeline graph. The compiler can modify 
         # the pipeline by inlining functions.
@@ -172,11 +188,10 @@ class Pipeline:
 
         # Make a list of all the input groups
         inputs = []
-        for s in self._groups:
-            if s.isInput(): 
-                inputs = inputs + self._groups[s]
+        for f in self._groups:
+            inputs = inputs + self._groups[f].inputs
 
-        self._inputs = inputs
+        self._inputs = list(set(inputs))
 
     @property
     def groups(self):
@@ -197,21 +212,27 @@ class Pipeline:
     @property
     def originalGraph(self):
         return self._intialGraph
-
-    def getParentGroupsOfGroup(self, group, compObjToGroupMap):
-        pass
-
-    def buildIntialGraph(self, objs, parents, children):
+    
+    def buildInitialGroups(self, compObjs, compObjsParents, compObjsChildren):
         """
           Create a pipeline graph where the nodes are a group and the edges
           represent the dependences between the groups. The initial graph
           has each compute object in a separate group. 
         """
-
-
-        # Create groups with each computation object in a separate group
-
-
+        # TODO correct the comment
+        groupMap = {}
+        groupParents = {}
+        groupChildren = {}
+        for comp in compObjs:
+            groupMap[comp] = Group(self._ctx, [comp], self._paramConstraints)
+        
+        for comp in groupMap:
+            groupParents[groupMap[comp]] = [ groupMap[p] for p in \
+                                                        compObjsParents[comp] ]
+            groupChildren[groupMap[comp]] = [ groupMap[c] for c in \
+                                                        compObjsChildren[comp] ]
+        return groupMap, groupParents, groupChildren    
+    
     def getParameters(self):
         params=[]
         for group in self._groups.values():
@@ -220,37 +241,22 @@ class Pipeline:
 
     def drawPipelineGraph(self):
         G = pgv.AGraph(strict=False, directed=True)
-        for f in self._groups:
-            s = self._groups[f] 
-            assert len(s.computeObjs) == 1
-            for obj in s.computeObjs:
-                for pobj in s.parentObjs:
-                    G.add_edge(pobj.name, obj.name)
+        groupList = list(set([self._groups[f] for f in self._groups]))
+        for obj in self._compObjs:
+            for pobj in self._compObjsParents[obj]:
+                G.add_edge(pobj.name, obj.name)
+        
+        for i in range(0, len(groupList)):
+            subGraphNodes = []
+            for obj in self._compObjs:
+                if self._groups[obj] == groupList[i]:
+                    subGraphNodes.append(obj.name)
+            G.add_nodes_from(subGraphNodes)
+            G.add_subgraph(nbunch = subGraphNodes, 
+                           name = "cluster_" + str(i))
 
         G.layout(prog='dot')
         return G
-
-    def drawPipelineGraphWithGroups(self):
-        G = pgv.AGraph(strict=False, directed=True)
-        for f in self._groups:
-            s = self._groups[f]
-            for i in xrange(0, len(s.polyRep.groups)):
-                subGraphNodes = []
-                for p in s.polyRep.groups[i]:
-                    if p.comp.name not in subGraphNodes:
-                        subGraphNodes.append(p.comp.name)
-                G.add_nodes_from(subGraphNodes)
-                G.add_subgraph(nbunch = subGraphNodes, 
-                               name = "cluster_" + str(i))
-
-        # Temporary hack getting edges from the orginal graph
-        # this may not reflect the current pipeline due to 
-        # inlining.
-        G.add_edges_from(self.graph.edges())
-        G.layout(prog='dot')
-        return G
-
-    
 
     def boundsCheckPass(self):
         """ 
