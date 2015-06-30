@@ -1114,17 +1114,28 @@ def formatConjunctConstraints(conjunct):
         # Mapping from variable names to the corresponding dimension 
         leftCoeff = mapCoeffToDim(leftCoeff)
         rightCoeff = mapCoeffToDim(rightCoeff)
+        
+        def constantDivFactor(const):
+            m = 1
+            for coeff in const:
+                if isinstance(const[coeff], Fraction):
+                    m = (abs(const[coeff].denominator) * m)/gcd(abs(const[coeff].denominator), m)
+            assert m.denominator == 1
+            m = m.numerator
+            return m
 
         # Normalizing >= format
         if (cond.conditional in ['<=','<']):
             coeff = dict( (n, -leftCoeff.get(n, 0) + rightCoeff.get(n, 0))\
                           for n in set(leftCoeff)| set(rightCoeff) )
-            coeff[('constant', 0)] = -leftConst + rightConst - int(cond.conditional == '<')
+            d = constantDivFactor(coeff)
+            coeff[('constant', 0)] = -leftConst + rightConst - int(cond.conditional == '<') - Fraction(d-1, d)
             ineqCoeff.append(coeff)
         elif(cond.conditional in ['>=','>']):
             coeff = dict( (n, leftCoeff.get(n, 0) - rightCoeff.get(n, 0))\
                            for n in set(leftCoeff)| set(rightCoeff) )
-            coeff[('constant', 0)] = leftConst - rightConst + int(cond.conditional == '>')
+            d = constantDivFactor(coeff)
+            coeff[('constant', 0)] = leftConst - rightConst - int(cond.conditional == '>') + Fraction(d-1, d)
             ineqCoeff.append(coeff)
         else:
             # Weird
