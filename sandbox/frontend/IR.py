@@ -5,6 +5,7 @@ from __future__ import absolute_import, division, print_function
 import sys
 sys.path.insert(0, '../optimizer')
 from Constructs import *
+from Scheduling import *
 import Poly as opt
 
 # More Python 3 vs 2 mojo
@@ -138,9 +139,7 @@ class Group:
     
     def __str__(self):
         comp_str  = "\n\n".join([comp.__str__() for comp in self._compObjs]) + '\n'
-        parent_str = "Parent Objects: " + \
-                     ", ".join([ item.name for item in self._parentObjs]) + '\n' 
-        return comp_str + '\n' + parent_str + '\n' + self._polyrep.__str__()
+        return comp_str + '\n' + self._polyrep.__str__()
 
 class Pipeline:
     def __init__(self, _ctx, _outputs, _paramConstraints):
@@ -195,6 +194,10 @@ class Pipeline:
             inputs = inputs + self._groups[f].inputs
 
         self._inputs = list(set(inputs))
+
+        for g in list(set(self._groups.values())):
+            baseSchedule(g)
+            print(g)
 
     @property
     def groups(self):

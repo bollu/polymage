@@ -1,3 +1,46 @@
+from Poly import *
+def baseSchedule(group):
+    """
+         Construct the base schedule for a group with a polyhedral 
+         representation.
+    """
+    assert(group.isPolyhedral)
+
+    time = {}
+
+    parts = []
+    for sublist in group.polyRep.polyParts.values():
+        parts.extend(sublist)
+    
+    for part in parts:
+        time[part] = 0
+
+    change = True
+    while change:
+        change = False
+        for part in parts:
+            refs = part.getPartRefs()
+            parentParts = []
+            for ref in refs:
+                if ref.objectRef != part.comp:
+                    if ref.objectRef in group.polyRep.polyParts:
+                        parentParts.extend(group.polyRep.polyParts[ref.objectRef])
+            parentParts = list(set(parentParts))
+            for p in parentParts:
+                if time[part] <= time[p]:
+                    time[part] = time[p] + 1
+                    change = True
+
+    for part in parts:
+        part.levelNo = time[part]
+        dimIn = part.sched.dim(isl._isl.dim_type.in_)
+        dimOut = part.sched.dim(isl._isl.dim_type.out)
+        [ineqs, eqs] = formatScheduleConstraints(dimIn, dimOut, 
+                                                 part.align, 
+                                                 part.scale,
+                                                 part.levelNo)
+        part.sched = addConstraints(part.sched, ineqs, eqs)
+
 def stripMineSchedule(sched, dim, size):
     sched = sched.insert_dims(isl._isl.dim_type.out, dim, 1)
     name = sched.get_dim_name(isl._isl.dim_type.out, 1 + dim) 
@@ -626,41 +669,6 @@ def splitTile(self, group, slopeMin, slopeMax):
             numTileDims += 1
         else:
             stageDim = self.moveIndependentDim(i, group, stageDim)
-
-def baseSchedule(self, paramEstimates):
-    self.alignParts()
-    stageGroups = self.groupStages(paramEstimates)
-    #stageGroups = self.simpleGroup(paramEstimates, single = False)
-
-    for group in stageGroups:
-        time = {}
-
-        for part in group:
-            time[part] = 0
-
-        change = True
-        while change:
-            change = False
-            for part in group:
-                for parent in group:
-                    if self.isParent(parent, part):
-                        if self.isParent(part, parent):
-                            continue
-                        elif time[part] <= time[parent]:
-                            time[part] = time[parent] + 1
-                            change = True
-
-        for part in group:
-            part.levelNo = time[part]
-            dimIn = part.sched.dim(isl._isl.dim_type.in_)
-            dimOut = part.sched.dim(isl._isl.dim_type.out)
-            [ineqs, eqs] = formatScheduleConstraints(dimIn, dimOut, 
-                                                     part.align, 
-                                                     part.scale,
-                                                     part.levelNo)
-            part.sched = addConstriants(part.sched, ineqs, eqs)
-    self.groups = stageGroups
-    return stageGroups
 
 def simpleSchedule(self, paramEstimates):
     """Generate a simple schedule for the stage."""

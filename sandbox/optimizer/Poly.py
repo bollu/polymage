@@ -16,7 +16,8 @@ def addConstraintsFromList(obj, localSpace, constraintList, constraintAlloc):
         m = 1
         for coeff in const:
             if isinstance(const[coeff], Fraction):
-                m = (abs(const[coeff].denominator) * m)/gcd(abs(const[coeff].denominator), m)
+                den = int(gcd(abs(const[coeff].denominator), m))
+                m = (abs(const[coeff].denominator) * m)//den
         assert m.denominator == 1
         m = m.numerator
         for coeff in const:
@@ -87,10 +88,10 @@ def extractValueDependence(part, ref, refPolyDom):
     
     rel = isl.BasicMap.from_domain_and_range(partDom, accessRegion)
     dimOut = rel.dim(isl._isl.dim_type.out)
-    sourceDims = [ ('out', i) for i in xrange(0, dimOut)]
+    sourceDims = [ ('out', i) for i in range(0, dimOut)]
     numArgs = len(ref.arguments)                
 
-    for i in xrange(0, numArgs):
+    for i in range(0, numArgs):
         arg = ref.arguments[i]
         # If the argument is not affine the dependence reflects that
         # the computation may depend on any value of the referenced object
@@ -557,15 +558,15 @@ class PolyRep(object):
 
         numArgs = len(ref.arguments)
         dimOut = parentPart.sched.dim(isl._isl.dim_type.out)
-        depVec = [ '-' for i in xrange(0, dimOut) ]
+        depVec = [ '-' for i in range(0, dimOut) ]
 
         if isinstance(parentPart.comp, Accumulator):
-            for i in xrange(1, dimOut):
+            for i in range(1, dimOut):
                 depVec[i] = '*'
             depVec[0] = childPart.levelNo - parentPart.levelNo
             return (depVec, parentPart.levelNo)
 
-        for i in xrange(0, numArgs):
+        for i in range(0, numArgs):
             arg = ref.arguments[i]
             parentVarSchedDim = parentPart.align[i]            
             if (isAffine(arg)):
@@ -671,10 +672,10 @@ class PolyRep(object):
 
         assert depVec[0] == '-'
         depVec[0] = childPart.levelNo - parentPart.levelNo
-        for i in xrange(0, dimOut):
+        for i in range(0, dimOut):
             if (depVec[i] == '-'):
                 depVec[i] = 0
-        #for i in xrange(0, dimOut):
+        #for i in range(0, dimOut):
         #    if (depVec[i] == '-'):
         #        depVec[i] = '*'
         #        print(parentPart.sched)
@@ -715,10 +716,10 @@ class PolyRep(object):
 
         # Find an alignment map for parts which are not full dimensional
         def completeMap(newAlign, currAlign):
-            for i in xrange(0, len(newAlign)):
+            for i in range(0, len(newAlign)):
                 if newAlign[i] in currAlign:
                     currAlign.remove(newAlign[i])
-            for i in xrange(0, len(newAlign)):         
+            for i in range(0, len(newAlign)):         
                 if newAlign[i] == '-':
                     newAlign[i] = currAlign.pop(0)
             return newAlign
@@ -726,7 +727,7 @@ class PolyRep(object):
         def compatibleAlign(align1, align2):
             compatible = True
             if len(align1) == len(align2):
-                for i in xrange(0, len(align1)):
+                for i in range(0, len(align1)):
                     if not ((align1[i] == '-' or align2[i] == '-')
                             or (align1[i] == align2[i])):
                         compatible = False
@@ -738,9 +739,9 @@ class PolyRep(object):
             for g in group:
                 dimIn = g.sched.dim(isl._isl.dim_type.in_)
                 dimOut = g.sched.dim(isl._isl.dim_type.out)
-                newAlign = [ '-' for i in xrange(0, dimIn)]
-                for i in xrange(0, dimIn):
-                    for j in xrange(0, len(align)):
+                newAlign = [ '-' for i in range(0, dimIn)]
+                for i in range(0, dimIn):
+                    for j in range(0, len(align)):
                         if g.align[i] == align[j]:
                             assert newAlign[i] == '-'
                             newAlign[i] = part.align[j]
@@ -761,13 +762,13 @@ class PolyRep(object):
                             if g not in parentGroups ]
             aligns = {}
 
-            for i in xrange(0, len(parentGroups)):
+            for i in range(0, len(parentGroups)):
                 aligns[i] = self.alignWithGroup(p, parentGroups[i])
             
             mergeGroups = []
             # If the alignment has alteast one valid reordering. Add the
             # group to the list of groups to be aligned and merged.
-            for i in xrange(0, len(parentGroups)):
+            for i in range(0, len(parentGroups)):
                 addGroup = False
                 for dim in aligns[i]:
                     if dim != '-':
@@ -863,18 +864,18 @@ class PolyRep(object):
                        if ref.objectRef == parentPart.comp] 
 
         dimIn = childPart.sched.dim(isl._isl.dim_type.in_)
-        scale = [ '-' for i in xrange(0, dimIn) ]
-        offset = [ '-' for i in xrange(0, dimIn) ]
+        scale = [ '-' for i in range(0, dimIn) ]
+        offset = [ '-' for i in range(0, dimIn) ]
 
         def findDimScheduledTo(part, schedDim):
-            for i in xrange(0, len(part.align)):
+            for i in range(0, len(part.align)):
                 if part.align[i] == schedDim:
                     return i
             return -1
 
         for ref in parentRefs:
             numArgs = len(ref.arguments)
-            for i in xrange(0, numArgs):
+            for i in range(0, numArgs):
                 arg = ref.arguments[i]
                 parentVarSchedDim = parentPart.align[i]            
                 if (isAffine(arg)):
@@ -925,7 +926,7 @@ class PolyRep(object):
                     if dim != -1:
                         scale[dim] = '*'
 
-        for i in xrange(0, dimIn):
+        for i in range(0, dimIn):
             if scale[i] == '-':
                 scale[i] = 1
             if offset[i] == '-':
@@ -1008,7 +1009,7 @@ class PolyRep(object):
 
             numIds = group[0].sched.dim(isl._isl.dim_type.out)
             ids = isl.IdList.alloc(self.ctx, numIds)
-            for i in xrange(0, numIds):
+            for i in range(0, numIds):
                 schedName = group[0].sched.get_dim_name(isl._isl.dim_type.out, i)
                 ids = ids.add(isl.Id.alloc(self.ctx, schedName, None))
             astbld = astbld.set_iterators(ids)
@@ -1043,9 +1044,9 @@ def mapCoeffToDim(coeff):
 def formatScheduleConstraints(dimIn, dimOut, align, scale, levelNo):
     ineqCoeff = []
     eqCoeff   = []
-    dimSet = [ False for i in xrange(0, dimOut) ]
+    dimSet = [ False for i in range(0, dimOut) ]
     # Adding identity constraint for each dimension
-    for i in xrange(0, dimIn):
+    for i in range(0, dimIn):
         coeff = {}
         coeff[('out', align[i])] = 1
         assert scale[i] >= 1
@@ -1060,7 +1061,7 @@ def formatScheduleConstraints(dimIn, dimOut, align, scale, levelNo):
     eqCoeff.append(levelCoeff)
 
     # Setting the remaining dimensions to zero
-    for i in xrange(1, dimOut):
+    for i in range(1, dimOut):
         if not dimSet[i]:
             coeff = {}
             coeff[('out', i)] = 1
@@ -1151,7 +1152,7 @@ def getParamsInvolved(sched, dim):
     paramNames = [ ]
     constraints = sched.domain().get_constraints()
     dimName = sched.domain().get_dim_name(isl._isl.dim_type.set, dim)
-    for p in xrange(0, numParams): 
+    for p in range(0, numParams): 
         for const in constraints:
            pname = sched.domain().get_dim_name(isl._isl.dim_type.param, p)
            dimId  = const.get_space().find_dim_by_name(isl._isl.dim_type.set, dimName)
