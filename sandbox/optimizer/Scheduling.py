@@ -1,4 +1,13 @@
 from Poly import *
+def getParentParts(part, group):
+     refs = part.getPartRefs()
+     parentParts = []
+     for ref in refs:
+         if ref.objectRef != part.comp:
+             if ref.objectRef in group.polyRep.polyParts:
+                 parentParts.extend(group.polyRep.polyParts[ref.objectRef])
+     return list(set(parentParts))
+
 def baseSchedule(group):
     """
          Construct the base schedule for a group with a polyhedral 
@@ -19,13 +28,7 @@ def baseSchedule(group):
     while change:
         change = False
         for part in parts:
-            refs = part.getPartRefs()
-            parentParts = []
-            for ref in refs:
-                if ref.objectRef != part.comp:
-                    if ref.objectRef in group.polyRep.polyParts:
-                        parentParts.extend(group.polyRep.polyParts[ref.objectRef])
-            parentParts = list(set(parentParts))
+            parentParts = getParentParts(part, group)          
             for p in parentParts:
                 if time[part] <= time[p]:
                     time[part] = time[p] + 1

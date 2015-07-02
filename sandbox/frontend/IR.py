@@ -197,7 +197,8 @@ class Pipeline:
 
         for g in list(set(self._groups.values())):
             baseSchedule(g)
-            print(g)
+            g.polyRep.generateCode()
+            #print(g)
 
     @property
     def groups(self):
