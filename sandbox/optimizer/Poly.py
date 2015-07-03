@@ -414,7 +414,7 @@ class PolyRep(object):
                 cond = conjuncts[0][0]
                 leftExpr = cond.lhs
                 rightExpr = cond.rhs
-                isLeftModulo = isAffine(leftExpr, modulo = True) and \
+                isLeftModulo = isAffine(leftExpr, includeModulo = True) and \
                                not isAffine(leftExpr)
                 isRightConstant = isConstantExpr(rightExpr)
                 breakSelect = False
