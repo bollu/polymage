@@ -245,28 +245,3 @@ def substituteVars(expr, varToExprMap):
         return expr
     raise TypeError(type(expr))
 
-def getType(expr):
-    expr = Value.numericToValue(expr)
-    assert(isinstance(expr, AbstractExpression))
-    if (isinstance(expr, Value)):
-        return expr.typ
-    elif (isinstance(expr, Variable)):
-        return expr.typ
-    elif (isinstance(expr, Reference)):
-        return expr.objectRef.typ
-    elif (isinstance(expr, AbstractBinaryOpNode)):
-        leftType = getType(expr.left)
-        rightType = getType(expr.right)
-        return typeImplictConversion(leftType, rightType) 
-    elif (isinstance(expr, AbstractUnaryOpNode)):
-        return getType(expr.child)
-    elif (isinstance(expr, Cast)):
-        return expr.typ
-    elif (isinstance(expr, Select)):
-        trueType = getType(expr.trueExpression)
-        falseType = getType(expr.falseExpression)
-        assert trueType == falseType
-        return trueType
-    elif (isinstance(expr, InbuiltFunction)):
-        return expr.getType()
-    raise TypeError(type(expr))
