@@ -205,6 +205,9 @@ class Pipeline:
                      mGroup = mergeGroupList[0]
                      for i in range(1, len(mergeGroupList)):
                         mGroup = self.mergeGroups(mGroup, mergeGroupList[i])
+        else:
+            # Run the grouping algorithm
+            pass
 
         for g in list(set(self._groups.values())):
             baseSchedule(g)

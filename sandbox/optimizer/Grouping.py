@@ -1,3 +1,50 @@
+def isCompSelfDependent(self, comp):
+    parts = self.polyParts[comp]        
+    for p in parts:
+        if self.isPartSelfDependent(p):
+            return True
+    return False
+
+def createGroupScaleMap(self, group):
+    groupScaleMap = {}
+    for part in group:
+        groupScaleMap[part] = list(part.scale)
+    return groupScaleMap
+
+def isStencilGroup(self, group):
+    depVecsGroup = self.getGroupDependenceVectors(group)
+    for depVec, h in depVecsGroup:
+        if '*' in depVec:
+            return False
+    return True    
+
+def getPartSize(self, part, paramEstimates):
+    size = None
+    domain = part.comp.domain
+    if isinstance(part.comp, Accumulator):
+        domain = part.comp.reductionDomain
+    for interval in domain:
+        subsSize = self.getDimSize(interval, paramEstimates)
+        if isConstantExpr(subsSize):
+            if size is None:
+                size = getConstantFromExpr(subsSize)
+            else:
+                size = size * getConstantFromExpr(subsSize)
+        else:
+            size = '*'
+            break
+    assert size is not None
+    return size
+
+def getDimSize(self, interval, paramEstimates):
+    paramValMap = {}
+    for est in paramEstimates:
+        assert isinstance(est[0], Parameter)
+        paramValMap[est[0]] = Value.numericToValue(est[1])
+
+    dimSize = interval.upperBound - interval.lowerBound + 1
+    return substituteVars(dimSize, paramValMap)
+
 def getGroupDependenceVectors(self, group, scaleMap = None):
     depVecs = []   
     for part in group:
