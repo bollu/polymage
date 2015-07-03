@@ -72,8 +72,11 @@ def test_harris_corner():
     harris = Function(([x, y], [row, col]), Float, "harris")
     harris.defn = [ Case(condRed, det(x, y) - 0.04 * trace(x, y) * trace(x, y)) ]
 
-    pipeline = buildPipeline([harris])
+    pipeline = buildPipeline([harris], grouping = [[Ix, Iy, Ixx, Iyy, Ixy]])
 
     filename = 'graph.dot'
     pipeline.originalGraph.write(filename)
     
+    filename = 'graph_grouped.dot'
+    g = pipeline.drawPipelineGraph()
+    g.write(filename)

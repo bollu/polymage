@@ -142,7 +142,7 @@ class Group:
         return comp_str + '\n' + self._polyrep.__str__()
 
 class Pipeline:
-    def __init__(self, _ctx, _outputs, _paramConstraints):
+    def __init__(self, _ctx, _outputs, _paramConstraints, _grouping):
         # Name of the pipleline is a concatenation of the names of the 
         # pipeline outputs.
         _name = ""
@@ -153,6 +153,7 @@ class Pipeline:
         self._ctx = _ctx
         self._orgOutputs = _outputs
         self._paramConstraints = _paramConstraints
+        self._grouping = _grouping
 
         # Maps from a compute object to its parents and children
         self._orgCompObjs, _ , _ = \
@@ -169,7 +170,8 @@ class Pipeline:
         # Modify the references in the cloned objects (which refer to 
         # the original objects)  
         for comp in self._orgCompObjs:
-            refs = comp.getObjects(Reference)
+            cln = self._cloneMap[comp]
+            refs = cln.getObjects(Reference)
             for ref in refs:
                 if not isinstance(ref.objectRef, Image): 
                     ref._replaceRefObject(self._cloneMap[ref.objectRef])
@@ -194,6 +196,15 @@ class Pipeline:
             inputs = inputs + self._groups[f].inputs
 
         self._inputs = list(set(inputs))
+
+        # TODO check grouping validity
+        if self._grouping:
+            for g in self._grouping:
+                mergeGroupList = [ self._groups[self._cloneMap[f]] for f in g ]
+                if len(mergeGroupList) > 1:
+                     mGroup = mergeGroupList[0]
+                     for i in range(1, len(mergeGroupList)):
+                        mGroup = self.mergeGroups(mGroup, mergeGroupList[i])
 
         for g in list(set(self._groups.values())):
             baseSchedule(g)
@@ -249,10 +260,8 @@ class Pipeline:
     def drawPipelineGraph(self):
         G = pgv.AGraph(strict=False, directed=True)
         groupList = list(set([self._groups[f] for f in self._groups]))
-        for obj in self._compObjs:
-            for pobj in self._compObjsParents[obj]:
-                G.add_edge(pobj.name, obj.name)
-        # TODO add input nodes to the graph 
+
+        # TODO add input nodes to the graph
         for i in range(0, len(groupList)):
             subGraphNodes = []
             for obj in self._compObjs:
@@ -262,8 +271,60 @@ class Pipeline:
             G.add_subgraph(nbunch = subGraphNodes, 
                            name = "cluster_" + str(i))
 
+        for obj in self._compObjs:
+            for pobj in self._compObjsParents[obj]:
+                G.add_edge(pobj.name, obj.name)
+
         G.layout(prog='dot')
         return G
+
+    def mergeGroups(self, g1, g2):
+        # Get comp objects from both groups 
+        mCompObjs = g1.computeObjs + g2.computeObjs
+        # Create a new group 
+        mGroup = Group(self._ctx, mCompObjs, self._paramConstraints)
+        # Update the group map
+        for comp in mCompObjs:
+            self._groups.pop(comp)
+            self._groups[comp] = mGroup
+
+        # Update the group parent map
+        parents = self._groupParents[g1] + self._groupParents[g2]
+        parents = [ p for p in parents if p is not g1 and p is not g2 ]
+        parents = list(set(parents))
+
+        self._groupParents.pop(g1)
+        self._groupParents.pop(g2)
+
+        for g in self._groupParents:
+            if g1 in self._groupParents[g] or g2 in self._groupParents[g]:
+                self._groupParents[g].append(mGroup)
+            if g1 in self._groupParents[g]:
+                self._groupParents[g].remove(g1)
+            if g2 in self._groupParents[g]:
+                self._groupParents[g].remove(g2)
+        
+        self._groupParents[mGroup] = parents
+
+        # update the group child map
+        children = self._groupChildren[g1] + self._groupChildren[g2]
+        children = [ c for c in children if c is not g1 and c is not g2 ]
+        children = list(set(children))
+
+        self._groupChildren.pop(g1)
+        self._groupChildren.pop(g2)
+
+        for g in self._groupChildren:
+            if g1 in self._groupChildren[g] or g2 in self._groupChildren[g]:
+                self._groupChildren[g].append(mGroup)
+            if g1 in self._groupChildren[g]:
+                self._groupChildren[g].remove(g1)
+            if g2 in self._groupChildren[g]:
+                self._groupChildren[g].remove(g2)
+        
+        self._groupChildren[mGroup] = children
+
+        return mGroup
 
     def boundsCheckPass(self):
         """ 

@@ -9,9 +9,9 @@ sys.path.insert(0, '../codegen')
 from IR import *
 import Poly as opt
 
-def buildPipeline(outputs, paramConstraints = []):
+def buildPipeline(outputs, paramConstraints = [], grouping = []):
     # Create an isl context that will be used for all polyhedral
     # operations during compilation.
     ctx = opt.isl.Context()
 
-    return Pipeline(ctx, outputs, paramConstraints) 
+    return Pipeline(ctx, outputs, paramConstraints, grouping) 
