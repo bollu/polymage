@@ -608,8 +608,11 @@ class Function(object):
                 if(not isAffine(varDom.lowerBound) or
                    not isAffine(varDom.upperBound)):
                     boundedIntegerDomain = False
+                    break
             else:
                 boundedIntegerDomain = False
+                break
+
         return boundedIntegerDomain
 
     def clone(self):

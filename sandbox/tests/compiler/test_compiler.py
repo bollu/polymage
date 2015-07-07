@@ -12,6 +12,8 @@ from Constructs import *
 
 def test_harris_corner():
 
+    print()
+    print("test_harris")
     R = Parameter(Int, "R")
     C = Parameter(Int, "C")
     x = Variable(Int, "x")
@@ -84,6 +86,8 @@ def test_harris_corner():
 
 def test_downsample():
 
+    print()
+    print("test_downsample")
     R = Parameter(Int, "R")
     C = Parameter(Int, "C")
     x = Variable(Int, "x")
@@ -145,7 +149,7 @@ def test_downsample():
 
     filename = 'down_graph.dot'
     pipeline.originalGraph.write(filename)
-    
+ 
     filename = 'down_graph_grouped.dot'
     g = pipeline.drawPipelineGraph()
     g.write(filename)
