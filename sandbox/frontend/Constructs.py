@@ -160,7 +160,11 @@ class Abs(InbuiltFunction):
 class Cast(AbstractExpression):
     def __init__(self, _typ, _expr):
         _expr = Value.numericToValue(_expr)
-        assert _typ in [Float, Double, UChar, Char, UShort, Short, UInt, Int, ULong, ULong] 
+        assert _typ in [Float, Double, 
+                        UChar, Char, 
+                        UShort, Short, 
+                        UInt, Int, 
+                        ULong, Long]
         assert(isinstance(_expr, AbstractExpression))
         self._typ  = _typ
         self._expr = _expr
@@ -230,7 +234,8 @@ class Select(AbstractExpression):
         self._falseExpr = substituteRefs(self._falseExpr, refToExprMap)
     
     def clone(self):
-        return Select(self._cond.clone(), self._trueExpr.clone(), 
+        return Select(self._cond.clone(),
+                      self._trueExpr.clone(),
                       self._falseExpr.clone())
 
     def __str__(self):
@@ -241,7 +246,7 @@ class Select(AbstractExpression):
 
 class Max(Select):
     def __init__(self, _leftExpr, _rightExpr, typeCheck = True):
-        Select.__init__(self, Condition(_leftExpr, '>', _rightExpr), 
+        Select.__init__(self, Condition(_leftExpr, '>', _rightExpr),
                                         _leftExpr, _rightExpr, typeCheck)
 class Min(Select):
     def __init__(self, _leftExpr, _rightExpr, typeCheck = True):
@@ -299,7 +304,9 @@ class Interval(object):
         return list(set(objs))
 
     def clone(self):
-        return Interval(self._typ, self._lb.clone(), self._ub.clone())
+        return Interval(self._typ, 
+                        self._lb.clone(), 
+                        self._ub.clone())
 
     def __str__(self):
         return '(' + self._lb.__str__() + ', ' +\
@@ -325,12 +332,12 @@ class Reference(AbstractExpression):
         return self._args
 
     def clone(self):
-        cloneArgs = [ arg.clone() for arg in self._args]
+        cloneArgs = [arg.clone() for arg in self._args]
         return Reference(self._obj, cloneArgs)
 
     def collect(self, objType):
         objs = []
-        for arg in self._args:     
+        for arg in self._args:
             objs += arg.collect(objType)
         if (type(self) is objType):
             objs += [self]
