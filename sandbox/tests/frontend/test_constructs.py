@@ -25,7 +25,7 @@ def test_variable():
     assert x.typ == UInt
 
 def test_types():
-    assert Value(3.0, Float) == 3.0 
+    assert Value(3.0, Float) == 3.0
     assert Value(3.0, Double) == 3.0
     assert Value(3, Int) == 3 
     assert Value(3, UInt) == 3 
@@ -170,3 +170,4 @@ def test_overload():
     assert expr.__str__().replace(' ', '') == "0"
     expr = 0 * N
     assert expr.__str__().replace(' ', '') == "0"
+

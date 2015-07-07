@@ -787,7 +787,7 @@ def isAffine(expr, includeDiv = True, includeModulo = False):
         constant +,-,* affine = affine 
         affine +,- affine  = affine
         affine *,/ affine = non-affine
-        non-affine operand always results in an non-affine expression
+        non-affine operand always results in a non-affine expression
 
         Divisions and modulo operators are considered affine if the appropriate 
         option is specified. 
@@ -803,7 +803,7 @@ def isAffine(expr, includeDiv = True, includeModulo = False):
     assert(isinstance(expr, AbstractExpression)
            or isinstance(expr, Condition))
     if (isinstance(expr, Value)):
-        return (expr.typ is Int) or ((expr.typ is Rational) and includeDiv)
+        return (expr.typ is Int) or (includeDiv and (expr.typ is Rational))
     elif (isinstance(expr, Variable)):
         return True
     elif (isinstance(expr, Reference)):
@@ -821,13 +821,13 @@ def isAffine(expr, includeDiv = True, includeModulo = False):
                     return True
                 else:
                     return False
-            elif(expr.op in ['/'] and includeDiv):
-                if (not (expr.right.has(Variable) or expr.right.has(Parameter))):
+            elif(includeDiv and expr.op in ['/']):
+                if (not (expr.right.has(Variable)) and not(expr.right.has(Parameter))):
                     return True
                 else:
                     return False
-            elif(expr.op in ['%'] and includeModulo):
-                if (not (expr.right.has(Variable) or expr.right.has(Parameter))):
+            elif(includeModulo and expr.op in ['%']):
+                if (not (expr.right.has(Variable)) and not(expr.right.has(Parameter))):
                     return isAffine(expr.left, includeDiv, False)
                 else:
                     return False
