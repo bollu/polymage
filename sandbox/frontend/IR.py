@@ -142,14 +142,16 @@ class Group:
         return comp_str + '\n' + self._polyrep.__str__()
 
 class Pipeline:
-    def __init__(self, _ctx, _outputs, _paramConstraints, _grouping):
+    def __init__(self, _ctx, _outputs, _paramConstraints, _grouping, _name = None):
         # Name of the pipleline is a concatenation of the names of the 
-        # pipeline outputs.
-        _name = ""
-        for out in _outputs:
-            _name = _name + out.name
+        # pipeline outputs, unless it is explicitly named.
+        if _name is None:
+            _name = ""
+            for out in _outputs:
+                _name = _name + out.name
+
         self._name   = _name
-        
+
         self._ctx = _ctx
         self._orgOutputs = _outputs
         self._paramConstraints = _paramConstraints
@@ -181,10 +183,12 @@ class Pipeline:
 
         # Create a group for each pipeline function / reduction and compute
         # maps for parent and child relations between the groups
-        self._groups, self._groupParents, self._groupChildren = \
-                                        self.buildInitialGroups(self._compObjs, 
-                                                                self._compObjsParents,
-                                                                self._compObjsChildren)
+        self._groups, \
+         self._groupParents, \
+          self._groupChildren = \
+                                self.buildInitialGroups(self._compObjs,
+                                                        self._compObjsParents,
+                                                        self._compObjsChildren)
 
         # Store the initial pipeline graph. The compiler can modify 
         # the pipeline by inlining functions.
@@ -208,7 +212,7 @@ class Pipeline:
 
         for g in list(set(self._groups.values())):
             baseSchedule(g)
-            g.polyRep.generateCode()
+            #g.polyRep.generateCode()
             #print(g)
 
     @property

@@ -29,7 +29,7 @@ def addConstraintsFromList(obj, localSpace, constraintList, constraintAlloc):
                const[coeff] = m * const[coeff]
         for coeff in const:
             dim = coeff[1]
-            if coeff[0] == 'param':                
+            if coeff[0] == 'param':
                 if (type(dim) == str):
                     dim = obj.find_dim_by_name(isl._isl.dim_type.param, dim)
                 c = c.set_coefficient_val(isl._isl.dim_type.param, dim, const[coeff])
@@ -53,7 +53,7 @@ def addConstraints(obj, ineqs, eqs):
     if (isinstance(obj, isl.Map)):
         for bmap in obj.get_basic_maps():
             localSpace = bmap.get_local_space()
-   
+
             obj = addConstraintsFromList(obj, localSpace, ineqs, 
                                  isl.Constraint.inequality_alloc) 
             obj = addConstraintsFromList(obj, localSpace, eqs, 
@@ -61,7 +61,7 @@ def addConstraints(obj, ineqs, eqs):
     elif (isinstance(obj, isl.Set)):
         for bset in obj.get_basic_sets():
             localSpace = bset.get_local_space()
-   
+
             obj = addConstraintsFromList(obj, localSpace, ineqs, 
                                  isl.Constraint.inequality_alloc) 
             obj = addConstraintsFromList(obj, localSpace, eqs, 
@@ -129,7 +129,7 @@ class PolyPart(object):
         self.scale = _scale
         # Default alignment and scaling factors are set while
         # constructing the polypart. These are changed by the
-        # alignment and loop scaling passes. Both these passes 
+        # alignment and loop scaling passes. Both these passer
         # attempt to improve locality and uniformize dependencies.
         self.levelNo = _levelNo
         self.dimTileInfo = {}
@@ -290,7 +290,7 @@ class PolyRep(object):
     def createSchedSpace(self, variables, domains, scheduleNames, paramNames,
                          contextConds):
         # Variable names for refrerring to dimensions
-        varNames = [ variables[i].name for i in range(0, len(variables)) ]        
+        varNames = [ variables[i].name for i in range(0, len(variables)) ]
         space = isl.Space.create_from_names(self.ctx, in_ = varNames,
                                                      out = scheduleNames,
                                                      params = paramNames)
@@ -317,7 +317,7 @@ class PolyRep(object):
             # of the compute objects within a group.
 
             align, scale = self.defaultAlignAndScale(sched)
-            
+
             if (isinstance(case, Case)):
                 # Dealing with != and ||. != can be replaced with < || >. 
                 # and || splits the domain into two.
@@ -747,8 +747,8 @@ class PolyRep(object):
         # Go through the parts in a sorted order and compute alignments
         compObjs = self.stage.orderComputeObjs()
         sortedCompObjs = sorted(compObjs.items(), key=lambda s: (s[1], s[0].name))
-        # Alignments in certain cases me result in chaning the relative order of
-        # dimensions. This is only valid if there are no dependencies between the
+        # Alignments in certain cases may result in changing the relative order of
+        # dimensions. This is valid only if there are no dependencies between the
         # dimensions being reordered. Dependence vectors or polyhedra can be used
         # to decide if the dimensions can be reordered.
 

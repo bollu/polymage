@@ -355,7 +355,7 @@ class Condition(object):
         if _cond in ['<', '<=', '>', '>=', '==', '!=']:
             assert(isinstance(_left, AbstractExpression))
             assert(isinstance(_right, AbstractExpression))
-        if _cond in ['&&', '||']:        
+        if _cond in ['&&', '||']:
             assert(isinstance(_left, Condition))
             assert(isinstance(_right, Condition))
         self._left  = _left
@@ -384,13 +384,13 @@ class Condition(object):
 
     def replaceReferences(self, refToExprMap):
         if(isinstance(self._left, Condition)):
-            self._left.replaceReferences(refToExprMap) 
+            self._left.replaceReferences(refToExprMap)
         else:
-            self._left = substituteRefs(self._left, refToExprMap) 
+            self._left = substituteRefs(self._left, refToExprMap)
         if(isinstance(self._right, Condition)):
             self._right.replaceReferences(refToExprMap)
         else:
-            self._right = substituteRefs(self._right, refToExprMap) 
+            self._right = substituteRefs(self._right, refToExprMap)
 
     def splitToConjuncts(self):
         conjuncts = []
@@ -443,7 +443,7 @@ class Case(object):
     @property
     def expression(self):
         return self._expr
-    
+
     def collect(self, objType):
         if (type(self) is objType):
             return [self]
