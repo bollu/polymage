@@ -1,3 +1,5 @@
+from __future__ import absolute_import, division, print_function
+
 def isCompSelfDependent(self, comp):
     parts = self.polyParts[comp]        
     for p in parts:

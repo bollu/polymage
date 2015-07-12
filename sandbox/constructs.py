@@ -1,9 +1,7 @@
-# Making things compatible for python 3
-# Yet to figure out how to make range like xrange
 from __future__ import absolute_import, division, print_function
 
-from Ast import *
-from Types import *
+import ast
+import types
 
 """
 class Max(InbuiltFunction):

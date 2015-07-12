@@ -1,10 +1,8 @@
-# Making things compatible for python 3
-# Yet to figure out how to make range like xrange
 from __future__ import absolute_import, division, print_function
 
 from fractions import Fraction
 from fractions import gcd
-from Types import *
+import types
 
 class AbstractExpression(object):
     """ AbstractExpression class is a tree representation for expressions

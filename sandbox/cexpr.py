@@ -1,11 +1,6 @@
-# Making things compatible for python 3
-# Yet to figure out how to make range like xrange
 from __future__ import absolute_import, division, print_function
 
-import sys
-sys.path.insert(0, '../frontend')
-
-from Constructs import *
+import constructs
 
 class cValue(Value):
     def __init__(self, _value, _typ):

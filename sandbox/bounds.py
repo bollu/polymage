@@ -1,3 +1,5 @@
+from __future__ import absolute_import, division, print_function
+
 def checkRefs(childStage, parentStage):
     # Check refs works only on non-fused stages. It can be made to
     # work with fused stages as well. However, it might serve very

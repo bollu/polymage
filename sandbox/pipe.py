@@ -1,14 +1,4 @@
-# Making things compatible for python 3
-# Yet to figure out how to make range like xrange
 from __future__ import absolute_import, division, print_function
-
-import sys
-sys.path.insert(0, '../optimizer')
-sys.path.insert(0, '../codegen')
-from Constructs import *
-from Scheduling import *
-from Codegen import *
-import Poly as poly
 
 # More Python 3 vs 2 mojo
 try:
@@ -17,6 +7,12 @@ except ImportError:
     import Queue as queue
 
 import pygraphviz as pgv
+
+import constructs
+import codegen
+import schedule
+
+import poly
 
 def getParentsFromCompObj(comp):
     refs = comp.getObjects(Reference)

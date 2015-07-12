@@ -1,3 +1,5 @@
+from __future__ import absolute_import, division, print_function
+
 def inline(childStage, parentStage, noSplit = False):
     refToInlineExprMap = {}
     # Inling currently only handles non-fused stages
