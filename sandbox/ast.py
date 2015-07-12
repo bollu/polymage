@@ -1,10 +1,8 @@
-# Making things compatible for python 3
-# Yet to figure out how to make range like xrange
 from __future__ import absolute_import, division, print_function
 
 from fractions import Fraction
 from fractions import gcd
-from Types import *
+import types
 
 class AbstractExpression(object):
     """ AbstractExpression class is a tree representation for expressions
@@ -14,33 +12,33 @@ class AbstractExpression(object):
     are overloaded therefore expressions in parameters, variables and
     references will automatically be converted in to an expression tree.
     """
-    def typeCheck(func):
+    def type_check(func):
         def checked(self, other):
-            other = Value.numericToValue(other)
+            other = Value.num_to_value(other)
             assert isinstance(other, AbstractExpression)
             return func(self, other)
         return checked
 
-    @typeCheck
+    @type_check
     def __add__(self, other):
         if isinstance(other, Value):
             if other.value == 0:
                 return self
         return Add(self, other)
-    @typeCheck
+    @type_check
     def __radd__(self, other):
         if isinstance(other, Value):
             if other.value == 0:
                 return self
         return Add(other, self)
 
-    @typeCheck
+    @type_check
     def __sub__(self, other):
         if isinstance(other, Value):
             if other.value == 0:
                 return self
         return Sub(self, other)
-    @typeCheck
+    @type_check
     def __rsub__(self, other):
         if isinstance(other, Value):
             if other.value == 0:
@@ -48,7 +46,7 @@ class AbstractExpression(object):
         return Sub(other, self)
 
 
-    @typeCheck
+    @type_check
     def __mul__(self, other):
         if isinstance(other, Value):
             if other.value == 1:
@@ -56,7 +54,7 @@ class AbstractExpression(object):
             if other.value == 0:
                 return Value(0, Int)
         return Mul(self, other)
-    @typeCheck
+    @type_check
     def __rmul__(self, other):
         if isinstance(other, Value):
             if other.value == 1:
@@ -65,29 +63,29 @@ class AbstractExpression(object):
                 return Value(0, Int)
         return Mul(other, self)
 
-    @typeCheck
+    @type_check
     def __truediv__(self, other):
         if isinstance(other, Value):
             if other.value == 1:
                 return self
         return Div(self, other)
 
-    @typeCheck
+    @type_check
     def __rtruediv__(self, other):
         return Div(other, self)
 
-    @typeCheck
+    @type_check
     def __floordiv__(self, other):
         if isinstance(other, Value):
             if other.value == 1:
                 return self
         return Div(self, other)
 
-    @typeCheck
+    @type_check
     def __rfloordiv__(self, other):
         return Div(other, self)
 
-    @typeCheck
+    @type_check
     def __lshift__(self, other):
         if isinstance(other, Value):
             if other.value == 0:
@@ -96,41 +94,41 @@ class AbstractExpression(object):
     def __rlshift__(self, other):
         return LShift(other, self)
 
-    @typeCheck
+    @type_check
     def __rshift__(self, other):
         if isinstance(other, Value):
             if other.value == 0:
                 return self
         return RShift(self, other)
-    @typeCheck
+    @type_check
     def __rrshift__(self, other):
         return RShift(other, self)
 
-    @typeCheck
+    @type_check
     def __mod__(self, other):
         return Mod(self, other)
-    @typeCheck
+    @type_check
     def __rmod__(self, other):
         return Mod(other, self)
     
-    @typeCheck
+    @type_check
     def __and__(self, other):
         return LAnd(self, other)
-    @typeCheck
+    @type_check
     def __rand__(self, other):
         return LAnd(other, self)
     
-    @typeCheck
+    @type_check
     def __xor__(self, other):
         return Xor(self, other)
-    @typeCheck
+    @type_check
     def __rxor__(self, other):
         return Xor(other, self)
 
-    @typeCheck
+    @type_check
     def __or__(self, other):
         return LOr(self, other)
-    @typeCheck
+    @type_check
     def __ror__(self, other):
         return LOr(other, self)
 
@@ -151,16 +149,16 @@ class AbstractExpression(object):
 class Value(AbstractExpression):
 
     @classmethod
-    def numericToValue(cls, _value):
+    def num_to_value(cls, _value):
         if type(_value) is int:
-            _value = Value(_value, Int)
+            _value = Value(_value, types.Int)
         elif type(_value) is float:
-            _value = Value(_value, Float)
+            _value = Value(_value, types.Float)
         # Python 3 has no long
         #elif type(_value) is long:
-        #    _value = Value(_value, Long)
+        #    _value = Value(_value, types.Long)
         elif type(_value) is Fraction:
-            _value = Value(_value, Rational)
+            _value = Value(_value, types.Rational)
         return _value
 
     def __init__(self, _value, _typ):
@@ -206,7 +204,8 @@ class AbstractBinaryOpNode(AbstractExpression):
         return list(set(objs))  
 
     def clone(self):
-        return AbstractBinaryOpNode(self._left.clone(), self._right.clone(), 
+        return AbstractBinaryOpNode(self._left.clone(), 
+                                    self._right.clone(), 
                                     self._op)
 
     def __str__(self):        
@@ -255,7 +254,7 @@ class Xor(AbstractBinaryOpNode):
 
 class InbuiltFunction(AbstractExpression):
     def __init__(self, *_args):
-        _args = [ Value.numericToValue(arg) for arg in _args] 
+        _args = [ Value.num_to_value(arg) for arg in _args] 
         for arg in _args:
             assert(isinstance(arg, AbstractExpression))
         self._args = _args    
@@ -264,7 +263,7 @@ class InbuiltFunction(AbstractExpression):
     def arguments(self):
         return self._args 
    
-    def getType(self):
+    def get_type(self):
         raise TypeError(self)
 
     def collect(self, objType):
@@ -275,11 +274,11 @@ class InbuiltFunction(AbstractExpression):
             objs = objs + [self]
         return list(set(objs))
 
-    def substituteVars(self, varToExprMap):
+    def sub_vars(self, varToExprMap):
         for i in range(0, len(self._args)):
-            self._args[i] = substituteVars(self._args[i], varToExprMap)
+            self._args[i] = sub_vars(self._args[i], varToExprMap)
 
-    def inlineRefs(self, refToExprMap):
+    def inline_refs(self, refToExprMap):
         self._args = [ substituteRefs(arg, refToExprMap) for arg in self._args]
 
 class AbstractUnaryOpNode(AbstractExpression):

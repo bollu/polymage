@@ -1,66 +1,64 @@
-# Making things compatible for python 3
-# Yet to figure out how to make range like xrange
 from __future__ import absolute_import, division, print_function
 
 class Void(object):
     @staticmethod
-    def cTypeName():
+    def c_type_name():
         return 'void'
     pass
 class Float(object):
     @staticmethod
-    def cTypeName():
+    def c_type_name():
         return 'float'
     pass
 class Double(object):
     @staticmethod
-    def cTypeName():
+    def c_type_name():
         return 'double'
     pass
 class Int(object):
     @staticmethod
-    def cTypeName():
+    def c_type_name():
         return 'int32'
     pass
 class UInt(object):
     @staticmethod
-    def cTypeName():
+    def c_type_name():
         return 'uint32'
     pass
 class Short(object):
     @staticmethod
-    def cTypeName():
+    def c_type_name():
         return 'int16'
     pass
 class UShort(object):
     @staticmethod
-    def cTypeName():
+    def c_type_name():
         return 'uint16'
     pass
 class Char(object):
     @staticmethod
-    def cTypeName():
+    def c_type_name():
         return 'int8'
     pass
 class UChar(object):
     @staticmethod
-    def cTypeName():
+    def c_type_name():
         return 'uint8'
     pass
 class Long(object):
     @staticmethod
-    def cTypeName():
+    def c_type_name():
         return 'int64'
     pass
 class ULong(object):
     @staticmethod
-    def cTypeName():
+    def c_type_name():
         return 'uint64'
     pass
 class Rational(object):
     pass
 
-def implictTypeConversion(a, b):
+def result_type(a, b):
     if a is Double or b is Double:
         return Double
     elif a is Float or b is Float:
