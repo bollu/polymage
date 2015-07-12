@@ -4,9 +4,11 @@ from __future__ import absolute_import, division, print_function
 
 import sys
 sys.path.insert(0, '../optimizer')
+sys.path.insert(0, '../codegen')
 from Constructs import *
 from Scheduling import *
-import Poly as opt
+from Codegen import *
+import Poly as poly
 
 # More Python 3 vs 2 mojo
 try:
@@ -92,7 +94,7 @@ class Group:
             if (not comp.hasBoundedIntegerDomain()):
                 polyhedral = False
         if polyhedral:
-            self._polyrep = opt.PolyRep(_ctx, self, _paramConstraints) 
+            self._polyrep = poly.PolyRep(_ctx, self, _paramConstraints) 
         
     @property
     def computeObjs(self):
@@ -217,6 +219,7 @@ class Pipeline:
             baseSchedule(g)
             #g.polyRep.generateCode()
             #print(g)
+        self.generateCode()
 
     @property
     def groups(self):
@@ -285,6 +288,9 @@ class Pipeline:
         G.layout(prog='dot')
         return G
 
+    def generateCode(self):
+        generateCodeForPipeline(self)
+
     def mergeGroups(self, g1, g2):
         # Get comp objects from both groups 
         mCompObjs = g1.computeObjs + g2.computeObjs
@@ -333,6 +339,30 @@ class Pipeline:
 
         return mGroup
 
+    def getOrderedGroups(self):
+        # Assign level numbers to each group and sort accourding to the 
+        # level
+        groupOrder = {}
+        groups = set(self._groups.values())
+        groupList = [ [g, len(self._groupParents[g])] for g in groups ]
+
+        level = 0
+        while groupList:
+            # find all the groups whose parents have their levels assigned
+            levelAssigned = [ t for t in groupList if t[1] == 0 ]
+            for assgn in levelAssigned:
+                groupOrder[assgn[0]] = level
+                groupList.remove(assgn)
+                # reduce the unassigned parent count for all the children
+                childGroups = self._groupChildren[assgn[0]]
+                for assgn in groupList:
+                    if assgn[0] in childGroups:
+                        assgn[1] = assgn[1] - 1
+            level = level + 1
+        
+        return sorted(groupOrder.items(), key=lambda x: x[1])
+
+
     def boundsCheckPass(self):
         """ 
             Bounds check pass analyzes if function values used in the compute
@@ -343,7 +373,7 @@ class Pipeline:
         """
         for group in self._groups.values():
             for child in group.childGroups:
-                opt.checkRefs(child, group)              
+                poly.checkRefs(child, group)              
             for inp in group.inputs:
                 # Creating a computation group for an input which is given
                 # is meaningless. Ideally it should be done in a clean way
@@ -353,7 +383,7 @@ class Pipeline:
                                  self._paramEstimates, self._tileSizes,
                                  self._sizeThreshold, self._groupSize,
                                  self._outputs)
-                opt.checkRefs(group, inpGroup)
+                poly.checkRefs(group, inpGroup)
 
     def inlinePass(self):
         """ 
@@ -406,31 +436,11 @@ class Pipeline:
             parentGroup = self._groups[directive]
             assert parentGroup.computeObjs[0] not in self._outputs
             for child in parentGroup.childGroups:
-                refToInlineExprMap = opt.inline(child, parentGroup, noSplit = True)
+                refToInlineExprMap = poly.inline(child, parentGroup, noSplit = True)
                 child.computeObjs[0].inlineRefs(refToInlineExprMap)
             # Recompute group graph
             self._groups = self.buildGroupGraph()
 
-    def getOrderedGroups(self):
-        # Topological sorting of groups.
-        # Quick and dirty way of doing things have to revisit
-        groupOrder = {}
-        groupList = [ (len(s.parentGroups), s) for s in self._groups.values()]
-        level = 0
-        while len(groupList) > 0:
-            levelAssigned = [ s for s in groupList if s[0] == 0]
-            for assigned in levelAssigned:
-                groupOrder[assigned[1]] = level
-                groupList.remove(assigned)
-                def decChild(s):
-                    if s[1] in assigned[1].childGroups:
-                        return (s[0]-1, s[1])
-                    else: 
-                        return s
-                groupList = [ decChild(s) for s in groupList ] 
-            level = level + 1
-        return sorted(groupOrder.items(), key=lambda s: s[1])
-  
     # TODO printing the pipeline 
     def __str__(self):
         return_str = "Final Group: " + self._name + "\n"

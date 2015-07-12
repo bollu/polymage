@@ -4,8 +4,7 @@ from __future__ import absolute_import, division, print_function
 
 from fractions import Fraction
 import sys
-sys.path.insert(0, '../../optimizer')
-sys.path.insert(0, '../../frontend')
+sys.path.insert(0, '../../')
 
 from Compiler import *
 from Constructs import *
