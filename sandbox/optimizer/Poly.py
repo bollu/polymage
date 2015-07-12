@@ -1,4 +1,6 @@
 import islpy as isl
+import sys
+sys.path.insert(0, '../frontend')
 from Constructs import *
 from Expression import *
 import math as math
