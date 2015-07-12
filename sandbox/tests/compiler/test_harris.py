@@ -11,7 +11,8 @@ from Compiler import *
 from Constructs import *
 
 def test_harris_corner():
-    
+
+    print()
     R = Parameter(Int, "R")
     C = Parameter(Int, "C")
     x = Variable(Int, "x")
@@ -70,13 +71,15 @@ def test_harris_corner():
     trace.defn = [ Case(condRed, Sxx(x, y) + Syy(x, y)) ]
 
     harris = Function(([x, y], [row, col]), Float, "harris")
-    harris.defn = [ Case(condRed, det(x, y) - 0.04 * trace(x, y) * trace(x, y)) ]
+    harris.defn = [ Case(condRed, 
+                         det(x, y) - 0.04 * trace(x, y) * trace(x, y)) ]
 
     pipeline = buildPipeline([harris], grouping = [[Ix, Iy, Ixx, Iyy, Ixy]])
 
-    filename = 'graph.dot'
+    filename = 'harris_graph.dot'
     pipeline.originalGraph.write(filename)
     
-    filename = 'graph_grouped.dot'
+    filename = 'harris_graph_grouped.dot'
     g = pipeline.drawPipelineGraph()
     g.write(filename)
+

@@ -29,7 +29,7 @@ def addConstraintsFromList(obj, localSpace, constraintList, constraintAlloc):
                const[coeff] = m * const[coeff]
         for coeff in const:
             dim = coeff[1]
-            if coeff[0] == 'param':                
+            if coeff[0] == 'param':
                 if (type(dim) == str):
                     dim = obj.find_dim_by_name(isl._isl.dim_type.param, dim)
                 c = c.set_coefficient_val(isl._isl.dim_type.param, dim, const[coeff])
@@ -53,7 +53,7 @@ def addConstraints(obj, ineqs, eqs):
     if (isinstance(obj, isl.Map)):
         for bmap in obj.get_basic_maps():
             localSpace = bmap.get_local_space()
-   
+
             obj = addConstraintsFromList(obj, localSpace, ineqs, 
                                  isl.Constraint.inequality_alloc) 
             obj = addConstraintsFromList(obj, localSpace, eqs, 
@@ -61,7 +61,7 @@ def addConstraints(obj, ineqs, eqs):
     elif (isinstance(obj, isl.Set)):
         for bset in obj.get_basic_sets():
             localSpace = bset.get_local_space()
-   
+
             obj = addConstraintsFromList(obj, localSpace, ineqs, 
                                  isl.Constraint.inequality_alloc) 
             obj = addConstraintsFromList(obj, localSpace, eqs, 
@@ -128,7 +128,7 @@ class PolyPart(object):
         self.scale = _scale
         # Default alignment and scaling factors are set while
         # constructing the polypart. These are changed by the
-        # alignment and loop scaling passes. Both these passes 
+        # alignment and loop scaling passes. Both these passer
         # attempt to improve locality and uniformize dependencies.
         self.levelNo = _levelNo
         self.dimTileInfo = {}
@@ -288,7 +288,7 @@ class PolyRep(object):
     def createSchedSpace(self, variables, domains, scheduleNames, paramNames,
                          contextConds):
         # Variable names for refrerring to dimensions
-        varNames = [ variables[i].name for i in range(0, len(variables)) ]        
+        varNames = [ variables[i].name for i in range(0, len(variables)) ]
         space = isl.Space.create_from_names(self.ctx, in_ = varNames,
                                                      out = scheduleNames,
                                                      params = paramNames)
@@ -314,8 +314,8 @@ class PolyRep(object):
             # a level dimension. The level dimension gives the ordering 
             # of the compute objects within a group.
 
-            align, scale = self.defaultAlignAndScale(schedMap)
-            
+            align, scale = self.defaultAlignAndScale(schedM)
+
             if (isinstance(case, Case)):
                 # Dealing with != and ||. != can be replaced with < || >. 
                 # and || splits the domain into two.
@@ -724,6 +724,284 @@ class PolyRep(object):
         #                depVec[i] = (val.get_num_si())/(val.get_den_si())
         return (depVec, parentPart.levelNo)
 
+    def alignParts(self):
+        """ Embeds parts whose dimension is smaller than the schedule space."""
+        # Go through the parts in a sorted order and compute alignments
+        compObjs = self.stage.orderComputeObjs()
+        sortedCompObjs = sorted(compObjs.items(), key=lambda s: (s[1], s[0].name))
+        # Alignments in certain cases may result in changing the relative order of
+        # dimensions. This is valid only if there are no dependencies between the
+        # dimensions being reordered. Dependence vectors or polyhedra can be used
+        # to decide if the dimensions can be reordered.
+
+        # For now we only realign parts which do not have self dependencies
+        # Find all parts which do not have self dependencies
+        noDepParts = []
+        for comp in [item[0] for item in sortedCompObjs]:
+            for p in self.polyParts[comp]:
+                if not self.isPartSelfDependent(p):
+                    noDepParts.append(p)
+
+        # Find an alignment map for parts which are not full dimensional
+        def completeMap(newAlign, currAlign):
+            for i in range(0, len(newAlign)):
+                if newAlign[i] in currAlign:
+                    currAlign.remove(newAlign[i])
+            for i in range(0, len(newAlign)):         
+                if newAlign[i] == '-':
+                    newAlign[i] = currAlign.pop(0)
+            return newAlign
+
+        def compatibleAlign(align1, align2):
+            compatible = True
+            if len(align1) == len(align2):
+                for i in range(0, len(align1)):
+                    if not ((align1[i] == '-' or align2[i] == '-')
+                            or (align1[i] == align2[i])):
+                        compatible = False
+            else:
+                compatible = False
+            return compatible
+
+        def alignGroupToPart(group, part, align):
+            for g in group:
+                dimIn = g.sched.dim(isl._isl.dim_type.in_)
+                dimOut = g.sched.dim(isl._isl.dim_type.out)
+                newAlign = [ '-' for i in range(0, dimIn)]
+                for i in range(0, dimIn):
+                    for j in range(0, len(align)):
+                        if g.align[i] == align[j]:
+                            assert newAlign[i] == '-'
+                            newAlign[i] = part.align[j]
+                g.align = completeMap(newAlign, g.align)
+
+        # Progressive alignment algorithm. Need to revisit when we encounter
+        # stranger things. alignedPartGroups consists of groups of parts whose
+        # alignments are linked. All the alignments in a group should be reordered 
+        # in the same way so as to not disturb the previous alignments.
+        alignedPartGroups = []
+        for p in noDepParts:
+            # Find if there is a unique alignment with the aligned parts
+            # i.e the current part can be aligned with already aligned 
+            # parts or all the aligned parts can be aligned to the current 
+            # part.
+            parentGroups = self.findParentGroups(p, alignedPartGroups)
+            otherGroups = [ g for g in alignedPartGroups \
+                            if g not in parentGroups ]
+            aligns = {}
+
+            for i in range(0, len(parentGroups)):
+                aligns[i] = self.alignWithGroup(p, parentGroups[i])
+            
+            mergeGroups = []
+            # If the alignment has alteast one valid reordering. Add the
+            # group to the list of groups to be aligned and merged.
+            for i in range(0, len(parentGroups)):
+                addGroup = False
+                for dim in aligns[i]:
+                    if dim != '-':
+                        addGroup = True
+                if addGroup:
+                    mergeGroups.append(i)
+
+            mergedGroup = []
+            for i in mergeGroups:
+                alignGroupToPart(parentGroups[i], p, aligns[i])
+                mergedGroup = mergedGroup + parentGroups[i]
+            parentGroups = [i for j, i in enumerate(parentGroups)\
+                            if j not in mergeGroups ]
+            
+            mergedGroup = mergedGroup + [p]
+            parentGroups.append(mergedGroup)
+            alignedPartGroups = parentGroups + otherGroups
+         
+        # The alignment procedure above can move the fast varying
+        # dimension outside. This has to be fixed.
+
+
+    def isCompSelfDependent(self, comp):
+        parts = self.polyParts[comp]        
+        for p in parts:
+            if self.isPartSelfDependent(p):
+                return True
+        return False
+
+    def isPartSelfDependent(self, part):
+        refs    = part.getPartRefs()
+        objRefs = [ ref.objectRef for ref in refs\
+                         if ref.objectRef == part.comp]
+        if len(objRefs) > 0:
+            return True
+        return False
+
+    def isParent(self, part1, part2): 
+        refs    = part2.getPartRefs()
+        objRefs = [ ref.objectRef for ref in refs\
+                         if ref.objectRef == part1.comp]
+        if len(objRefs) > 0:
+            return True
+        return False
+
+    def getDomainDimCoeffs(self, sched, arg):
+        domDimCoeff = {}
+        if (isAffine(arg)):
+            coeff = getAffineVarAndParamCoeff(arg)
+            for item in coeff:
+                if type(item) == Variable:
+                    dim = sched.find_dim_by_name(isl._isl.dim_type.in_,
+                                                 item.name)
+                    domDimCoeff[dim] = coeff[item]
+        return domDimCoeff
+
+    def getParamCoeffs(self, sched, arg):
+        paramCoeff = {}
+        if (isAffine(arg)):
+            coeff = getAffineVarAndParamCoeff(arg)
+            for item in coeff:
+                if type(item) == Parameter:
+                    dim = sched.find_dim_by_name(isl._isl.dim_type.param,
+                                                 item.name)
+                    paramCoeff[dim] == coeff[item]
+        return paramCoeff
+
+    def computeRelativeScalingFactors(self, parentPart, childPart):
+        """Computes the relative scaling factor in each dimension necessary to 
+           uniformize dependencies between two parts. If the dependencies are 
+           already uniform the scaling factor for the dimension is set to 1. If
+           the dependencies cannot be uniformized along a particular dimension 
+           the scaling factor for that dimension is set to *."""
+        
+        assert self.isParent(parentPart, childPart)
+
+        # Scaling and offset factors structure.
+        # ([scale factors], [offsets])
+        #
+        # [scale factors] determine the amount by which the dimension has to be
+        # scaled to uniformize the dependencies. Each reference to the parent is
+        # considered while determing the scaling factors. All the references 
+        # should have the same scaling factor in a particular dimension otherwise
+        # the scaling factor for the dimension cannot be determined uniquely.
+        #
+        # [offsets] specify the shift in each dimension that is require to 
+        # uniformize dependencies. Simliar to dimension scale factors all 
+        # offsets for a dimension should agree otherwise the offset for the 
+        # dimension cannot be determied uniquely.
+        refs       = childPart.getPartRefs()
+        # Filtering out self references
+        parentRefs = [ ref for ref in refs \
+                       if ref.objectRef == parentPart.comp] 
+
+        dimIn = childPart.sched.dim(isl._isl.dim_type.in_)
+        scale = [ '-' for i in range(0, dimIn) ]
+        offset = [ '-' for i in range(0, dimIn) ]
+
+        def findDimScheduledTo(part, schedDim):
+            for i in range(0, len(part.align)):
+                if part.align[i] == schedDim:
+                    return i
+            return -1
+
+        for ref in parentRefs:
+            numArgs = len(ref.arguments)
+            for i in range(0, numArgs):
+                arg = ref.arguments[i]
+                parentVarSchedDim = parentPart.align[i]            
+                if (isAffine(arg)):
+                    domDimCoeff = self.getDomainDimCoeffs(childPart.sched, arg)
+                    paramCoeff = self.getParamCoeffs(childPart.sched, arg)
+                    # Parameter coefficents can also be considered to
+                    # generate parametric shifts. Yet to be seen.
+                    
+                    # Indexed with multiple variables.
+                    if (len(domDimCoeff) > 1 or 
+                        (len(domDimCoeff) == 1 and len(paramCoeff) >=1)):
+                        # Although there are multiple coefficients. If 
+                        # there is only one variable coefficient and other
+                        # parametric coefficients. Uniformization can be 
+                        # done with parametric shifts. Full affine scheduling 
+                        # might be able to find a way to uniformize 
+                        # dependencies. This has to be further explored.
+                        dim = findDimScheduledTo(childPart, parentVarSchedDim)
+                        if dim != -1:
+                            scale[dim] = '*'
+                    # Indexed with a single variable. This can either be an 
+                    # uniform access or can be uniformized with scaling when 
+                    # possible.
+                    elif len(domDimCoeff) == 1 and len(paramCoeff) == 0:
+                        dim = (domDimCoeff.keys())[0]
+                        childVarSchedDim = childPart.align[dim]
+                        # Checking if the schedule dimensions match only 
+                        # then can the dependence be uniformized.
+                        if childVarSchedDim != parentVarSchedDim:
+                            continue
+                        if scale[dim] == '-':
+                            scale[dim] = domDimCoeff[dim]
+                        elif scale[dim] != domDimCoeff[dim]:
+                            scale[dim] = '*'
+                    elif len(domDimCoeff) == 0 and len(paramCoeff) > 0:
+                        continue
+                    # Only parametric or Constant access. The schedule in this 
+                    # dimension can be shifted to this point to uniformize the 
+                    # dependence.
+                    # In case the dimension in the parent has a constant size
+                    # an upper and lower bound on the dependence vector can 
+                    # be computed.
+                    elif len(domDimCoeff) + len(paramCoeff) == 0:
+                        # offsets should be set here
+                        continue
+                else:
+                    dim = findDimScheduledTo(childPart, parentVarSchedDim)
+                    if dim != -1:
+                        scale[dim] = '*'
+
+        for i in range(0, dimIn):
+            if scale[i] == '-':
+                scale[i] = 1
+            if offset[i] == '-':
+                offset[i] = 0
+        return (scale, offset)
+    
+    def createGroupScaleMap(self, group):
+        groupScaleMap = {}
+        for part in group:
+            groupScaleMap[part] = list(part.scale)
+        return groupScaleMap
+
+    def isStencilGroup(self, group):
+        depVecsGroup = self.getGroupDependenceVectors(group)
+        for depVec, h in depVecsGroup:
+            if '*' in depVec:
+                return False
+        return True    
+
+    def getPartSize(self, part, paramEstimates):
+        size = None
+        domain = part.comp.domain
+        if isinstance(part.comp, Accumulator):
+            domain = part.comp.reductionDomain
+        for interval in domain:
+            subsSize = self.getDimSize(interval, paramEstimates)
+            if isConstantExpr(subsSize):
+                if size is None:
+                    size = getConstantFromExpr(subsSize)
+                else:
+                    size = size * getConstantFromExpr(subsSize)
+            else:
+                size = '*'
+                break
+        assert size is not None
+        return size
+    
+    def getDimSize(self, interval, paramEstimates):
+        paramValMap = {}
+        for est in paramEstimates:
+            assert isinstance(est[0], Parameter)
+            paramValMap[est[0]] = Value.numericToValue(est[1])
+
+        dimSize = interval.upperBound - interval.lowerBound + 1
+        return substituteVars(dimSize, paramValMap)
+
+       
     def getVarName(self):
         name = "_i" + str(self._varCount)
         self._varCount+=1
@@ -840,7 +1118,7 @@ def formatConjunctConstraints(conjunct):
             m = 1
             for coeff in const:
                 if isinstance(const[coeff], Fraction):
-                    m = (abs(const[coeff].denominator) * m)/gcd(abs(const[coeff].denominator), m)
+                    m = (abs(const[coeff].denominator) * m)//gcd(abs(const[coeff].denominator), m)
             assert m.denominator == 1
             m = m.numerator
             return m

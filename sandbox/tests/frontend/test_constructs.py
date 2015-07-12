@@ -25,7 +25,7 @@ def test_variable():
     assert x.typ == UInt
 
 def test_types():
-    assert Value(3.0, Float) == 3.0 
+    assert Value(3.0, Float) == 3.0
     assert Value(3.0, Double) == 3.0
     assert Value(3, Int) == 3 
     assert Value(3, UInt) == 3 
@@ -37,11 +37,10 @@ def test_types():
     assert Value(3, ULong) == 3
 
 def test_interval():
-    I = Interval(UInt, Value(3, UInt), Value(5, UInt), Value(1, UInt))
+    I = Interval(UInt, Value(3, UInt), Value(5, UInt))
     assert I.typ == UInt
     assert I.lowerBound == 3
     assert I.upperBound == 5
-    assert I.step == 1
 
 def test_image():
     N = Parameter(UInt, "N")
@@ -94,7 +93,7 @@ def test_function():
     N = Parameter(UInt, "N")
     x = Variable(UInt, "x")
     y = Variable(UInt, "y")
-    r = Interval(UInt, 0, N-1, 1)
+    r = Interval(UInt, 0, N-1)
     func1 = Function(([x, y], [r, r]), UInt, "add")
     func1.defn = [ x + y ]
     assert r in  func1.getObjects(Interval)
@@ -171,3 +170,4 @@ def test_overload():
     assert expr.__str__().replace(' ', '') == "0"
     expr = 0 * N
     assert expr.__str__().replace(' ', '') == "0"
+

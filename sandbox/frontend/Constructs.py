@@ -160,7 +160,11 @@ class Abs(InbuiltFunction):
 class Cast(AbstractExpression):
     def __init__(self, _typ, _expr):
         _expr = Value.numericToValue(_expr)
-        assert _typ in [Float, Double, UChar, Char, UShort, Short, UInt, Int, ULong, ULong] 
+        assert _typ in [Float, Double, 
+                        UChar, Char, 
+                        UShort, Short, 
+                        UInt, Int, 
+                        ULong, Long]
         assert(isinstance(_expr, AbstractExpression))
         self._typ  = _typ
         self._expr = _expr
@@ -230,7 +234,8 @@ class Select(AbstractExpression):
         self._falseExpr = substituteRefs(self._falseExpr, refToExprMap)
     
     def clone(self):
-        return Select(self._cond.clone(), self._trueExpr.clone(), 
+        return Select(self._cond.clone(),
+                      self._trueExpr.clone(),
                       self._falseExpr.clone())
 
     def __str__(self):
@@ -241,7 +246,7 @@ class Select(AbstractExpression):
 
 class Max(Select):
     def __init__(self, _leftExpr, _rightExpr, typeCheck = True):
-        Select.__init__(self, Condition(_leftExpr, '>', _rightExpr), 
+        Select.__init__(self, Condition(_leftExpr, '>', _rightExpr),
                                         _leftExpr, _rightExpr, typeCheck)
 class Min(Select):
     def __init__(self, _leftExpr, _rightExpr, typeCheck = True):
@@ -299,7 +304,9 @@ class Interval(object):
         return list(set(objs))
 
     def clone(self):
-        return Interval(self._typ, self._lb.clone(), self._ub.clone())
+        return Interval(self._typ, 
+                        self._lb.clone(), 
+                        self._ub.clone())
 
     def __str__(self):
         return '(' + self._lb.__str__() + ', ' +\
@@ -325,12 +332,12 @@ class Reference(AbstractExpression):
         return self._args
 
     def clone(self):
-        cloneArgs = [ arg.clone() for arg in self._args]
+        cloneArgs = [arg.clone() for arg in self._args]
         return Reference(self._obj, cloneArgs)
 
     def collect(self, objType):
         objs = []
-        for arg in self._args:     
+        for arg in self._args:
             objs += arg.collect(objType)
         if (type(self) is objType):
             objs += [self]
@@ -348,7 +355,7 @@ class Condition(object):
         if _cond in ['<', '<=', '>', '>=', '==', '!=']:
             assert(isinstance(_left, AbstractExpression))
             assert(isinstance(_right, AbstractExpression))
-        if _cond in ['&&', '||']:        
+        if _cond in ['&&', '||']:
             assert(isinstance(_left, Condition))
             assert(isinstance(_right, Condition))
         self._left  = _left
@@ -377,13 +384,13 @@ class Condition(object):
 
     def replaceReferences(self, refToExprMap):
         if(isinstance(self._left, Condition)):
-            self._left.replaceReferences(refToExprMap) 
+            self._left.replaceReferences(refToExprMap)
         else:
-            self._left = substituteRefs(self._left, refToExprMap) 
+            self._left = substituteRefs(self._left, refToExprMap)
         if(isinstance(self._right, Condition)):
             self._right.replaceReferences(refToExprMap)
         else:
-            self._right = substituteRefs(self._right, refToExprMap) 
+            self._right = substituteRefs(self._right, refToExprMap)
 
     def splitToConjuncts(self):
         conjuncts = []
@@ -436,7 +443,7 @@ class Case(object):
     @property
     def expression(self):
         return self._expr
-    
+
     def collect(self, objType):
         if (type(self) is objType):
             return [self]
@@ -608,8 +615,11 @@ class Function(object):
                 if(not isAffine(varDom.lowerBound) or
                    not isAffine(varDom.upperBound)):
                     boundedIntegerDomain = False
+                    break
             else:
                 boundedIntegerDomain = False
+                break
+
         return boundedIntegerDomain
 
     def clone(self):
@@ -787,7 +797,7 @@ def isAffine(expr, includeDiv = True, includeModulo = False):
         constant +,-,* affine = affine 
         affine +,- affine  = affine
         affine *,/ affine = non-affine
-        non-affine operand always results in an non-affine expression
+        non-affine operand always results in a non-affine expression
 
         Divisions and modulo operators are considered affine if the appropriate 
         option is specified. 
@@ -803,7 +813,7 @@ def isAffine(expr, includeDiv = True, includeModulo = False):
     assert(isinstance(expr, AbstractExpression)
            or isinstance(expr, Condition))
     if (isinstance(expr, Value)):
-        return (expr.typ is Int) or ((expr.typ is Rational) and includeDiv)
+        return (expr.typ is Int) or (includeDiv and (expr.typ is Rational))
     elif (isinstance(expr, Variable)):
         return True
     elif (isinstance(expr, Reference)):
@@ -821,13 +831,13 @@ def isAffine(expr, includeDiv = True, includeModulo = False):
                     return True
                 else:
                     return False
-            elif(expr.op in ['/'] and includeDiv):
-                if (not (expr.right.has(Variable) or expr.right.has(Parameter))):
+            elif(includeDiv and expr.op in ['/']):
+                if (not (expr.right.has(Variable)) and not(expr.right.has(Parameter))):
                     return True
                 else:
                     return False
-            elif(expr.op in ['%'] and includeModulo):
-                if (not (expr.right.has(Variable) or expr.right.has(Parameter))):
+            elif(includeModulo and expr.op in ['%']):
+                if (not (expr.right.has(Variable)) and not(expr.right.has(Parameter))):
                     return isAffine(expr.left, includeDiv, False)
                 else:
                     return False

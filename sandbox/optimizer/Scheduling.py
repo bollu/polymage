@@ -44,6 +44,9 @@ def baseSchedule(group):
                                                  part.levelNo)
         part.sched = addConstraints(part.schedMap.copy(), ineqs, eqs)
 
+def alignParts():
+    pass
+
 def stripMineSchedule(sched, dim, size):
     sched = sched.insert_dims(isl._isl.dim_type.out, dim, 1)
     name = sched.get_dim_name(isl._isl.dim_type.out, 1 + dim) 
