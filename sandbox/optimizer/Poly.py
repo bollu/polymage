@@ -133,10 +133,6 @@ class PolyPart(object):
         # alignment and loop scaling passes. Both these passer
         # attempt to improve locality and uniformize dependencies.
         self.levelNo = _levelNo
-        self.dimTileInfo = {}
-        self.dimScratchSize = {}
-        self.parallelSchedDims = []
-        self.vectorSchedDim = []
     
     def getPartRefs(self):
         refs = self.expr.collect(Reference)

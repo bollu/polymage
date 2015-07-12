@@ -6,7 +6,7 @@ import sys
 sys.path.insert(0, '../frontend')
 sys.path.insert(0, '../codegen')
 
-from IR import *
+from Pipe import *
 import Poly as opt
 
 def buildPipeline(outputs, pipeName = None, paramConstraints = [], grouping = []):
