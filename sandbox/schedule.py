@@ -1,4 +1,7 @@
-from Poly import *
+from __future__ import absolute_import, division, print_function
+
+import poly
+
 def getParentParts(part, group):
      refs = part.getPartRefs()
      parentParts = []

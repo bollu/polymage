@@ -1,9 +1,7 @@
-# Making things compatible for python 3
-# Yet to figure out how to make range like xrange
 from __future__ import absolute_import, division, print_function
 
 import cgen
-from ExprToCExpr import *
+import cexpr
 
 # Generate allocation statement
 # Generate For loop (nested)

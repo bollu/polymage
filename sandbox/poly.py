@@ -1,9 +1,12 @@
+from __future__ import absolute_import, division, print_function
+
+import math
+
 import islpy as isl
-import sys
-sys.path.insert(0, '../frontend')
-from Constructs import *
-from Expression import *
-import math as math
+
+import constructs
+import expression
+
 
 def lcm(a, b):
     return a*b/(gcd(a, b))
