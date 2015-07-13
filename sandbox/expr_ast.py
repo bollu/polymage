@@ -2,7 +2,9 @@ from __future__ import absolute_import, division, print_function
 
 from fractions import Fraction
 from fractions import gcd
-import types
+
+# TODO remove this at some point
+from expr_types import *
 
 class AbstractExpression(object):
     """ AbstractExpression class is a tree representation for expressions
@@ -14,7 +16,7 @@ class AbstractExpression(object):
     """
     def type_check(func):
         def checked(self, other):
-            other = Value.num_to_value(other)
+            other = Value.numericToValue(other)
             assert isinstance(other, AbstractExpression)
             return func(self, other)
         return checked
@@ -58,7 +60,7 @@ class AbstractExpression(object):
     def __rmul__(self, other):
         if isinstance(other, Value):
             if other.value == 1:
-                return self
+               return self
             if other.value == 0:
                 return Value(0, Int)
         return Mul(other, self)
@@ -149,16 +151,16 @@ class AbstractExpression(object):
 class Value(AbstractExpression):
 
     @classmethod
-    def num_to_value(cls, _value):
+    def numericToValue(cls, _value):
         if type(_value) is int:
-            _value = Value(_value, types.Int)
+            _value = Value(_value, Int)
         elif type(_value) is float:
-            _value = Value(_value, types.Float)
+            _value = Value(_value, Float)
         # Python 3 has no long
         #elif type(_value) is long:
-        #    _value = Value(_value, types.Long)
+        #    _value = Value(_value, Long)
         elif type(_value) is Fraction:
-            _value = Value(_value, types.Rational)
+            _value = Value(_value, Rational)
         return _value
 
     def __init__(self, _value, _typ):
@@ -254,7 +256,7 @@ class Xor(AbstractBinaryOpNode):
 
 class InbuiltFunction(AbstractExpression):
     def __init__(self, *_args):
-        _args = [ Value.num_to_value(arg) for arg in _args] 
+        _args = [ Value.numericToValue(arg) for arg in _args] 
         for arg in _args:
             assert(isinstance(arg, AbstractExpression))
         self._args = _args    

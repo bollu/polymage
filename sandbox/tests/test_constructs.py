@@ -1,12 +1,11 @@
-# Making things compatible for python 3
-# Yet to figure out how to make range like xrange
 from __future__ import absolute_import, division, print_function
 
 from fractions import Fraction
 import sys
-sys.path.insert(0, '../../frontend')
-from Constructs import *
-from Expression import *
+sys.path.insert(0, '../')
+
+from constructs import *
+from expression import *
 
 # Have to change the string comparision tests to something
 # better. Maybe eval the rexpression at the point.

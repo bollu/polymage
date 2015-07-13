@@ -8,11 +8,10 @@ except ImportError:
 
 import pygraphviz as pgv
 
-import constructs
-import codegen
-import schedule
-
-import poly
+from constructs import *
+from codegen import *
+from schedule import *
+from poly import *
 
 def getParentsFromCompObj(comp):
     refs = comp.getObjects(Reference)
@@ -90,7 +89,7 @@ class Group:
             if (not comp.hasBoundedIntegerDomain()):
                 polyhedral = False
         if polyhedral:
-            self._polyrep = poly.PolyRep(_ctx, self, _paramConstraints) 
+            self._polyrep = PolyRep(_ctx, self, _paramConstraints) 
         
     @property
     def computeObjs(self):
@@ -369,7 +368,7 @@ class Pipeline:
         """
         for group in self._groups.values():
             for child in group.childGroups:
-                poly.checkRefs(child, group)              
+                checkRefs(child, group)              
             for inp in group.inputs:
                 # Creating a computation group for an input which is given
                 # is meaningless. Ideally it should be done in a clean way
@@ -379,7 +378,7 @@ class Pipeline:
                                  self._paramEstimates, self._tileSizes,
                                  self._sizeThreshold, self._groupSize,
                                  self._outputs)
-                poly.checkRefs(group, inpGroup)
+                checkRefs(group, inpGroup)
 
     def inlinePass(self):
         """ 
@@ -432,7 +431,7 @@ class Pipeline:
             parentGroup = self._groups[directive]
             assert parentGroup.computeObjs[0] not in self._outputs
             for child in parentGroup.childGroups:
-                refToInlineExprMap = poly.inline(child, parentGroup, noSplit = True)
+                refToInlineExprMap = inline(child, parentGroup, noSplit = True)
                 child.computeObjs[0].inlineRefs(refToInlineExprMap)
             # Recompute group graph
             self._groups = self.buildGroupGraph()

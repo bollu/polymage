@@ -1,5 +1,7 @@
 from __future__ import absolute_import, division, print_function
 
+from constructs import *
+
 def getAffineVarAndParamCoeff(expr):
     expr = Value.numericToValue(expr)
     if (not isAffine(expr) or isinstance(expr, Value)):

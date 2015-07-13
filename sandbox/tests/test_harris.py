@@ -6,8 +6,8 @@ from fractions import Fraction
 import sys
 sys.path.insert(0, '../../')
 
-from Compiler import *
-from Constructs import *
+from compiler import *
+from constructs import *
 
 def test_harris_corner():
 

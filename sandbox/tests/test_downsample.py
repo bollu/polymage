@@ -1,13 +1,11 @@
-# Making things compatible for python 3
-# Yet to figure out how to make range like xrange
 from __future__ import absolute_import, division, print_function
 
 from fractions import Fraction
 import sys
-sys.path.insert(0, '../../')
+sys.path.insert(0, '../')
 
-from Compiler import *
-from Constructs import *
+from compiler import *
+from constructs import *
 
 def test_downsample():
 

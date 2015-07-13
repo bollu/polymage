@@ -4,9 +4,8 @@ import math
 
 import islpy as isl
 
-import constructs
-import expression
-
+from constructs import *
+from expression import *
 
 def lcm(a, b):
     return a*b/(gcd(a, b))
