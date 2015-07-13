@@ -1,6 +1,6 @@
 from __future__ import absolute_import, division, print_function
 
-import constructs
+from constructs import *
 
 class cValue(Value):
     def __init__(self, _value, _typ):

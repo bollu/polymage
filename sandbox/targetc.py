@@ -1,18 +1,12 @@
 from __future__ import absolute_import, division, print_function
 
 import cgen
-import cexpr
-
-# Generate allocation statement
-# Generate For loop (nested)
-# Generate deallocation statement
-# Generate statement for expression
+from cexpr import *
 
 class cNameGen(object):
     _iteratorPrefix = "_ci"
     _temporaryPrefix = "_ct"
 
-    # Not thread safe due to shared state?
     _iteratorCount = 0
     _tempCount = 0
 
@@ -209,6 +203,7 @@ cMemSet = cLibraryFunction('memset', 'string.h')
 cFree = cLibraryFunction('free', 'stdlib.h')
 cPrintf = cLibraryFunction('printf', 'stdio.h')
 
+# TODO clean up this function. 
 class cFunctionDecl(AbstractCgenObject):
     def __init__(self, _func, _isExternFunc, _areParamsVoidPtrs):
         assert(isinstance(_func, cFunction))
@@ -364,10 +359,10 @@ class cArrayAccess(cExpression):
         self.array = _array
         self.dims =  _dims
     def __str__(self):
-        access_str = ""
+        accessStr = ""
         if self.array.layout == 'multidim':
             for dim in self.dims:
-                access_str = access_str + '[' + dim.__str__() + ']'
+                accessStr = accessStr + '[' + dim.__str__() + ']'
         elif self.array.layout == 'contigous':
             expr = None
             for i in xrange(0, len(self.dims)):
@@ -384,10 +379,10 @@ class cArrayAccess(cExpression):
                     expr = product
                 else:
                     expr = expr + product
-            access_str = '[' + expr.__str__() + ']'
+            accessStr = '[' + expr.__str__() + ']'
         else:
             assert False, self.array.name
-        return self.array.name + access_str
+        return self.array.name + accessStr
 
 class cArray(cName):
     def __init__(self, _typ, _name, _dims):
