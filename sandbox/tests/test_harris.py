@@ -4,7 +4,7 @@ from __future__ import absolute_import, division, print_function
 
 from fractions import Fraction
 import sys
-sys.path.insert(0, '../../')
+sys.path.insert(0, '../')
 
 from compiler import *
 from constructs import *
@@ -26,6 +26,8 @@ def test_harris_corner():
     condRed = Condition(x, '>=', 2) & Condition(x, '<=', R-1) & \
               Condition(y, '<=', C-1) & Condition(y, '>=', 2)
 
+    zeroCond = Condition(x, '==', 0) & Condition(y, '==', 0)
+    endCond = Condition(x, '==', R) & Condition(y, '==', C)
 
     img = Image(Float, "img", [R+2, C+2])
 
@@ -72,6 +74,12 @@ def test_harris_corner():
     harris = Function(([x, y], [row, col]), Float, "harris")
     harris.defn = [ Case(condRed, 
                          det(x, y) - 0.04 * trace(x, y) * trace(x, y)) ]
+
+    # test boundary case
+    harris.defn.append(Case(zeroCond, 0.0))
+
+    # test self reference
+    harris.defn.append(Case(endCond , harris(0, 0)))
 
     pipeline = buildPipeline([harris], grouping = [[Ix, Iy, Ixx, Iyy, Ixy]])
 
