@@ -44,7 +44,7 @@ class cCast(cExpression):
 
 class cName(cExpression):
     def __init__(self, _name):
-        assert(isinstance(_name, basestring))
+        assert(isinstance(_name, str))
         self.name = _name
     def __str__(self):
         return self.name
@@ -73,12 +73,12 @@ cFloat = cType("float32")
 cDouble = cType("float64")
 cVoid = cType("void")
 
-class cgenType(object):
+class TypeMap(object):
     _typeMap = { Void: cVoid, ULong:cULong, Long: cLong, UInt:cUInt, Int:cInt, 
                  UShort:cUShort, Short:cShort, UChar:cUChar, Char:cChar, 
                  Float:cFloat, Double:cDouble }
     @classmethod
-    def get(cls, typ):
+    def convert(cls, typ):
         assert typ in cls._typeMap
         return cls._typeMap[typ]
 
@@ -205,7 +205,7 @@ cPrintf = cLibraryFunction('printf', 'stdio.h')
 
 # TODO clean up this function. 
 class cFunctionDecl(AbstractCgenObject):
-    def __init__(self, _func, _isExternFunc, _areParamsVoidPtrs):
+    def __init__(self, _func, _isExternFunc=False, _areParamsVoidPtrs=False):
         assert(isinstance(_func, cFunction))
         self.func = _func
         self.isExternFunc = _isExternFunc
@@ -385,9 +385,10 @@ class cArrayAccess(cExpression):
         return self.array.name + accessStr
 
 class cArray(cName):
-    def __init__(self, _typ, _name, _dims):
+    def __init__(self, _typ, _name, _dims, _layout):
         assert(len(_dims) > 0)
-        assert isinstance(_typ, cType) 
+        assert isinstance(_typ, cType)
+        assert(_layout == 'contigous' or _layout == 'multidim')
         cName.__init__(self, _name) 
         self.typ = _typ
         self.dims = _dims
@@ -403,63 +404,48 @@ class cArray(cName):
         return True
 
     def allocate_contigous(self, block):
-        '''  Generate a code block which dynamically allocated memory 
-             for the given array. Single chunk allocation. '''
-        sizeExpr = self.dims[0]
-        castType = cPointer(self.typ, 1)
-        for i in xrange(1, len(self.dims)):
-            sizeExpr = sizeExpr * self.dims[i]
-        #expr = cCast(castType, cMemAlign(64, cSizeof(self.typ) * sizeExpr))
-        expr = cCast(castType, cMalloc(cSizeof(self.typ) * sizeExpr))
-        block.add(cAssign(self.name, expr))
-        # Counter which might come in handy
-        #var = cVariable(cInt, "_c_" + self.name)
-        #varDecl = cDeclaration(cInt, var, 0)
-        #block.add(varDecl)
+        if self.layout == 'contigous':
+            # Generate a code block which dynamically allocated memory 
+            # for the given array. Single chunk allocation.
+            sizeExpr = self.dims[0]
+            castType = cPointer(self.typ, 1)
+            for i in xrange(1, len(self.dims)):
+                sizeExpr = sizeExpr * self.dims[i]
+            #expr = cCast(castType, cMemAlign(64, cSizeof(self.typ) * sizeExpr))
+            expr = cCast(castType, cMalloc(cSizeof(self.typ) * sizeExpr))
+            block.add(cAssign(self.name, expr))
+            # Counter which might come in handy
+            #var = cVariable(cInt, "_c_" + self.name)
+            #varDecl = cDeclaration(cInt, var, 0)
+            #block.add(varDecl)
 
-        block.add(cStatement(cMemSet(self.name, 0, cSizeof(self.typ) * sizeExpr)))
-        self.layout = 'contigous'
-
-    def allocate(self, block):
-        '''  Generate a code block which dynamically allocated memory 
-             for the given array. Multi chunk allocation.
-
-             2-d array allocation:   
-             arrName = (Type**) malloc(sizeof(Type*) * dims[0]);
-             for(int i0 = 0; i0 < dims[0]; i0++)
-                arrName[i0] = (Type*) malloc (sizeof(Type) * dims[1]);
-
-             3-d array allocation:
-             arrName = (Type***) malloc(sizeof(Type**) * dims[0]);
-             for(int i0 = 0; i0 < dims[0]; i0++)
-                arrName[i0] = (Type**) malloc(sizeof(Type*) * dims[1]);
-                   for(int i1 = 0; i1 < dims[1]; i1++)
-                       arrName[i0][i1] = (Type*) malloc (sizeof(Type) dims[2]); 
-        '''
-        l = len(self.dims)
-        assert(l > 0)
-        castType = cPointer(self.typ, l)
-        sizeType = cPointer(self.typ, l-1)
-        expr = cCast(castType, cMemAlign(32, cSizeof(sizeType) * self.dims[0]))
-        block.add(cAssign(self.name, expr))
-        arglist = []
-        for i in xrange(1, l):
-            # allocate for current level
-            var = cVariable(cUInt, cNameGen.getIteratorName())
-            arglist.append(var)
-            varDecl = cDeclaration(var.typ, var, 0)
-            cond = cCond(var, '<', self.dims[i-1])
-            inc = cAssign(var, var+1)
-            loop = cFor(varDecl, cond, inc)
-            block.add(loop, False)
-
-            castType = cPointer(self.typ, l-i)
-            sizeType = cPointer(self.typ, l-i-1)
-            expr = cCast(castType, cMemAlign(32, cSizeof(sizeType) * self.dims[i]))
-            loop.body.add(cAssign(self(*arglist), expr), False)
-
-            block = loop.body
-        self.layout = 'multidim'     
+            block.add(cStatement(cMemSet(self.name, 0, cSizeof(self.typ) * sizeExpr)))
+        elif self.layout == 'multidim':
+            # Generate a code block which dynamically allocated memory 
+            # for the given array. Multi chunk allocation.
+            l = len(self.dims)
+            assert(l > 0)
+            castType = cPointer(self.typ, l)
+            sizeType = cPointer(self.typ, l-1)
+            expr = cCast(castType, cMemAlign(32, cSizeof(sizeType) * self.dims[0]))
+            block.add(cAssign(self.name, expr))
+            arglist = []
+            for i in xrange(1, l):
+                # allocate for current level
+                var = cVariable(cUInt, cNameGen.getIteratorName())
+                arglist.append(var)
+                varDecl = cDeclaration(var.typ, var, 0)
+                cond = cCond(var, '<', self.dims[i-1])
+                inc = cAssign(var, var+1)
+                loop = cFor(varDecl, cond, inc)
+                block.add(loop, False)
+               
+                castType = cPointer(self.typ, l-i)
+                sizeType = cPointer(self.typ, l-i-1)
+                expr = cCast(castType, cMemAlign(32, cSizeof(sizeType) * self.dims[i]))
+                loop.body.add(cAssign(self(*arglist), expr), False)
+               
+                block = loop.body
 
     def deallocate(self, block):
         assert self.layout == 'contigous'
