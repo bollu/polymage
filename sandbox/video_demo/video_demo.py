@@ -8,21 +8,25 @@ from common import clock, draw_str, StatValue, image_clamp
 
 # load polymage shared libraries
 libharris = ctypes.cdll.LoadLibrary("./harris.so")
+libharris_naive = ctypes.cdll.LoadLibrary("./harris_naive.so")
 libunsharp = ctypes.cdll.LoadLibrary("./unsharp.so")
+libunsharp_naive = ctypes.cdll.LoadLibrary("./unsharp_naive.so")
 libbilateral = ctypes.cdll.LoadLibrary("./bilateral.so")
+libbilateral_naive = ctypes.cdll.LoadLibrary("./bilateral_naive.so")
 liblaplacian = ctypes.cdll.LoadLibrary("./laplacian.so")
+liblaplacian_naive = ctypes.cdll.LoadLibrary("./laplacian_naive.so")
 
 harris = libharris.pipeline_harris
-harris_naive = libharris.pipeline_harris_naive
+harris_naive = libharris_naive.pipeline_harris_naive
 
 unsharp = libunsharp.pipeline_mask
-unsharp_naive = libunsharp.pipeline_mask_naive
+unsharp_naive = libunsharp_naive.pipeline_mask_naive
 
 bilateral = libbilateral.pipeline_bilateral
-bilateral_naive = libbilateral.pipeline_bilateral_naive
+bilateral_naive = libbilateral_naive.pipeline_bilateral_naive
 
 laplacian = liblaplacian.pipeline_laplacian
-laplacian_naive = liblaplacian.pipeline_laplacian_naive
+laplacian_naive = liblaplacian_naive.pipeline_laplacian_naive
 
 fn = sys.argv[1]
 cap = cv2.VideoCapture(fn)
@@ -44,6 +48,18 @@ weight = 3
 levels = 4
 alpha = 1.0/(levels-1)
 beta = 1.0
+
+libharris_naive.pool_init()
+libharris.pool_init()
+
+libunsharp_naive.pool_init()
+libunsharp.pool_init()
+
+liblaplacian_naive.pool_init()
+liblaplacian.pool_init()
+
+libbilateral_naive.pool_init()
+libbilateral.pool_init()
 
 while(cap.isOpened()):
     ret, frame = cap.read()
@@ -177,6 +193,18 @@ while(cap.isOpened()):
         unsharp_mode = False
         laplacian_mode = False
     frames += 1
+
+libharris_naive.pool_destroy()
+libharris.pool_destroy()
+
+libunsharp_naive.pool_destroy()
+libunsharp.pool_destroy()
+
+liblaplacian_naive.pool_destroy()
+liblaplacian.pool_destroy()
+
+libbilateral_naive.pool_destroy()
+libbilateral.pool_destroy()
 
 cap.release()
 cv2.destroyAllWindows()
