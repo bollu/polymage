@@ -113,7 +113,7 @@ def test_high_dim():
                        Double, "random6")
     random6.defn = [ Case(cond3D, ( \
                           random5(z, 0, x, y) + \
-                          random5(z, 1, y, x) + \
+                          random5(z, 1, x, y) + \
                           random5(z, 2, x, y) - 3) / 3.0
                          ) ]
 
