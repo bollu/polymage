@@ -183,9 +183,9 @@ class Pipeline:
         self._groups, \
          self._groupParents, \
           self._groupChildren = \
-                                self.buildInitialGroups(self._compObjs,
-                                                        self._compObjsParents,
-                                                        self._compObjsChildren)
+                              self.buildInitialGroups(self._compObjs,
+                                                      self._compObjsParents,
+                                                      self._compObjsChildren)
 
         # Store the initial pipeline graph. The compiler can modify 
         # the pipeline by inlining functions.
@@ -206,6 +206,7 @@ class Pipeline:
                      mGroup = mergeGroupList[0]
                      for i in range(1, len(mergeGroupList)):
                         mGroup = self.mergeGroups(mGroup, mergeGroupList[i])
+                        align_parts(self, mGroup)
         else:
             # Run the grouping algorithm
             pass
@@ -214,6 +215,7 @@ class Pipeline:
             baseSchedule(g)
             #g.polyRep.generateCode()
             #print(g)
+
         self.generateCode()
 
     @property
@@ -356,7 +358,6 @@ class Pipeline:
             level = level + 1
         
         return sorted(groupOrder.items(), key=lambda x: x[1])
-
 
     def boundsCheckPass(self):
         """ 

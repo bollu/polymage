@@ -127,7 +127,7 @@ class PolyPart(object):
         # dimension order apart from tiling so a simple dimension
         # alignment vector suffices. This has to be changed to 
         # handle more general cases later.
-        self.align = _align
+        self._align = _align
         # Scaling factors for each schedule dimension
         self.scale = _scale
         # Default alignment and scaling factors are set while
@@ -135,7 +135,21 @@ class PolyPart(object):
         # alignment and loop scaling passes. Both these passer
         # attempt to improve locality and uniformize dependencies.
         self.levelNo = _levelNo
-    
+
+    @property 
+    def align(self):
+        align_clone = {}
+        for key in self._align:
+            align_clone[key] = self._align[key]
+
+        return align_clone
+
+    def set_align(self, align):
+        self._align = {}
+        for key in align:
+            self._align[key] = align[key]
+        return
+   
     def getPartRefs(self):
         refs = self.expr.collect(Reference)
         if (self.pred):
@@ -146,6 +160,7 @@ class PolyPart(object):
         partStr = "Schedule: " + self.sched.__str__() + '\n'\
                   "Expression: " + self.expr.__str__() + '\n'\
                   "Predicate: " + self.pred.__str__() + '\n'
+        depstr = ""
         for dep in self.deps:
             depstr = depstr + dep.__str__() + '\n'
         return partStr + depstr
@@ -178,13 +193,13 @@ class PolyRep(object):
         self.ctx = _ctx
         self.polyParts = {}
         self.polyDoms = {}
-        self.polyast = []        
+        self.polyast = []
 
         self._varCount = 0
         self._funcCount = 0
 
         self.extractPolyRepFromGroup(_paramConstraints)
-            
+
         #self.fusedSchedule(_paramEstimates)
         #self.simpleSchedule(_paramEstimates)
    
@@ -503,13 +518,15 @@ class PolyRep(object):
     def defaultAlignAndScale(self, sched):
         dimOut = sched.dim(isl._isl.dim_type.out)
         dimIn = sched.dim(isl._isl.dim_type.in_)
+        align = {}
         # align[i] = j means input dimension i is mapped to output 
         # dimension j
-        align = [ i+1 for i in range(0, dimIn) ]
+        for i in range(0, dimIn):
+            align[i] = [i+1]
         # the default scaling in each dimension is set to 1 i.e., the
         # schedule dimension correspoinding to input dimension will be 
         # scaled by 1
-        scale = [ 1 for i in range(0, dimIn) ]
+        scale = [1 for i in range(0, dimIn)]
         return (align, scale)
 
     def generateCode(self):

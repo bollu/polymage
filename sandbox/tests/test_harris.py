@@ -11,7 +11,6 @@ from constructs import *
 
 def test_harris_corner():
 
-    print()
     R = Parameter(Int, "R")
     C = Parameter(Int, "C")
     x = Variable(Int, "x")
