@@ -46,7 +46,7 @@ def test_gray():
                 + img(x, y, 2) * 0.114 ]
 
     vector = Function(([x], [row]), Float, "vector")
-    vector.defn = [ gray(x, x) + gray(x, 0) + gray(0, x) ]
+    vector.defn = [ gray(x, 0) ]
 
     pipeline = buildPipeline([vector], grouping = [[gray, vector]])
 
