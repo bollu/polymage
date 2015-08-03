@@ -1,6 +1,12 @@
 from __future__ import absolute_import, division, print_function
 
 from poly import *
+import logging
+
+# LOG CONFIG #
+logging.basicConfig(level=logging.DEBUG, \
+                    format="%(levelname)s: %(name)s: %(message)s")
+LOG = logging.getLogger("schedule.py").log
 
 def getParentParts(part, group):
      refs = part.getPartRefs()
@@ -47,8 +53,431 @@ def baseSchedule(group):
                                                  part.levelNo)
         part.sched = addConstraints(part.schedMap.copy(), ineqs, eqs)
 
-def alignParts():
-    pass
+
+def align_and_scale_parts(pipeline, group):
+
+    """
+        Aligns parts in a given group. This functions returns a boolean
+        False as soon as it figures out that any one of the parts
+        introduces an incompatible in alignment in the group. Assumes a
+        list structure of alignment member in PolyPart object. Each
+        member 'm', at index 'i', of part.align list refers to a position
+        in the base-alignment (default static alignment of parts at level
+        zero of the topologically sorted group) for i'th variable in the
+        domain order of the part. A mapping to '-' indicates no alignment.
+
+        Correspondingly the same as above for scaling.
+
+        * The part.align does not contain topological level information
+        in its first dimension.
+    """
+
+    # [ LOG
+    log_level = logging.DEBUG
+    LOG(log_level, "___________________________________")
+    LOG(log_level, "in align_and_scale_parts()")
+    # LOG ]
+
+    def compatible_align(align1, align2):
+        '''
+        Treats alignment vectors of different length as incompatible
+        '''
+        compatible = True
+
+        if not align1 and not align2:
+            return compatible
+        elif not align1 or not align2:
+            return not compatible
+        elif len(align1) == len(align2):
+            for i in range(0, len(align1)):
+                if not ((align1[i] == '-' or align2[i] == '-')
+                        or (align1[i] == align2[i])):
+                    compatible = False
+                    break
+        else:
+            compatible = False
+        return compatible
+
+    def compatible_scale(scale1, scale2):
+        '''
+        Treats scaling vectors of different length as incompatible
+        '''
+        compatible = True
+
+        if not scale1 and not scale2:
+            return compatible
+        elif not scale1 or not scale2:
+            return not compatible
+        elif len(scale1) == len(scale2):
+            for i in range(0, len(scale1)):
+                if not ((scale1[i] == '-' or scale2[i] == '-')
+                        or (scale1[i] == scale2[i])):
+                    compatible = False
+                    break
+        else:
+            compatible = False
+        return compatible
+
+    def extract_arg_vars_coefs(ref_args):
+        '''
+        Extracts variables and their co-efficients from each argument
+        in ref_args
+        '''
+        ref_arg_vars = []
+        ref_arg_coeffs = {}
+        for i in range(0, len(ref_args)):
+            arg = ref_args[i]
+            arg_vars = arg.collect(Variable)
+            nvars = len(arg_vars)
+            if nvars == 1:
+                ref_arg_vars.append(arg_vars[0])
+                arg_coeff = get_affine_var_and_param_coeff(arg)
+                ref_arg_coeffs.update(arg_coeff)
+            elif nvars == 0:
+                ref_arg_vars.append('-')
+            # assert that the expr was not simplified
+            # (which is highly unlikely)
+            else:
+                assert(arg_vars[0] == arg_vars[i] \
+                       for i in range(1, len(arg_vars)))
+                ref_arg_vars.append(arg_vars[0])
+                arg_coeff = get_affine_var_and_param_coeff(arg)
+                ref_arg_coeffs.update(arg_coeff)
+
+        return ref_arg_vars, ref_arg_coeffs
+
+    def align_scale_vars(part, ref_part, ref_arg_vars, ref_arg_coeffs):
+
+        ref_part_align = ref_part.align
+        ref_part_scale = ref_part.scale
+        max_dim = len(ref_part_align)
+
+        # relative alignment and scaling
+        rel_align = {}
+        rel_scale = {}
+
+        part_align = ['-' for i in range(0, max_dim)]
+        part_scale = ['-' for i in range(0, max_dim)]
+
+        part_dom_vars = part.comp.variableDomain[0]
+
+        # [ LOG
+        log_level = logging.DEBUG-2
+        log_str = "aligning and scaling with all ref-part variables..."
+        LOG(log_level, "")
+        LOG(log_level, log_str)
+        # LOG ]
+
+        var_pos = 0
+        for var in part_dom_vars:
+            LOG(logging.DEBUG-2, var)
+
+            # if this variable's dimension is not used (in reference)
+            if var not in ref_arg_vars:
+                for i in range(0, len(ref_arg_vars)):
+                    if ref_arg_vars[i] == '-':
+                        rel_align[var] = i  # use
+                        ref_arg_vars[i] = '+'  # mark as used
+
+            # find the relative alignent and scaling b/w the part and its ref
+            for arg_pos in range(0, len(ref_arg_vars)):
+                if ref_arg_vars[arg_pos] == var:
+                    rel_align[var] = arg_pos
+                    rel_scale[arg_pos] = ref_arg_coeffs[var]
+                    break
+
+            # normalize to the base alignment using the relative alignent
+            base_pos = rel_align[var]
+            if ref_part_align[base_pos] != '-':
+                part_align[var_pos] = ref_part_align[base_pos]
+                part_scale[var_pos] = ref_part_scale[base_pos] * \
+                                      rel_scale[base_pos]
+            else:
+                # can align with any dimension (that is not aligned) later
+                part_align[var_pos] = '*'
+                # defer scaling to later visit
+            var_pos += 1
+
+        # align the dimensions of part, which could not be aligned to any
+        # of the dimensions of ref_part; and set default scaling = 1.
+        # absolute alignments of all assigned variables:
+        pure_ref_align = [val for val in ref_part_align \
+                              if val != '-']
+        # remaining alignments available to use:
+        residual_align = [i for i in range(0, len(ref_part_align)) \
+                            if i not in pure_ref_align]
+        for dim in range(0, len(part_align)):
+            if part_align[dim] == '*':
+                part_align[dim] = residual_align.pop()
+                part_scale[dim] = 1
+
+        # [ LOG
+        log_level = logging.DEBUG-2
+        log_str = "rel_align = "+ \
+                  str([str(key)+":"+str(rel_align[key]) \
+                       for key in rel_align])
+        LOG(log_level, log_str)
+        # LOG ]
+
+        # extend the alignment to the maximum number of dimensions
+        # and set the default scaling = '-'
+        for dim in range(len(part_align), max_dim):
+            for i in range(0, max_dim):
+                if i not in part_align:
+                    part_align[dim] = '-'
+                    part_scale[dim] = '-'
+
+        return part_align, part_scale
+
+    def align_scale_with_ref(part, ref, max_dim):
+        ref_comp = ref.objectRef
+
+        # initialize new alignment
+        part_align = ['-' for i in range(0, max_dim)]
+        part.set_align(part_align)
+
+        old_align = part.align
+
+        # initialize new scaling
+        part_scale = ['-' for i in range(0, max_dim)]
+        part.set_scale(part_scale)
+
+        old_scale = part.scale
+
+        # [ LOG
+        log_level = logging.DEBUG-2
+        log_str = "aligning and scaling with all ref-parts..."
+        LOG(log_level, "")
+        LOG(log_level, log_str)
+        # LOG ]
+
+        ref_poly_parts = group.polyRep.polyParts[ref_comp]
+        for ref_part in ref_poly_parts:
+            part_align = part.align
+            part_scale = part.scale
+
+            # if old_align is not empty(init) and the alignment has changed
+            no_conflict = compatible_align(old_align, part_align)
+            if old_align and not no_conflict:
+                return False, True  # or False, False
+
+            # if old_scale is not empty(init) and the alignment has changed
+            no_conflict = compatible_align(old_scale, part_scale)
+            if old_scale and not no_conflict:
+                return True, False
+
+            old_align = part.align
+            old_scale = part.scale
+
+            ref_part_align = ref_part.align
+            ref_part_scale = ref_part.scale
+
+            # [ LOG
+            log_level = logging.DEBUG-2
+            LOG(log_level, "")
+            log_str1 = "ref_part_align = "+str([i for i in ref_part_align])
+            log_str2 = "ref_part_scale = "+str([i for i in ref_part_scale])
+            LOG(log_level, "ref = %s", str(ref_part.comp.name))
+            LOG(log_level, log_str1)
+            LOG(log_level, log_str2)
+            # LOG ]
+
+            # process the argument list
+            ref_args = ref.arguments
+            ref_arg_vars, ref_arg_coeffs = extract_arg_vars_coefs(ref_args)
+            for i in range(len(ref_arg_vars), len(ref_part_align)):
+                ref_arg_vars.append('-')
+
+            # [ LOG
+            log_level = logging.DEBUG-2
+            log_str1 = "ref_arg_vars  = "+ \
+                      str([i.__str__() for i in ref_arg_vars])
+            log_str2 = "ref_arg_coeffs = "+ \
+                      str([i.__str__() for i in ref_arg_coeffs])
+            LOG(log_level, log_str1)
+            LOG(log_level, log_str2)
+            # LOG ]
+
+            # match the part variables with the reference variables
+            part_align, part_scale = \
+                align_scale_vars(part, ref_part, ref_arg_vars, ref_arg_coeffs)
+
+            # [ LOG
+            log_level = logging.DEBUG-2
+            log_str1 = "old_align = "+str([i for i in old_align])
+            log_str2 = "old_scale = "+str([i for i in old_scale])
+            LOG(log_level, log_str1)
+            LOG(log_level, log_str2)
+
+            log_level = logging.DEBUG-1
+            log_str1 = "part_align = "+str([i for i in part_align])
+            log_str2 = "part_scale = "+str([i for i in part_scale])
+            LOG(log_level, log_str1)
+            LOG(log_level, log_str2)
+            # LOG ]
+
+            part.set_align(part_align)
+            part.set_scale(part_scale)
+
+        no_conflict = compatible_align(old_align, part_align)
+        if old_align and not no_conflict:
+            return False, True  # or False, False
+
+        no_conflict = compatible_align(old_scale, part_scale)
+        if old_scale and not no_conflict:
+            return True, False
+
+        return True, True
+
+    # BEGIN
+    comp_objs = group._compObjs
+
+    # list all parts with no self references and find the max dim
+    max_dim = 0
+    no_self_dep_parts = []
+    for comp in comp_objs:
+        for p in group.polyRep.polyParts[comp]:
+            p_align = p.align
+            if not group.polyRep.isPartSelfDependent(p):
+                no_self_dep_parts.append(p)
+                # update size of align vector to max dim
+                # assumes that 'align' has only spatial dims
+                if max_dim < len(p_align):
+                    max_dim = len(p_align)
+
+    sorted_parts = sorted(no_self_dep_parts, \
+                          key = lambda part:part.levelNo)
+
+    # begin from the topologically earliest part as the base for
+    # alignment reference
+    base_parts = [part for part in sorted_parts \
+                       if part.levelNo == sorted_parts[0].levelNo]
+
+    # the alignment positions and scaling factors for variables follows
+    # domain order of base parts
+    base_align = [i for i in range(0, max_dim)]
+    base_scale = [1 for i in range(0, max_dim)]
+
+    # initial alignment and scaling for all the base parts
+    for part in base_parts:
+        # [ LOG
+        log_level = logging.DEBUG-1
+        LOG(log_level, "____")
+        LOG(log_level, str(part.comp.name)+\
+                       " (level : "+str(part.levelNo)+")")
+        # LOG ]
+
+        part.set_align(base_align)
+        part.set_scale(base_scale)
+
+    other_parts = [part for part in sorted_parts \
+                        if part not in base_parts]
+    for part in other_parts:
+        # [ LOG
+        log_level = logging.DEBUG-1
+        LOG(log_level, "____")
+        LOG(log_level, str(part.comp.name)+\
+                       " (level : "+str(part.levelNo)+")")
+        # LOG ]
+
+        old_align = []
+        old_scale = []
+        part.set_align(old_align)
+        part.set_scale(old_scale)
+
+        part_align = part.align
+        part_scale = part.scale
+
+        # [ LOG
+        log_level = logging.DEBUG-2
+        LOG(log_level, "")
+        LOG(log_level, "aligning and scaling with all refs...")
+        # LOG ]
+
+        refs = part.getPartRefs()
+        for ref in refs:
+            no_conflict = compatible_align(part_align, old_align)
+            if old_align and not no_conflict:
+                LOG(logging.ERROR, "Conflict in alignment across refs")
+                return False
+
+            no_conflict = compatible_scale(part_scale, old_scale)
+            if old_scale and not no_conflict:
+                LOG(logging.ERROR, "Conflict in scaling across refs")
+                return False
+
+            old_align = part.align
+            old_scale = part.scale
+
+            # Alignment and scaling with references
+            no_align_conflict, \
+              no_scale_conflict = \
+                align_scale_with_ref(part, ref, max_dim)
+
+            if old_align and not no_align_conflict:
+                LOG(logging.ERROR, "Conflict in alignment across ref parts")
+                return False
+            if old_scale and not no_scale_conflict:
+                LOG(logging.ERROR, "Conflict in scaling across ref parts")
+                return False
+
+            part_align = part.align
+            part_scale = part.scale
+
+        no_conflict = compatible_align(part_align, old_align)
+        if old_align and not no_conflict:
+            LOG(logging.ERROR, "Conflict in alignment across refs")
+            return False
+
+        no_conflict = compatible_scale(part_scale, old_scale)
+        if old_scale and not no_conflict:
+            LOG(logging.ERROR, "Conflict in scaling across refs")
+            return False
+
+    # normalize the scaling factors, so that none of them is lesser than 1
+    norm = [1 for i in range(0, max_dim)]
+
+    # compute the lcm of the Fraction denominators of all scaling factors
+    # for each dimension
+    for part in other_parts:
+        scale = part.scale
+        for dim in range(0, max_dim):
+            if scale[dim] != '-':
+                d = Fraction(scale[dim].denominator)
+                norm[dim] = lcm(d, norm[dim])
+
+    LOG(logging.DEBUG, "")
+    LOG(logging.DEBUG, "Final alignment and scaling")
+
+    for part in sorted_parts:
+        scale = part.scale
+        new_scale = [1 for i in range(0, max_dim)]
+        for dim in range(0, max_dim):
+            if scale[dim] != '-':
+                new_scale[dim] = norm[dim] * part.scale[dim]
+            else:
+                new_scale[dim] = '-'
+        part.set_scale(new_scale)
+
+        # [ LOG
+        log_level = logging.DEBUG
+        LOG(log_level, part.comp.name)
+
+        log_str1 = "part.align = "+str([i for i in part.align])
+        log_str2 = "part.scale = "+str([i for i in part.scale])
+        LOG(log_level, log_str1)
+        LOG(log_level, log_str2)
+        # LOG ]
+
+    # [ LOG
+    log_level = logging.DEBUG
+    LOG(log_level, "")
+    LOG(log_level, "done ... align_parts()")
+    LOG(log_level, "___________________________________")
+    # LOG ]
+
+    return True
+
 
 def stripMineSchedule(sched, dim, size):
     sched = sched.insert_dims(isl._isl.dim_type.out, dim, 1)
@@ -130,7 +559,6 @@ def computeTileSlope(self, stageDeps, hmax):
             maxWidth[i] = maxWidth[i] + maxW[i]
         widths.append((list(minWidth), currh))
         widths.append((list(maxWidth), currh))
-        #print(widths)
                 
     for width, h in widths:
         scale = hmax - h 
@@ -859,7 +1287,7 @@ def computeRelativeScalingFactors(self, parentPart, childPart):
         numArgs = len(ref.arguments)
         for i in range(0, numArgs):
             arg = ref.arguments[i]
-            parentVarSchedDim = parentPart.align[i]            
+            parentVarSchedDim = parentPart.align[i]
             if (isAffine(arg)):
                 domDimCoeff = self.getDomainDimCoeffs(childPart.sched, arg)
                 paramCoeff = self.getParamCoeffs(childPart.sched, arg)
@@ -878,7 +1306,7 @@ def computeRelativeScalingFactors(self, parentPart, childPart):
                     dim = findDimScheduledTo(childPart, parentVarSchedDim)
                     if dim != -1:
                         scale[dim] = '*'
-                # Indexed with a single variable. This can either be an 
+                # Indexed with a single variable. This can either be a 
                 # uniform access or can be uniformized with scaling when 
                 # possible.
                 elif len(domDimCoeff) == 1 and len(paramCoeff) == 0:
