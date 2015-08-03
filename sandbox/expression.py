@@ -2,48 +2,56 @@ from __future__ import absolute_import, division, print_function
 
 from constructs import *
 
-def getAffineVarAndParamCoeff(expr):
+def get_affine_var_and_param_coeff(expr):
     expr = Value.numericToValue(expr)
-    if (not isAffine(expr) or isinstance(expr, Value)):
+
+    if (not isAffine(expr) or \
+            isinstance(expr, Value) or \
+            is_constant_expr(expr)):
         return {}
     elif (isinstance(expr, Variable)):
         return {expr: 1}
     elif (isinstance(expr, AbstractBinaryOpNode)):
         coeff = {}
-        leftCoeff = getAffineVarAndParamCoeff(expr.left)
-        rightCoeff = getAffineVarAndParamCoeff(expr.right)
+        left_coeff = get_affine_var_and_param_coeff(expr.left)
+        right_coeff = get_affine_var_and_param_coeff(expr.right)
         if (expr.op == '+'):
-            coeff = dict( (n, leftCoeff.get(n, 0) + rightCoeff.get(n, 0))\
-                          for n in set(leftCoeff) | set(rightCoeff) )
+            coeff = dict((n, left_coeff.get(n, 0) + right_coeff.get(n, 0)) \
+                             for n in set(left_coeff) | set(right_coeff))
         elif (expr.op == '-'):
-            coeff = dict( (n, leftCoeff.get(n, 0) - rightCoeff.get(n, 0))\
-                          for n in set(leftCoeff) | set(rightCoeff) )
+            coeff = dict((n, left_coeff.get(n, 0) - right_coeff.get(n, 0)) \
+                             for n in set(left_coeff) | set(right_coeff))
         elif (expr.op == '*'):
-            leftIsConstant = isConstantExpr(expr.left, affine = True)
-            rightIsConstant = isConstantExpr(expr.right, affine = True)
+            left_is_constant = is_constant_expr(expr.left, affine=True)
+            right_is_constant = is_constant_expr(expr.right, affine=True)
             #sanity check should be true if the expression is affine
-            assert(not (leftIsConstant and rightIsConstant))
-            if (leftIsConstant and not rightIsConstant):
-                coeff = dict( (n, getConstantFromExpr(expr.left, affine = True) *
-                                  rightCoeff.get(n, 0))
-                              for n in set(rightCoeff) )
-            elif(rightIsConstant and not leftIsConstant):
-                coeff = dict( (n, getConstantFromExpr(expr.right, affine = True) *
-                                  leftCoeff.get(n, 0))
-                              for n in set(leftCoeff) )
+            assert(not (left_is_constant and right_is_constant))
+
+            if (left_is_constant and not right_is_constant):
+                coeff = dict((n, get_constant_from_expr(expr.left, \
+                                                        affine=True) \
+                                 * right_coeff.get(n, 0)) \
+                                 for n in set(right_coeff))
+            elif(right_is_constant and not left_is_constant):
+                coeff = dict((n, get_constant_from_expr(expr.right, \
+                                                        affine=True) \
+                                 * left_coeff.get(n, 0))
+                                 for n in set(left_coeff))
         elif (expr.op == '/'):
-            rightIsConstant = isConstantExpr(expr.right, affine = True)
+            right_is_constant = is_constant_expr(expr.right, affine=True)
             #sanity check should be true if the expression is affine
-            assert(rightIsConstant)
-            coeff = dict( (n, Fraction(1, getConstantFromExpr(expr.right, affine = True)) *
-                                       leftCoeff.get(n, 0))
-                           for n in set(leftCoeff) )
+            assert(right_is_constant)
+
+            coeff = dict((n, Fraction(1, get_constant_from_expr(expr.right, \
+                                                             affine=True)) \
+                                         * left_coeff.get(n, 0)) \
+                                         for n in set(left_coeff))
         return coeff
     elif (isinstance(expr, AbstractUnaryOpNode)):
-        childCoeff = getAffineVarAndParamCoeff(expr.child)
+        child_coeff = get_affine_var_and_param_coeff(expr.child)
         if (expr.op == '-'):
-            childCoeff = dict( (n, -childCoeff.get(n)) for n in childCoeff )
-        return childCoeff
+            child_coeff = dict((n, -child_coeff.get(n)) for n in child_coeff)
+        return child_coeff
     raise TypeError(type(expr))
 
 def evaluateBinaryOp(leftVal, rightVal, op, affine):
@@ -79,7 +87,7 @@ def evaluateUnaryOp(val, op):
         return val
     raise TypeError(type(val))
 
-def getConstantFromExpr(expr, affine=False):
+def get_constant_from_expr(expr, affine=False):
     expr = Value.numericToValue(expr)
     assert(isinstance(expr, AbstractExpression))
     if (isinstance(expr, Value)):
@@ -91,17 +99,17 @@ def getConstantFromExpr(expr, affine=False):
     elif (isinstance(expr, Reference)):
         return 0    
     elif (isinstance(expr, AbstractBinaryOpNode)):
-        leftConst = getConstantFromExpr(expr.left, affine)
-        rightConst = getConstantFromExpr(expr.right, affine)
+        leftConst = get_constant_from_expr(expr.left, affine)
+        rightConst = get_constant_from_expr(expr.right, affine)
         return evaluateBinaryOp(leftConst, rightConst, expr.op, affine)
     elif (isinstance(expr, AbstractUnaryOpNode)):
-        childConst = getConstantFromExpr(expr.child, affine)
+        childConst = get_constant_from_expr(expr.child, affine)
         return evaluateUnaryOp(childConst, expr.op)
     elif (isinstance(expr, (Select, Cast, InbuiltFunction))):
         return 0
     raise TypeError(type(expr))
 
-def isConstantExpr(expr, affine = False):
+def is_constant_expr(expr, affine = False):
     expr = Value.numericToValue(expr)
     assert(isinstance(expr, AbstractExpression))
     if (isinstance(expr, Value)):
@@ -113,10 +121,10 @@ def isConstantExpr(expr, affine = False):
     elif (isinstance(expr, Reference)):
         return False    
     elif (isinstance(expr, AbstractBinaryOpNode)):
-        return (isConstantExpr(expr.left, affine) and 
-                isConstantExpr(expr.right, affine))
+        return (is_constant_expr(expr.left, affine) and 
+                is_constant_expr(expr.right, affine))
     elif (isinstance(expr, AbstractUnaryOpNode)):
-        return isConstantExpr(expr.child, affine)
+        return is_constant_expr(expr.child, affine)
     elif (isinstance(expr, (Select, InbuiltFunction, Cast))):
         return False
     raise TypeError(type(expr))
@@ -137,10 +145,10 @@ def simplifyExpr(expr):
     elif (isinstance(expr, AbstractBinaryOpNode) or
           isinstance(expr, AbstractUnaryOpNode)):
         if (isAffine(expr, includeDiv=False)):
-            coeff = getAffineVarAndParamCoeff(expr)
+            coeff = get_affine_var_and_param_coeff(expr)
             variables = list(set(expr.collect(Variable)))
             params = list(set(expr.collect(Parameter)))
-            simpleExpr = getConstantFromExpr(expr)
+            simpleExpr = get_constant_from_expr(expr)
             for var in variables:
                 if (coeff[var] == 1):
                     simpleExpr = simpleExpr + var

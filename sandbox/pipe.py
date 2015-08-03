@@ -176,7 +176,7 @@ class Pipeline:
                     ref._replaceRefObject(self._cloneMap[ref.objectRef])
 
         self._compObjs, self._compObjsParents, self._compObjsChildren = \
-                                getCompObjsAndDependenceMaps(self._outputs)            
+                                getCompObjsAndDependenceMaps(self._outputs)
 
         # Create a group for each pipeline function / reduction and compute
         # maps for parent and child relations between the groups
@@ -206,7 +206,7 @@ class Pipeline:
                      mGroup = mergeGroupList[0]
                      for i in range(1, len(mergeGroupList)):
                         mGroup = self.mergeGroups(mGroup, mergeGroupList[i])
-                        align_parts(self, mGroup)
+                        align_and_scale_parts(self, mGroup)
         else:
             # Run the grouping algorithm
             pass

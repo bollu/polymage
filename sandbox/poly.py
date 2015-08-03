@@ -101,10 +101,10 @@ def extractValueDependence(part, ref, refPolyDom):
         # If the argument is not affine the dependence reflects that
         # the computation may depend on any value of the referenced object
         if (isAffine(arg)):
-            coeff = getAffineVarAndParamCoeff(arg)
+            coeff = get_affine_var_and_param_coeff(arg)
             coeff = mapCoeffToDim(coeff)
 
-            coeff[('constant', 0)] = getConstantFromExpr(arg, affine = True)
+            coeff[('constant', 0)] = get_constant_from_expr(arg, affine = True)
             coeff[sourceDims[i]] = -1
             rel = addConstraints(rel, [], [coeff])
     if not rel.is_empty():
@@ -129,27 +129,31 @@ class PolyPart(object):
         # handle more general cases later.
         self._align = _align
         # Scaling factors for each schedule dimension
-        self.scale = _scale
+        self._scale = _scale
         # Default alignment and scaling factors are set while
         # constructing the polypart. These are changed by the
         # alignment and loop scaling passes. Both these passer
         # attempt to improve locality and uniformize dependencies.
         self.levelNo = _levelNo
 
-    @property 
+    @property
     def align(self):
-        align_clone = {}
-        for key in self._align:
-            align_clone[key] = self._align[key]
-
+        align_clone = [i for i in self._align]
         return align_clone
 
+    @property
+    def scale(self):
+        scale_clone = [i for i in self._scale]
+        return scale_clone
+
     def set_align(self, align):
-        self._align = {}
-        for key in align:
-            self._align[key] = align[key]
+        self._align = [i for i in align]
         return
-   
+
+    def set_scale(self, _scale):
+        self._scale = [i for i in _scale]
+        return
+
     def getPartRefs(self):
         refs = self.expr.collect(Reference)
         if (self.pred):
@@ -438,11 +442,11 @@ class PolyRep(object):
                     and isConstantExpr(leftExpr.right):
                     breakSelect = True
                 if breakSelect:
-                    leftCoeff = getAffineVarAndParamCoeff(leftExpr.left)
+                    leftCoeff = get_affine_var_and_param_coeff(leftExpr.left)
                     leftCoeff = mapCoeffToDim(leftCoeff)
-                    leftConst = getConstantFromExpr(leftExpr.left, affine = True)
-                    rightConst = getConstantFromExpr(rightExpr, affine = True)
-                    modConst = getConstantFromExpr(leftExpr.right, affine = True)
+                    leftConst = get_constant_from_expr(leftExpr.left, affine = True)
+                    rightConst = get_constant_from_expr(rightExpr, affine = True)
+                    modConst = get_constant_from_expr(leftExpr.right, affine = True)
                 
                     mulName = '_Mul_'
                     remName = '_Rem_'
@@ -648,7 +652,7 @@ class PolyRep(object):
                     if ((childVarSchedDim == parentVarSchedDim) and 
                         (domDimCoeff[dim] * pscale == cscale)):
                         depVec[parentVarSchedDim] = \
-                                -getConstantFromExpr(arg, affine=True)
+                                -get_constant_from_expr(arg, affine=True)
                         accessScale = pscale
                         if depVec[parentVarSchedDim] > 0:
                             depVec[parentVarSchedDim] = \
@@ -676,7 +680,7 @@ class PolyRep(object):
                 # be computed.
                 elif len(domDimCoeff) + len(paramCoeff) == 0:
                     # offsets should be set here.
-                    accessConstant = getConstantFromExpr(arg, affine = True)
+                    accessConstant = get_constant_from_expr(arg, affine = True)
                     parentLowerBound = parentPart.sched.domain().dim_min(i)
                     parentUpperBound = parentPart.sched.domain().dim_max(i)
                     if ((parentLowerBound.is_cst() and 
@@ -862,7 +866,7 @@ class PolyRep(object):
     def getDomainDimCoeffs(self, sched, arg):
         domDimCoeff = {}
         if (isAffine(arg)):
-            coeff = getAffineVarAndParamCoeff(arg)
+            coeff = get_affine_var_and_param_coeff(arg)
             for item in coeff:
                 if type(item) == Variable:
                     dim = sched.find_dim_by_name(isl._isl.dim_type.in_,
@@ -873,7 +877,7 @@ class PolyRep(object):
     def getParamCoeffs(self, sched, arg):
         paramCoeff = {}
         if (isAffine(arg)):
-            coeff = getAffineVarAndParamCoeff(arg)
+            coeff = get_affine_var_and_param_coeff(arg)
             for item in coeff:
                 if type(item) == Parameter:
                     dim = sched.find_dim_by_name(isl._isl.dim_type.param,
@@ -1000,9 +1004,9 @@ class PolyRep(object):
             subsSize = self.getDimSize(interval, paramEstimates)
             if isConstantExpr(subsSize):
                 if size is None:
-                    size = getConstantFromExpr(subsSize)
+                    size = get_constant_from_expr(subsSize)
                 else:
-                    size = size * getConstantFromExpr(subsSize)
+                    size = size * get_constant_from_expr(subsSize)
             else:
                 size = '*'
                 break
@@ -1092,10 +1096,10 @@ def formatDomainConstraints(domain, varNames):
         coeff = {}
         interval = domain[i]
 
-        lbCoeff = getAffineVarAndParamCoeff(interval.lowerBound)
+        lbCoeff = get_affine_var_and_param_coeff(interval.lowerBound)
         # Mapping from variable names to the corresponding dimension
         lbCoeff = mapCoeffToDim(lbCoeff)
-        lbConst = getConstantFromExpr(interval.lowerBound, affine = True)
+        lbConst = get_constant_from_expr(interval.lowerBound, affine = True)
 
         # Normalizing into >= format
         coeff = dict( (n, -lbCoeff.get(n)) for n in  lbCoeff)
@@ -1103,10 +1107,10 @@ def formatDomainConstraints(domain, varNames):
         coeff[('in', varNames[i])] = 1
         ineqCoeff.append(coeff)
 
-        ubCoeff = getAffineVarAndParamCoeff(interval.upperBound)
+        ubCoeff = get_affine_var_and_param_coeff(interval.upperBound)
         # M_apping from variable names to the corresponding dimension 
         ubCoeff = mapCoeffToDim(ubCoeff)
-        ubConst = getConstantFromExpr(interval.upperBound, affine = True)
+        ubConst = get_constant_from_expr(interval.upperBound, affine = True)
 
         # Normalizing into >= format
         coeff = ubCoeff
@@ -1122,10 +1126,10 @@ def formatConjunctConstraints(conjunct):
     eqCoeff = []
     for cond in conjunct:
         coeff = {}
-        leftCoeff = getAffineVarAndParamCoeff(cond.lhs)
-        rightCoeff = getAffineVarAndParamCoeff(cond.rhs)
-        leftConst = getConstantFromExpr(cond.lhs, affine = True)
-        rightConst = getConstantFromExpr(cond.rhs, affine = True)
+        leftCoeff = get_affine_var_and_param_coeff(cond.lhs)
+        rightCoeff = get_affine_var_and_param_coeff(cond.rhs)
+        leftConst = get_constant_from_expr(cond.lhs, affine = True)
+        rightConst = get_constant_from_expr(cond.rhs, affine = True)
 
         # Mapping from variable names to the corresponding dimension 
         leftCoeff = mapCoeffToDim(leftCoeff)
