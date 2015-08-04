@@ -80,7 +80,7 @@ def test_harris_corner():
     # test self reference
     harris.defn.append(Case(endCond , harris(0, 0)))
 
-    pipeline = buildPipeline([harris], grouping = [[Ix, Iy, Ixx, Iyy, Ixy]])
+    pipeline = buildPipeline([harris], grouping = [[Ix, Iy, Ixx, Iyy, Ixy], [Sxx, Sxy, Syy], [det, trace, harris]])
 
     filename = 'harris_graph.dot'
     pipeline.originalGraph.write(filename)

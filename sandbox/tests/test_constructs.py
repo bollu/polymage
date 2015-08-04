@@ -135,12 +135,12 @@ def test_divide():
 
     expr = (2*x + N//2 + 3*y)*3//2
     assert isAffine(expr) == True
-    coeff = getAffineVarAndParamCoeff(expr)
+    coeff = get_affine_var_and_param_coeff(expr)
     assert coeff[x] == Fraction(3, 1) 
     assert coeff[N] == Fraction(3, 4) 
     assert coeff[y] == Fraction(9, 2) 
     expr = (N-1)//2
-    assert getConstantFromExpr(expr, affine = True) == Fraction(-1, 2)
+    assert get_constant_from_expr(expr, affine = True) == Fraction(-1, 2)
 
 def test_overload():
     N = Parameter(UInt, "N")

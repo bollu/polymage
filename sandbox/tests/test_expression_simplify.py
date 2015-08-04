@@ -16,10 +16,10 @@ def test_simplify():
 
     expr = (2*x + 3*x + 3 + 4 + 1 + 5*y - 4*y + N + 2 * 3 + 4//2)//2 
     expr = simplifyExpr(expr)
-    coeff = getAffineVarAndParamCoeff(expr)
+    coeff = get_affine_var_and_param_coeff(expr)
     
     assert coeff[x] == Fraction(5, 2)
     assert coeff[y] == Fraction(1, 2)
     assert coeff[N] == Fraction(1, 2)
-    assert getConstantFromExpr(expr, affine = True) == 8
+    assert get_constant_from_expr(expr, affine = True) == 8
 
