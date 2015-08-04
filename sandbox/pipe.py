@@ -213,8 +213,7 @@ class Pipeline:
 
         for g in list(set(self._groups.values())):
             baseSchedule(g)
-            #g.polyRep.generateCode()
-            #print(g)
+            g.polyRep.generateCode()
 
         self.generateCode()
 

@@ -395,7 +395,38 @@ def align_and_scale_parts(pipeline, group):
         # LOG ]
 
         refs = part.getPartRefs()
-        for ref in refs:
+        if len(refs) > 0:
+            for ref in refs:
+                no_conflict = compatible_align(part_align, old_align)
+                if old_align and not no_conflict:
+                    LOG(logging.ERROR, "Conflict in alignment across refs")
+                    return False
+
+                no_conflict = compatible_scale(part_scale, old_scale)
+                if old_scale and not no_conflict:
+                    LOG(logging.ERROR, "Conflict in scaling across refs")
+                    return False
+
+                old_align = part.align
+                old_scale = part.scale
+
+                # Alignment and scaling with references
+                no_align_conflict, \
+                  no_scale_conflict = \
+                    align_scale_with_ref(part, ref, max_dim)
+
+                if old_align and not no_align_conflict:
+                    LOG(logging.ERROR, \
+                        "Conflict in alignment across ref parts")
+                    return False
+                if old_scale and not no_scale_conflict:
+                    LOG(logging.ERROR, \
+                        "Conflict in scaling across ref parts")
+                    return False
+
+                part_align = part.align
+                part_scale = part.scale
+
             no_conflict = compatible_align(part_align, old_align)
             if old_align and not no_conflict:
                 LOG(logging.ERROR, "Conflict in alignment across refs")
@@ -405,34 +436,16 @@ def align_and_scale_parts(pipeline, group):
             if old_scale and not no_conflict:
                 LOG(logging.ERROR, "Conflict in scaling across refs")
                 return False
+        else:
+            part_scale = [1 for i in range(0, max_dim)]
+            part_align = ['-' for i in range(0, max_dim)]
 
-            old_align = part.align
-            old_scale = part.scale
+            nvars = len(part.comp.variableDomain[0])
+            for i in range(0, nvars):
+                part_align[i] = base_align[i]
 
-            # Alignment and scaling with references
-            no_align_conflict, \
-              no_scale_conflict = \
-                align_scale_with_ref(part, ref, max_dim)
-
-            if old_align and not no_align_conflict:
-                LOG(logging.ERROR, "Conflict in alignment across ref parts")
-                return False
-            if old_scale and not no_scale_conflict:
-                LOG(logging.ERROR, "Conflict in scaling across ref parts")
-                return False
-
-            part_align = part.align
-            part_scale = part.scale
-
-        no_conflict = compatible_align(part_align, old_align)
-        if old_align and not no_conflict:
-            LOG(logging.ERROR, "Conflict in alignment across refs")
-            return False
-
-        no_conflict = compatible_scale(part_scale, old_scale)
-        if old_scale and not no_conflict:
-            LOG(logging.ERROR, "Conflict in scaling across refs")
-            return False
+            part.set_align(part_align)
+            part.set_scale(part_scale)
 
     # normalize the scaling factors, so that none of them is lesser than 1
     norm = [1 for i in range(0, max_dim)]
