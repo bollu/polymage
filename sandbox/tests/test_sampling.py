@@ -30,48 +30,54 @@ for l in range(0, L):
               Condition(y, '>=', 1) & Condition(y, '<=', CL[l])
 
 def test_sampling():
+
+    def down_sampler(img_in, l):
+        img_out = Function(([x, y], [row[l], col[l]]),
+                           Float, "down_"+str(l))
+        img_out.defn = [ Case(cond[l],
+                             (img_in(2*x-1, 2*y-1) \
+                           +  img_in(2*x+1, 2*y-1) \
+                           +  img_in(2*x-1, 2*y+1) \
+                           +  img_in(2*x+1, 2*y+1)) * 0.0625 \
+                           + (img_in(2*x-1, 2*y  ) \
+                           +  img_in(2*x+1, 2*y  ) \
+                           +  img_in(2*x  , 2*y-1) \
+                           +  img_in(2*x  , 2*y+1)) * 0.125 \
+                           +  img_in(2*x  , 2*y  )  * 0.25) ]
+
+        return img_out
+
+    # not a standard upsampling -
+    def up_sampler(img_in, l):
+        img_out = Function(([x, y], [row[l-1], col[l-1]]),
+                           Float, "up_"+str(l-1))
+        img_out.defn = [ Case(cond[l-1],
+                             (img_in(x/2-1, y/2-1) \
+                           +  img_in(x/2+1, y/2-1) \
+                           +  img_in(x/2-1, y/2+1) \
+                           +  img_in(x/2+1, y/2+1)) * 0.0625 \
+                           + (img_in(x/2-1, y/2  ) \
+                           +  img_in(x/2+1, y/2  ) \
+                           +  img_in(x/2  , y/2-1) \
+                           +  img_in(x/2  , y/2+1)) * 0.125 \
+                           +  img_in(x/2  , y/2  )  * 0.25) ]
+
+        return img_out
+
+    # Pipeline
     img = Image(Float, "img", [R+2, C+2])
 
     down = {}
-    for l in range(1, L):
-        if l == 1:
-            upper = img
-        else:
-            upper = down[l-1]
+    down[1] = down_sampler(img, 1)
+    for l in range(2, L):
+        down[l] = down_sampler(down[l-1], l)
 
-        down[l] = Function(([x, y], [row[l], col[l]]),
-                           Float, "down_"+str(l))
-        down[l].defn = [ Case(cond[l],
-                             (upper(2*x-1, 2*y-1) \
-                           +  upper(2*x+1, 2*y-1) \
-                           +  upper(2*x-1, 2*y+1) \
-                           +  upper(2*x+1, 2*y+1)) * 0.0625 \
-                           + (upper(2*x-1, 2*y  ) \
-                           +  upper(2*x+1, 2*y  ) \
-                           +  upper(2*x  , 2*y-1) \
-                           +  upper(2*x  , 2*y+1)) * 0.125 \
-                           +  upper(2*x  , 2*y  )  * 0.25) ]
-
-    # not a standard upsampling -
     up = {}
-    for l in range(L-1, 0, -1):
-        if l == L-1:
-            lower = down[l]
-        else:
-            lower = up[l]
+    up[L-2] = up_sampler(down[L-1], l)
+    for l in range(L-2, 0, -1):
+        up[l-1] = up_sampler(up[l], l)
 
-        up[l-1] = Function(([x, y], [row[l-1], col[l-1]]),
-                           Float, "up_"+str(l-1))
-        up[l-1].defn = [ Case(cond[l-1],
-                             (lower(x/2-1, y/2-1) \
-                           +  lower(x/2+1, y/2-1) \
-                           +  lower(x/2-1, y/2+1) \
-                           +  lower(x/2+1, y/2+1)) * 0.0625 \
-                           + (lower(x/2-1, y/2  ) \
-                           +  lower(x/2+1, y/2  ) \
-                           +  lower(x/2  , y/2-1) \
-                           +  lower(x/2  , y/2+1)) * 0.125 \
-                           +  lower(x/2  , y/2  )  * 0.25) ]
+    live_outs = [up[0]]
 
     # manual grouping
     group1 = []
@@ -95,7 +101,7 @@ def test_sampling():
     groups = [group1, group2, group3, group4]
 
     # build the pipeline
-    pipeline = buildPipeline([up[0]], grouping = groups)
+    pipeline = buildPipeline(live_outs, grouping = groups)
 
     filename = 'down_graph.dot'
     pipeline.originalGraph.write(filename)
