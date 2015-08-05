@@ -214,6 +214,7 @@ class Pipeline:
         for g in list(set(self._groups.values())):
             baseSchedule(g)
             g.polyRep.generateCode()
+            #print(g)
 
         self.generateCode()
 
@@ -285,7 +286,7 @@ class Pipeline:
         return G
 
     def generateCode(self):
-        generateCodeForPipeline(self)
+        generate_code_for_pipeline(self)
 
     def mergeGroups(self, g1, g2):
         # Get comp objects from both groups 

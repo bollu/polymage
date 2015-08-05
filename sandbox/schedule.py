@@ -4,7 +4,7 @@ from poly import *
 import logging
 
 # LOG CONFIG #
-logging.basicConfig(level=logging.DEBUG, \
+logging.basicConfig(level=logging.INFO, \
                     format="%(levelname)s: %(name)s: %(message)s")
 LOG = logging.getLogger("schedule.py").log
 

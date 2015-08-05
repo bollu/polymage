@@ -3,46 +3,46 @@ from __future__ import absolute_import, division, print_function
 import cgen
 from cexpr import *
 
-class cNameGen(object):
-    _iteratorPrefix = "_ci"
-    _temporaryPrefix = "_ct"
+class CNameGen(object):
+    _iterator_prefix = "_ci"
+    _temporary_prefix = "_ct"
 
-    _iteratorCount = 0
-    _tempCount = 0
+    _iterator_count = 0
+    _temp_count = 0
 
     @classmethod
-    def getIteratorName(cls):
-        name = cls._iteratorPrefix + str(cls._iteratorCount)
-        cls._iteratorCount+=1
+    def get_iterator_name(cls):
+        name = cls._iterator_prefix + str(cls._iterator_count)
+        cls._iterator_count+=1
         return name
 
     @classmethod
-    def getTempVarName(cls):
-        name = cls._temporaryPrefix + str(cls._tempCount)
-        cls._tempCount+=1
+    def get_temp_var_name(cls):
+        name = cls._temporary_prefix + str(cls._temp_count)
+        cls._temp_count+=1
         return name
 
-class cExpression(AbstractExpression):
+class CExpression(AbstractExpression):
     pass
 
-class cBinaryOp(AbstractBinaryOpNode):
+class CBinaryOp(AbstractBinaryOpNode):
     pass
 
-class cUnaryOp(AbstractUnaryOpNode):
+class CUnaryOp(AbstractUnaryOpNode):
     pass
 
-class cCond(Condition):
+class CCond(Condition):
     pass
 
-class cCast(cExpression):
+class CCast(CExpression):
     def __init__(self, _typ, _expr):
-        assert isinstance(_typ, (cType, cPointer))
+        assert isinstance(_typ, (CType, CPointer))
         self._typ  = _typ
         self._expr = _expr
     def __str__(self):
         return "(" + self._typ.__str__() + ") (" + self._expr.__str__() + ")"
 
-class cName(cExpression):
+class CName(CExpression):
     def __init__(self, _name):
         assert(isinstance(_name, str))
         self.name = _name
@@ -55,36 +55,36 @@ class AbstractCgenObject(object):
     def __str__(self):
         return self._cgen().__str__()
 
-class cType(AbstractCgenObject):
+class CType(AbstractCgenObject):
     def __init__(self, _typ):
         self.typ = _typ
     def _cgen(self):
         return cgen.POD(self.typ, '').inline(True)
 
-cInt = cType("int32")
-cUInt = cType("uint32")
-cULong = cType("uint64")
-cLong = cType("int64")
-cShort = cType("int16")
-cUShort = cType("uint16")
-cUChar = cType("uint8")
-cChar = cType("int8")
-cFloat = cType("float32")
-cDouble = cType("float64")
-cVoid = cType("void")
+c_int = CType("int32")
+c_uInt = CType("uint32")
+c_uLong = CType("uint64")
+c_long = CType("int64")
+c_short = CType("int16")
+c_uShort = CType("uint16")
+c_uChar = CType("uint8")
+c_char = CType("int8")
+c_float = CType("float32")
+c_double = CType("float64")
+c_void = CType("void")
 
 class TypeMap(object):
-    _typeMap = { Void: cVoid, ULong:cULong, Long: cLong, UInt:cUInt, Int:cInt, 
-                 UShort:cUShort, Short:cShort, UChar:cUChar, Char:cChar, 
-                 Float:cFloat, Double:cDouble }
+    _type_map = { Void: c_void, ULong:c_uLong, Long: c_long, UInt:c_uInt, Int:c_int,
+                 UShort:c_uShort, Short:c_short, UChar:c_uChar, Char:c_char,
+                 Float:c_float, Double:c_double }
     @classmethod
     def convert(cls, typ):
-        assert typ in cls._typeMap
-        return cls._typeMap[typ]
+        assert typ in cls._type_map
+        return cls._type_map[typ]
 
-class cPointer(AbstractCgenObject):
+class CPointer(AbstractCgenObject):
     def __init__(self, _ctype, _dim):
-        assert(isinstance(_ctype, cType))
+        assert(isinstance(_ctype, CType))
         self.typ  = _ctype.typ
         self.dim  = _dim
     def _cgen(self):
@@ -93,9 +93,9 @@ class cPointer(AbstractCgenObject):
             decl = cgen.Pointer(decl)
         return decl.inline(True)
 
-class cReference(cPointer):
+class CReference(CPointer):
     def __init__(self, _ctype, _dim):
-        cPointer.__init__(self, _ctype, _dim)
+        CPointer.__init__(self, _ctype, _dim)
     def _cgen(self):
         decl = cgen.POD(self.typ, '')
         decl = cgen.Reference(decl)
@@ -103,16 +103,16 @@ class cReference(cPointer):
             decl = cgen.Pointer(decl)
         return decl.inline(True)
 
-class cVariable(cName):
+class CVariable(CName):
     def __init__(self, _typ, _name):
-        assert(isinstance(_typ, cType) or isinstance(_typ, cPointer))
+        assert(isinstance(_typ, CType) or isinstance(_typ, CPointer))
         self.typ = _typ
-        cName.__init__(self, _name)
+        CName.__init__(self, _name)
 
-class cDeclaration(AbstractCgenObject):
+class CDeclaration(AbstractCgenObject):
     def __init__(self, _ctyp, _cname, _expr=None):
-        assert(isinstance(_ctyp, cPointer) or isinstance(_ctyp, cType))
-        assert(isinstance(_cname, cName))
+        assert(isinstance(_ctyp, CPointer) or isinstance(_ctyp, CType))
+        assert(isinstance(_cname, CName))
         self.cname = _cname
         self.ctyp = _ctyp
         _expr = Value.numericToValue(_expr)
@@ -122,45 +122,45 @@ class cDeclaration(AbstractCgenObject):
         self.expr = _expr
     def _cgen(self):
         if self.expr is not None:
-            valDecl = cgen.Value(self.ctyp.__str__(), self.cname.name).inline(True)
-            return cgen.Assign(valDecl, self.expr.__str__())
+            val_decl = cgen.Value(self.ctyp.__str__(), self.cname.name).inline(True)
+            return cgen.Assign(val_decl, self.expr.__str__())
         else:
             return cgen.Value(self.ctyp.__str__(), self.cname.name)
 
-class cStatement(AbstractCgenObject):
+class CStatement(AbstractCgenObject):
     def __init__(self, _expr):
         self.expr = _expr
     def _cgen(self):
         return cgen.Statement(self.expr.__str__())
 
-class cAssign(AbstractCgenObject):
+class CAssign(AbstractCgenObject):
     def __init__(self, _lvalue, _rvalue):
         self.lvalue = _lvalue
         self.rvalue = _rvalue
     def _cgen(self):
         return cgen.Assign(self.lvalue.__str__(), self.rvalue.__str__())
 
-class cBlock(AbstractCgenObject):
+class CBlock(AbstractCgenObject):
     def __init__(self, _parent):
         assert(isinstance(_parent, AbstractCgenObject) or (_parent is None))
         self.parent = _parent
         self.block  = []
-        self._isOpen = False
+        self._is_open = False
     def __enter__(self):
-        self._isOpen = True
+        self._is_open = True
         return self
     def __exit__(self, typ, val, tb):
-        self._isOpen = False
-    def add(self, obj, checkScope = True):
-        if (checkScope):
-            assert(self._isOpen)
+        self._is_open = False
+    def add(self, obj, check_scope = True):
+        if (check_scope):
+            assert(self._is_open)
         assert(isinstance(obj, AbstractCgenObject))
         self.block.append(obj)
     def _cgen(self):
-        cgenBlock = [ obj._cgen() for obj in self.block ]
-        return cgen.Block(cgenBlock)
+        cgen_block = [ obj._cgen() for obj in self.block ]
+        return cgen.Block(cgen_block)
 
-class cAbstractFCall(cExpression):
+class CAbstractFCall(CExpression):
     def __init__(self, _args, _name = None, _lib = None):
         for arg in _args:
             arg = Value.numericToValue(arg)
@@ -173,179 +173,179 @@ class cAbstractFCall(cExpression):
         arg_str = ", ".join([arg.__str__() for arg in self.args])
         return self.name + "(" + arg_str + ")"
 
-class cFunction(cName):
-    def __init__(self, _retTyp, _name, _argDict):
-        cName.__init__(self, _name)
-        assert(isinstance(_retTyp, cType) or isinstance(_retTyp, cPointer))
-        self.retTyp = _retTyp
-        self.argDict = _argDict
+class CFunction(CName):
+    def __init__(self, _ret_typ, _name, _arg_dict):
+        CName.__init__(self, _name)
+        assert(isinstance(_ret_typ, CType) or isinstance(_ret_typ, CPointer))
+        self.ret_typ = _ret_typ
+        self.arg_dict = _arg_dict
     def __call__(self, *args):
-        call = cAbstractFCall(args, self.name)
+        call = CAbstractFCall(args, self.name)
         return call
 
-class cSizeof(cUnaryOp):
+class CSizeof(CUnaryOp):
     def __init__(self, _ctype):
-        assert(isinstance(_ctype, cType) or isinstance(_ctype, cPointer))
+        assert(isinstance(_ctype, CType) or isinstance(_ctype, CPointer))
         self._op    = 'sizeof'
         self._child = _ctype
 
-class cLibraryFunction(cName):
+class CLibraryFunction(CName):
     def __init__(self, _name, _lib):
         self.name = _name
         self.lib  = _lib
     def __call__(self, *args):
-        call = cAbstractFCall(args, self.name, self.lib)
+        call = CAbstractFCall(args, self.name, self.lib)
         return call
 
-cMalloc = cLibraryFunction('malloc', 'stdlib.h')
-cMemAlign = cLibraryFunction('memalign', 'malloc.h')
-cMemSet = cLibraryFunction('memset', 'string.h')
-cFree = cLibraryFunction('free', 'stdlib.h')
-cPrintf = cLibraryFunction('printf', 'stdio.h')
+c_malloc = CLibraryFunction('malloc', 'stdlib.h')
+c_memalign = CLibraryFunction('memalign', 'malloc.h')
+c_memset = CLibraryFunction('memset', 'string.h')
+c_free = CLibraryFunction('free', 'stdlib.h')
+c_printf = CLibraryFunction('printf', 'stdio.h')
 
 # TODO clean up this function. 
-class cFunctionDecl(AbstractCgenObject):
-    def __init__(self, _func, _isExternFunc=False, _areParamsVoidPtrs=False):
-        assert(isinstance(_func, cFunction))
+class CFunctionDecl(AbstractCgenObject):
+    def __init__(self, _func, _is_extern_func=False, _are_params_void_ptrs=False):
+        assert(isinstance(_func, CFunction))
         self.func = _func
-        self.isExternFunc = _isExternFunc
-        self.areParamsVoidPtrs = _areParamsVoidPtrs
+        self.is_extern_func = _is_extern_func
+        self.are_params_void_ptrs = _are_params_void_ptrs
     def _cgen(self):
-        #argDecls = [ cgen.Value(self.func.argDict[arg].__str__(), arg.__str__())\
-        #             for arg in self.func.argDict ]
-        argDecls = []
+        #arg_decls = [ cgen.Value(self.func.arg_dict[arg].__str__(), arg.__str__())\
+        #             for arg in self.func.arg_dict ]
+        arg_decls = []
 
-        # areParamsVoidPtrs : if the target is to generate shared library
+        # are_params_void_ptrs : if the target is to generate shared library
         # implementation using python ctypes
 
-        if not self.areParamsVoidPtrs:
-            for arg in self.func.argDict:
-                argDecls.append(cgen.Value(self.func.argDict[arg].__str__(), arg.__str__()))
+        if not self.are_params_void_ptrs:
+            for arg in self.func.arg_dict:
+                arg_decls.append(cgen.Value(self.func.arg_dict[arg].__str__(), arg.__str__()))
         else:
-            for arg in self.func.argDict:
-                # print the variable type of input and output arrays (cPointer) as
+            for arg in self.func.arg_dict:
+                # print the variable type of input and output arrays (CPointer) as
                 # 'void *', so as to handle it using ctypes.c_void_p()
-                if isinstance(arg.typ, cPointer):
-                    argDecls.append(cgen.Value('void *', arg.__str__()+'_void_arg'))
+                if isinstance(arg.typ, CPointer):
+                    arg_decls.append(cgen.Value('void *', arg.__str__()+'_void_arg'))
                 else:
-                    argDecls.append(cgen.Value(self.func.argDict[arg].__str__(), arg.__str__()))
+                    arg_decls.append(cgen.Value(self.func.arg_dict[arg].__str__(), arg.__str__()))
 
-        typeStr = self.func.retTyp.__str__()
-        if self.isExternFunc:
-            typeStr = "extern \"C\" " + typeStr
-        return cgen.FunctionDeclaration(cgen.Value(typeStr, 
-                                        self.func.name), argDecls)
+        type_str = self.func.ret_typ.__str__()
+        if self.is_extern_func:
+            type_str = "extern \"C\" " + type_str
+        return cgen.FunctionDeclaration(cgen.Value(type_str,
+                                        self.func.name), arg_decls)
 
-class cFunctionBody(AbstractCgenObject):
+class CFunctionBody(AbstractCgenObject):
     def __init__(self, _fdecl):
-        assert(isinstance(_fdecl, cFunctionDecl))
+        assert(isinstance(_fdecl, CFunctionDecl))
         self.fdecl = _fdecl
         self.func = _fdecl.func
-        self.body  = cBlock(self)
+        self.body  = CBlock(self)
     def _cgen(self):
         return cgen.FunctionBody(self.fdecl._cgen(), self.body._cgen())
 
-class cReturn(AbstractCgenObject):
+class CReturn(AbstractCgenObject):
     def __init__(self, _expr):
         self.expr = _expr
     def _cgen(self):
         return cgen.Statement('return ' + self.expr.__str__())
 
-class cContinue(AbstractCgenObject):
+class CContinue(AbstractCgenObject):
     def _cgen(self):
         return cgen.Statement('continue')
 
-class cMacro(cName):
+class CMacro(CName):
     def __init__(self, _name, _definition, _value):
         self.name = _name
         self.definition  = _definition
         self.value  = _value
     def __call__(self, *args):
-        call = cAbstractFCall(args, self.name, None)
+        call = CAbstractFCall(args, self.name, None)
         return call
 
-class cMacroDecl(AbstractCgenObject):
+class CMacroDecl(AbstractCgenObject):
     def __init__(self, _macro):
-        assert(isinstance(_macro, cMacro))
+        assert(isinstance(_macro, CMacro))
         self.macro = _macro
     def _cgen(self):
         return cgen.Define(self.macro.definition, self.macro.value)
 
-cMacroMin = cMacro('isl_min', 'isl_min(x,y)', '((x) < (y) ? (x) : (y))')
-cMacroMax = cMacro('isl_max', 'isl_max(x,y)', '((x) > (y) ? (x) : (y))')
-cMacroFloord = cMacro('isl_floord', 'isl_floord(n,d)', '(((n)<0) ? -((-(n)+(d)-1)/(d)) : (n)/(d))')
+c_macro_min = CMacro('isl_min', 'isl_min(x,y)', '((x) < (y) ? (x) : (y))')
+c_macro_max = CMacro('isl_max', 'isl_max(x,y)', '((x) > (y) ? (x) : (y))')
+c_macro_floord = CMacro('isl_floord', 'isl_floord(n,d)', '(((n)<0) ? -((-(n)+(d)-1)/(d)) : (n)/(d))')
 
-class cInclude(AbstractCgenObject):
+class CInclude(AbstractCgenObject):
     def __init__(self, _name):
         self.name = _name
     def _cgen(self):
         return cgen.Include(self.name)
 
-class cPragma(AbstractCgenObject):
+class CPragma(AbstractCgenObject):
     def __init__(self, _value):
         self.value = _value
     def _cgen(self):
         return cgen.Pragma(self.value)
 
-class cComment(AbstractCgenObject):
+class CComment(AbstractCgenObject):
     def __init__(self, _text):
         self.text = _text
     def _cgen(self):
         return cgen.Comment(self.text)
 
-class cDefine(AbstractCgenObject):
+class CDefine(AbstractCgenObject):
     def __init__(self, _symbol, _value):
         self.symbol = _symbol
         self.value = _value
     def _cgen(self):
         return cgen.Define(self.symbol, self.value)
 
-class cFor(AbstractCgenObject):
+class CFor(AbstractCgenObject):
     def __init__(self, _start, _cond, _update):
         _start = Value.numericToValue(_start)
         _update = Value.numericToValue(_update)
-        assert(isinstance(_start, cStatement) or isinstance(_start, cAssign) 
+        assert(isinstance(_start, CStatement) or isinstance(_start, CAssign)
                           or isinstance(_start, AbstractExpression)
-                          or isinstance(_start, cDeclaration))
-        assert(isinstance(_cond, cCond))
-        assert(isinstance(_update, cStatement) or isinstance(_update, cAssign) 
+                          or isinstance(_start, CDeclaration))
+        assert(isinstance(_cond, CCond))
+        assert(isinstance(_update, CStatement) or isinstance(_update, CAssign)
                           or isinstance(_update, AbstractExpression)
-                          or isinstance(_start, cDeclaration))
+                          or isinstance(_start, CDeclaration))
         self.start  = _start
         self.cond   = _cond
         self.update = _update
-        self.body   = cBlock(self)
+        self.body   = CBlock(self)
     def _cgen(self):
         start = self.start.__str__().strip(';')
         cond = self.cond.__str__()
         update = self.update.__str__().strip(';')
         return cgen.For(start, cond, update, self.body._cgen())
 
-class cIfThen(AbstractCgenObject):
+class CIfThen(AbstractCgenObject):
     def __init__(self, _cond):
-        assert(isinstance(_cond, cCond))
+        assert(isinstance(_cond, CCond))
         self.cond = _cond
-        self.ifBlock   = cBlock(self)
+        self.if_block   = CBlock(self)
     def _cgen(self):
-            return cgen.If(self.cond.__str__(), self.ifBlock._cgen())
+            return cgen.If(self.cond.__str__(), self.if_block._cgen())
 
-class cIfThenElse(AbstractCgenObject):
+class CIfThenElse(AbstractCgenObject):
     def __init__(self, _cond):
-        assert(isinstance(_cond, cCond))
+        assert(isinstance(_cond, CCond))
         self.cond = _cond
-        self.ifBlock   = cBlock(self)
-        self.elseBlock = cBlock(self)
+        self.if_block   = CBlock(self)
+        self.else_block = CBlock(self)
     def _cgen(self):
-        return cgen.If(self.cond.__str__(), self.ifBlock._cgen(), 
-                       self.elseBlock._cgen())
+        return cgen.If(self.cond.__str__(), self.if_block._cgen(),
+                       self.else_block._cgen())
 
-class cModule(AbstractCgenObject):
+class CModule(AbstractCgenObject):
     def __init__(self, _name):
         self.name     = _name
-        self.includes = cBlock(self)
-        self.defines  = cBlock(self)
-        self.decls    = cBlock(self)
-        self.funcs    = cBlock(self)
+        self.includes = CBlock(self)
+        self.defines  = CBlock(self)
+        self.decls    = CBlock(self)
+        self.funcs    = CBlock(self)
     def _cgen(self):
         incsgen = [obj._cgen() for obj in self.includes.block]
         defsgen = [obj._cgen() for obj in self.defines.block]
@@ -353,16 +353,16 @@ class cModule(AbstractCgenObject):
         funcsgen = [obj._cgen() for obj in self.funcs.block]
         return cgen.Module(incsgen + defsgen + declsgen + funcsgen)
 
-class cArrayAccess(cExpression):
+class CArrayAccess(CExpression):
     def __init__(self, _array, _dims):
         assert len(_array.dims) >= len(_dims)
         self.array = _array
         self.dims =  _dims
     def __str__(self):
-        accessStr = ""
+        access_str = ""
         if self.array.layout == 'multidim':
             for dim in self.dims:
-                accessStr = accessStr + '[' + dim.__str__() + ']'
+                access_str = access_str + '[' + dim.__str__() + ']'
         elif self.array.layout == 'contigous':
             expr = None
             for i in xrange(0, len(self.dims)):
@@ -379,27 +379,27 @@ class cArrayAccess(cExpression):
                     expr = product
                 else:
                     expr = expr + product
-            accessStr = '[' + expr.__str__() + ']'
+            access_str = '[' + expr.__str__() + ']'
         else:
             assert False, self.array.name
-        return self.array.name + accessStr
+        return self.array.name + access_str
 
-class cArray(cName):
+class CArray(CName):
     def __init__(self, _typ, _name, _dims, _layout):
         assert(len(_dims) > 0)
-        assert isinstance(_typ, cType)
+        assert isinstance(_typ, CType)
         assert(_layout == 'contigous' or _layout == 'multidim')
-        cName.__init__(self, _name) 
+        CName.__init__(self, _name)
         self.typ = _typ
         self.dims = _dims
         self.layout = None
 
     def __call__(self, *dims):        
-        return cArrayAccess(self, dims)
+        return CArrayAccess(self, dims)
 
-    def isConstantSize(self):
+    def is_constant_size(self):
         for dim in self.dims:
-            if not isConstantExpr(dim):
+            if not is_constant_expr(dim):
                return False
         return True
 
@@ -407,51 +407,51 @@ class cArray(cName):
         if self.layout == 'contigous':
             # Generate a code block which dynamically allocated memory 
             # for the given array. Single chunk allocation.
-            sizeExpr = self.dims[0]
-            castType = cPointer(self.typ, 1)
+            size_expr = self.dims[0]
+            cast_type = CPointer(self.typ, 1)
             for i in xrange(1, len(self.dims)):
-                sizeExpr = sizeExpr * self.dims[i]
-            #expr = cCast(castType, cMemAlign(64, cSizeof(self.typ) * sizeExpr))
-            expr = cCast(castType, cMalloc(cSizeof(self.typ) * sizeExpr))
-            block.add(cAssign(self.name, expr))
+                size_expr = size_expr * self.dims[i]
+            #expr = CCast(cast_type, CMemAlign(64, CSizeof(self.typ) * size_expr))
+            expr = CCast(cast_type, CMalloc(CSizeof(self.typ) * size_expr))
+            block.add(CAssign(self.name, expr))
             # Counter which might come in handy
-            #var = cVariable(cInt, "_c_" + self.name)
-            #varDecl = cDeclaration(cInt, var, 0)
-            #block.add(varDecl)
+            #var = CVariable(cInt, "_c_" + self.name)
+            #var_decl = CDeclaration(cInt, var, 0)
+            #block.add(var_decl)
 
-            block.add(cStatement(cMemSet(self.name, 0, cSizeof(self.typ) * sizeExpr)))
+            block.add(CStatement(CMemSet(self.name, 0, CSizeof(self.typ) * size_expr)))
         elif self.layout == 'multidim':
             # Generate a code block which dynamically allocated memory 
             # for the given array. Multi chunk allocation.
             l = len(self.dims)
             assert(l > 0)
-            castType = cPointer(self.typ, l)
-            sizeType = cPointer(self.typ, l-1)
-            expr = cCast(castType, cMemAlign(32, cSizeof(sizeType) * self.dims[0]))
-            block.add(cAssign(self.name, expr))
+            cast_type = CPointer(self.typ, l)
+            size_type = CPointer(self.typ, l-1)
+            expr = CCast(cast_type, CMemAlign(32, CSizeof(size_type) * self.dims[0]))
+            block.add(CAssign(self.name, expr))
             arglist = []
             for i in xrange(1, l):
                 # allocate for current level
-                var = cVariable(cUInt, cNameGen.getIteratorName())
+                var = CVariable(cUInt, CNameGen.get_iterator_name())
                 arglist.append(var)
-                varDecl = cDeclaration(var.typ, var, 0)
-                cond = cCond(var, '<', self.dims[i-1])
-                inc = cAssign(var, var+1)
-                loop = cFor(varDecl, cond, inc)
+                var_decl = CDeclaration(var.typ, var, 0)
+                cond = CCond(var, '<', self.dims[i-1])
+                inc = CAssign(var, var+1)
+                loop = CFor(var_decl, cond, inc)
                 block.add(loop, False)
                
-                castType = cPointer(self.typ, l-i)
-                sizeType = cPointer(self.typ, l-i-1)
-                expr = cCast(castType, cMemAlign(32, cSizeof(sizeType) * self.dims[i]))
-                loop.body.add(cAssign(self(*arglist), expr), False)
+                cast_type = CPointer(self.typ, l-i)
+                size_type = CPointer(self.typ, l-i-1)
+                expr = CCast(cast_type, CMemAlign(32, CSizeof(size_type) * self.dims[i]))
+                loop.body.add(CAssign(self(*arglist), expr), False)
                
                 block = loop.body
 
     def deallocate(self, block):
         assert self.layout == 'contigous'
-        block.add(cStatement(cFree(self.name)))
+        block.add(CStatement(CFree(self.name)))
 
-class cArrayDecl(AbstractCgenObject):   
+class CArrayDecl(AbstractCgenObject):
     def __init__(self, _carray):
         self.carray = _carray
         self.carray.layout = 'multidim'
@@ -463,26 +463,26 @@ class cArrayDecl(AbstractCgenObject):
 
 # Probably defunct code beyond this point. Check and move to expression
 # simplifier.
-def opCountCExpr(cexpr):
+def op_count_cExpr(cexpr):
     if isinstance(cexpr, AbstractBinaryOpNode):
-        leftCount = opCountCExpr(cexpr.left)
-        rightCount = opCountCExpr(cexpr.right)
-        return leftCount + rightCount + 1
+        left_count = op_count_cExpr(cexpr.left)
+        right_count = op_count_cExpr(cexpr.right)
+        return left_count + right_count + 1
     if isinstance(cexpr, AbstractUnaryOpNode):
-        childCount = opCountCExpr(cexpr.child)
-        return childCount + 1
+        child_count = op_count_cExpr(cexpr.child)
+        return child_count + 1
     if (isinstance(cexpr, Value) or
-        isinstance(cexpr, cVariable)):
+        isinstance(cexpr, CVariable)):
         return 0
-    if isinstance(cexpr, cArrayAccess):
+    if isinstance(cexpr, CArrayAccess):
         # Does not count the ops to compute the array index
-        opCount = 0
+        op_count = 0
         for dim in cexpr.dims:
-            opCount += opCountCExpr(dim)
-        return opCount + 1    
+            op_count += opcount_cExpr(dim)
+        return op_count + 1
     raise TypeError(type(expr))
 
-def splitCExpr(cexpr):
+def split_cExpr(cexpr):
     # The expressions generated by inlining the functions tend to be
     # large. So splitting the expressions into smaller computations 
     # makes the code more readable and enables the underlying compiler
