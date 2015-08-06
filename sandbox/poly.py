@@ -206,7 +206,7 @@ class PolyRep(object):
 
         #self.fusedSchedule(_paramEstimates)
         #self.simpleSchedule(_paramEstimates)
-   
+
     def extractPolyRepFromGroup(self, paramConstraints):
         compObjs = self.group.orderComputeObjs()
         numObjs = len(compObjs.items())
@@ -248,7 +248,7 @@ class PolyRep(object):
                                                  paramConstraints)
             else:
                 assert False
-        
+
     def formatParamConstraints(self, paramConstraints, params):
         contextConds = []
         for paramConst in paramConstraints:
@@ -447,7 +447,7 @@ class PolyRep(object):
                     leftConst = get_constant_from_expr(leftExpr.left, affine = True)
                     rightConst = get_constant_from_expr(rightExpr, affine = True)
                     modConst = get_constant_from_expr(leftExpr.right, affine = True)
-                
+
                     mulName = '_Mul_'
                     remName = '_Rem_'
                     trueSched = schedMap.copy()
@@ -539,50 +539,51 @@ class PolyRep(object):
             self.buildAst()
 
     def buildAst(self):
-       #astbld =  isl.AstBuild.from_context(isl.BasicSet("[C, R]->{: R>=1 and C>=1}", self.ctx))
-       parts = []
-       for plist in self.polyParts.values():
-           parts.extend(plist)
-      
-       # TODO figure out a way to create the correct parameter context
-       # since the parameters for all the parts may not be the same
-       astbld =  isl.AstBuild.from_context(parts[0].sched.params())
-       #astbld =  astbld.set_options(isl.UnionMap("{ }"))
-
-       schedMap = None
-       optMap = None
-       for part in parts:
-           if schedMap is None:
-               schedMap = isl.UnionMap.from_map(part.sched)
-           else:
-               partMap = isl.UnionMap.from_map(part.sched)
-               schedMap = schedMap.union(partMap)
-           if optMap is None:
-               #unrollUnionSet = isl.UnionSet.from_set(isl.Set("{unroll[x] : x = 0 or x = 2}", self.ctx))
-               unrollUnionSet = isl.UnionSet.from_set(isl.Set("{:}", self.ctx))
-               domUnionSet = isl.UnionSet.universe(isl.UnionSet.from_set(part.sched.range()))
-               optMap = isl.UnionMap.from_domain_and_range(domUnionSet, unrollUnionSet)
-           else:
-               #unrollUnionSet = isl.UnionSet.from_set(isl.Set("{unroll[x] : x = 0 or x = 2}", self.ctx))
-               unrollUnionSet = isl.UnionSet.from_set(isl.Set("{:}", self.ctx))
-               domUnionSet = isl.UnionSet.universe(isl.UnionSet.from_set(part.sched.range()))
-               optMap = optMap.union(isl.UnionMap.from_domain_and_range(domUnionSet, unrollUnionSet))
-       astbld = astbld.set_options(optMap)
-
-       # All parts in the group will have the same schedule dimension 
-       # using the first part as the canonical one
-       numIds = parts[0].sched.dim(isl._isl.dim_type.out)
-       ids = isl.IdList.alloc(self.ctx, numIds)
-       for i in range(0, numIds):
-           schedName = parts[0].sched.get_dim_name(isl._isl.dim_type.out, i)
-           ids = ids.add(isl.Id.alloc(self.ctx, schedName, None))
-       astbld = astbld.set_iterators(ids)
+        #astbld =  isl.AstBuild.from_context(isl.BasicSet("[C, R]->{: R>=1 and C>=1}", self.ctx))
+        parts = []
+        for plist in self.polyParts.values():
+            parts.extend(plist)
        
-       #assert False
-       def printer(arg):
-           print(arg)
-       schedMap.foreach_map(printer)
-       self.polyast.append(astbld.ast_from_schedule(schedMap))
+        # TODO figure out a way to create the correct parameter context
+        # since the parameters for all the parts may not be the same
+        astbld =  isl.AstBuild.from_context(parts[0].sched.params())
+        #astbld =  astbld.set_options(isl.UnionMap("{ }"))
+
+        schedMap = None
+        optMap = None
+        for part in parts:
+            if schedMap is None:
+                schedMap = isl.UnionMap.from_map(part.sched)
+            else:
+                partMap = isl.UnionMap.from_map(part.sched)
+                schedMap = schedMap.union(partMap)
+            if optMap is None:
+                #unrollUnionSet = isl.UnionSet.from_set(isl.Set("{unroll[x] : x = 0 or x = 2}", self.ctx))
+                unrollUnionSet = isl.UnionSet.from_set(isl.Set("{:}", self.ctx))
+                domUnionSet = isl.UnionSet.universe(isl.UnionSet.from_set(part.sched.range()))
+                optMap = isl.UnionMap.from_domain_and_range(domUnionSet, unrollUnionSet)
+            else:
+                #unrollUnionSet = isl.UnionSet.from_set(isl.Set("{unroll[x] : x = 0 or x = 2}", self.ctx))
+                unrollUnionSet = isl.UnionSet.from_set(isl.Set("{:}", self.ctx))
+                domUnionSet = isl.UnionSet.universe(isl.UnionSet.from_set(part.sched.range()))
+                optMap = optMap.union(isl.UnionMap.from_domain_and_range(domUnionSet, unrollUnionSet))
+        astbld = astbld.set_options(optMap)
+
+        # All parts in the group will have the same schedule dimension
+        # using the first part as the canonical one
+        numIds = parts[0].sched.dim(isl._isl.dim_type.out)
+        ids = isl.IdList.alloc(self.ctx, numIds)
+        for i in range(0, numIds):
+            schedName = parts[0].sched.get_dim_name(isl._isl.dim_type.out, i)
+            ids = ids.add(isl.Id.alloc(self.ctx, schedName, None))
+        astbld = astbld.set_iterators(ids)
+
+        def printer(arg):
+            #print(arg)
+            pass
+
+        schedMap.foreach_map(printer)
+        self.polyast.append(astbld.ast_from_schedule(schedMap))
 
     def computeDependencies(self):
         # Extract dependencies. In case the dependencies cannot be exactly 

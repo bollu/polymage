@@ -135,11 +135,14 @@ class Group:
         return order
     
     def __str__(self):
-        comp_str  = "\n\n".join([comp.__str__() for comp in self._compObjs]) + '\n'
+        comp_str  = "\n\n".join([comp.__str__() \
+                    for comp in self._compObjs]) + '\n'
         return comp_str + '\n' + self._polyrep.__str__()
 
 class Pipeline:
-    def __init__(self, _ctx, _outputs, _paramConstraints, _grouping, _name = None):
+    def __init__(self, _ctx, _outputs, \
+                 _paramConstraints, _grouping, \
+                 _name = None):
         # Name of the pipleline is a concatenation of the names of the 
         # pipeline outputs, unless it is explicitly named.
         if _name is None:
@@ -154,18 +157,22 @@ class Pipeline:
         self._paramConstraints = _paramConstraints
         self._grouping = _grouping
 
-        # Maps from a compute object to its parents and children
-        self._orgCompObjs, _ , _ = \
-                                getCompObjsAndDependenceMaps(self._orgOutputs)
-        # TODO see if there is a cyclic dependency between the compute objects
-        # self references are not treated as cycles
+        ''' CONSTRUCT DAG '''
+        # Maps from a compute object to its parents and children by
+        # backtracing starting from given live-out functions.
+        # TODO: see if there is a cyclic dependency between the compute
+        # objects. Self references are not treated as cycles.
+        self._orgCompObjs, \
+         _, \
+          _ = \
+            getCompObjsAndDependenceMaps(self._orgOutputs)
 
+        ''' CLONING '''
         # Clone the computation objects i.e. functions and reductions
         self._cloneMap = {}
         for comp in self._orgCompObjs:
             self._cloneMap[comp] = comp.clone()
-        self._outputs = [ self._cloneMap[obj] for obj in self._orgOutputs]     
-
+        self._outputs = [self._cloneMap[obj] for obj in self._orgOutputs]
         # Modify the references in the cloned objects (which refer to 
         # the original objects)  
         for comp in self._orgCompObjs:
@@ -175,9 +182,11 @@ class Pipeline:
                 if not isinstance(ref.objectRef, Image): 
                     ref._replaceRefObject(self._cloneMap[ref.objectRef])
 
+        ''' DAG OF CLONES '''
         self._compObjs, self._compObjsParents, self._compObjsChildren = \
                                 getCompObjsAndDependenceMaps(self._outputs)
 
+        ''' INITIAL GROUPING '''
         # Create a group for each pipeline function / reduction and compute
         # maps for parent and child relations between the groups
         self._groups, \
@@ -195,9 +204,9 @@ class Pipeline:
         inputs = []
         for f in self._groups:
             inputs = inputs + self._groups[f].inputs
-
         self._inputs = list(set(inputs))
 
+        ''' GROUPING '''
         # TODO check grouping validity
         if self._grouping:
             for g in self._grouping:
@@ -211,12 +220,10 @@ class Pipeline:
             # Run the grouping algorithm
             pass
 
+        ''' BASE SCHEDULE AND CODEGEN '''
         for g in list(set(self._groups.values())):
             baseSchedule(g)
             g.polyRep.generateCode()
-            #print(g)
-
-        self.generateCode()
 
     @property
     def groups(self):
@@ -240,9 +247,9 @@ class Pipeline:
     
     def buildInitialGroups(self, compObjs, compObjsParents, compObjsChildren):
         """
-          Create a pipeline graph where the nodes are a group and the edges
-          represent the dependences between the groups. The initial graph
-          has each compute object in a separate group. 
+        Create a pipeline graph where the nodes are a group and the edges
+        represent the dependences between the groups. The initial graph
+        has each compute object in a separate group. 
         """
         # TODO correct the comment
         groupMap = {}
@@ -286,7 +293,7 @@ class Pipeline:
         return G
 
     def generateCode(self):
-        generate_code_for_pipeline(self)
+        return generate_code_for_pipeline(self)
 
     def mergeGroups(self, g1, g2):
         # Get comp objects from both groups 

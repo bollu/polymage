@@ -89,3 +89,9 @@ def test_harris_corner():
     g = pipeline.drawPipelineGraph()
     g.write(filename)
 
+    filename = 'harris_naive.cpp'
+    c_file = open(filename, 'w')
+    c_file.write(pipeline.generateCode().__str__())
+    c_file.close()
+
+

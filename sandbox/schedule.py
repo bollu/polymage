@@ -19,9 +19,9 @@ def getParentParts(part, group):
 
 def baseSchedule(group):
     """
-         Construct the base schedule for a group with a polyhedral 
-         representation.
+    Construct the base schedule for a group with a polyhedral representation.
     """
+
     assert(group.isPolyhedral)
 
     time = {}
@@ -37,7 +37,7 @@ def baseSchedule(group):
     while change:
         change = False
         for part in parts:
-            parentParts = getParentParts(part, group)          
+            parentParts = getParentParts(part, group)
             for p in parentParts:
                 if time[part] <= time[p]:
                     time[part] = time[p] + 1
