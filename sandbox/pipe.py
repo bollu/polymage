@@ -133,7 +133,7 @@ class Group:
                         order[comp] = order[pobj] + 1
                         change = True
         return order
-    
+
     def __str__(self):
         comp_str  = "\n\n".join([comp.__str__() \
                     for comp in self._compObjs]) + '\n'
@@ -142,7 +142,7 @@ class Group:
 class Pipeline:
     def __init__(self, _ctx, _outputs, \
                  _paramConstraints, _grouping, \
-                 _name = None):
+                 _options, _name=None):
         # Name of the pipleline is a concatenation of the names of the 
         # pipeline outputs, unless it is explicitly named.
         if _name is None:
@@ -156,6 +156,7 @@ class Pipeline:
         self._orgOutputs = _outputs
         self._paramConstraints = _paramConstraints
         self._grouping = _grouping
+        self._options = _options
 
         ''' CONSTRUCT DAG '''
         # Maps from a compute object to its parents and children by
@@ -209,13 +210,17 @@ class Pipeline:
         ''' GROUPING '''
         # TODO check grouping validity
         if self._grouping:
+            # for each group
             for g in self._grouping:
-                mergeGroupList = [ self._groups[self._cloneMap[f]] for f in g ]
-                if len(mergeGroupList) > 1:
-                     mGroup = mergeGroupList[0]
-                     for i in range(1, len(mergeGroupList)):
-                        mGroup = self.mergeGroups(mGroup, mergeGroupList[i])
-                        align_and_scale_parts(self, mGroup)
+                # get clones of all functions
+                merge_group_list = [self._groups[self._cloneMap[f]] for f in g]
+                if len(merge_group_list) > 1:
+                     merged = merge_group_list[0]
+                     for i in range(1, len(merge_group_list)):
+                        merged = self.merge_groups(merged, merge_group_list[i])
+                        # to be done after each merging, to know if the
+                        # merging was valid
+                        align_and_scale_parts(self, merged)
         else:
             # Run the grouping algorithm
             pass
@@ -257,13 +262,14 @@ class Pipeline:
         groupChildren = {}
         for comp in compObjs:
             groupMap[comp] = Group(self._ctx, [comp], self._paramConstraints)
-        
+
         for comp in groupMap:
             groupParents[groupMap[comp]] = [ groupMap[p] for p in \
                                                         compObjsParents[comp] ]
             groupChildren[groupMap[comp]] = [ groupMap[c] for c in \
                                                         compObjsChildren[comp] ]
-        return groupMap, groupParents, groupChildren    
+
+        return groupMap, groupParents, groupChildren
     
     def getParameters(self):
         params=[]
@@ -295,15 +301,15 @@ class Pipeline:
     def generateCode(self):
         return generate_code_for_pipeline(self)
 
-    def mergeGroups(self, g1, g2):
+    def merge_groups(self, g1, g2):
         # Get comp objects from both groups 
-        mCompObjs = g1.computeObjs + g2.computeObjs
+        comp_objs = g1.computeObjs + g2.computeObjs
         # Create a new group 
-        mGroup = Group(self._ctx, mCompObjs, self._paramConstraints)
+        merged = Group(self._ctx, comp_objs, self._paramConstraints)
         # Update the group map
-        for comp in mCompObjs:
+        for comp in comp_objs:
             self._groups.pop(comp)
-            self._groups[comp] = mGroup
+            self._groups[comp] = merged
 
         # Update the group parent map
         parents = self._groupParents[g1] + self._groupParents[g2]
@@ -315,13 +321,13 @@ class Pipeline:
 
         for g in self._groupParents:
             if g1 in self._groupParents[g] or g2 in self._groupParents[g]:
-                self._groupParents[g].append(mGroup)
+                self._groupParents[g].append(merged)
             if g1 in self._groupParents[g]:
                 self._groupParents[g].remove(g1)
             if g2 in self._groupParents[g]:
                 self._groupParents[g].remove(g2)
         
-        self._groupParents[mGroup] = parents
+        self._groupParents[merged] = parents
 
         # update the group child map
         children = self._groupChildren[g1] + self._groupChildren[g2]
@@ -333,15 +339,15 @@ class Pipeline:
 
         for g in self._groupChildren:
             if g1 in self._groupChildren[g] or g2 in self._groupChildren[g]:
-                self._groupChildren[g].append(mGroup)
+                self._groupChildren[g].append(merged)
             if g1 in self._groupChildren[g]:
                 self._groupChildren[g].remove(g1)
             if g2 in self._groupChildren[g]:
                 self._groupChildren[g].remove(g2)
         
-        self._groupChildren[mGroup] = children
+        self._groupChildren[merged] = children
 
-        return mGroup
+        return merged
 
     def getOrderedGroups(self):
         # Assign level numbers to each group and sort accourding to the 

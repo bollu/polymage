@@ -3,6 +3,9 @@ from __future__ import absolute_import, division, print_function
 # TODO remove this at some point
 from expr_ast import *
 from expr_types import *
+import logging
+
+logging.basicConfig(format="%(levelname)s: %(name)s: %(message)s")
 
 """
 class Max(InbuiltFunction):

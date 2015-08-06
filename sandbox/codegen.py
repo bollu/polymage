@@ -2,13 +2,140 @@ from __future__ import absolute_import, division, print_function
 
 from collections import OrderedDict
 
+import pipe
+from constructs import *
+import expression as expr
 import targetc as genc
+import logging
 
-def generate_code_for_group(g, body, cfunc_map, cparam_map):
-    pass
+# LOG CONFIG #
+codegen_logger = logging.getLogger("codegen.py")
+codegen_logger.setLevel(logging.DEBUG)
+LOG = codegen_logger.log
 
-def generate_code_for_pipeline(pipe, outsExternAlloc=True, is_io_void_ptr=True):
-    sorted_groups = pipe.getOrderedGroups()
+def generate_code_for_group(pipeline, g, body, options, \
+                            cfunc_map, cparam_map, \
+                            outputs, outsExternAlloc):
+
+    g.polyRep.generateCode()
+
+    # NOTE uses the levelNo of the first polypart of each compute object of
+    # the group as the key for sorting compare operator. *Idea is that all
+    # parts of a compute object bears the same levelNo*, thus repeated calling
+    # of 'orderComputeObjs' can be avoided.
+    group_parts = g.polyRep.polyParts
+    sorted_comp_objs = sorted(g._compObjs, \
+                              key = lambda \
+                              comp : group_parts[comp][0].levelNo)
+
+    # NOTE the last comp obj in the sorted list has the max level number
+    # that is shared by all the liveouts of the group
+    last_comp = sorted_comp_objs[len(sorted_comp_objs)-1]
+    max_level = group_parts[last_comp][0].levelNo
+    is_comp_liveout = {}
+    is_comp_output = {}
+    for comp in sorted_comp_objs:
+        is_comp_liveout[comp] = (group_parts[comp][0].levelNo == max_level)
+        is_comp_output[comp] = comp in outputs
+
+    # ***
+    log_str = str([comp.name for comp in sorted_comp_objs])
+    LOG(logging.DEBUG, log_str)
+    # ***
+
+    # TODO free the arrays ASAP (compaction)
+    # list of arrays to be freed
+    freelist = []
+
+    # Boolean to check if the memory allocations should be done using malloc
+    # or the custom pool allocator
+    pooled = 'pool_alloc' in pipeline._options
+
+    for comp in sorted_comp_objs:
+        # ***
+        LOG(logging.DEBUG, comp.name)
+        # ***
+
+        # nothing to do!
+        if isinstance(comp, pipe.Image):
+            continue
+
+        # 1. Allocate storage
+        array_dims = len(comp.variables)
+        is_output = is_comp_output[comp]
+        is_liveout = is_comp_liveout[comp]
+
+        # 1.1. scratchpad allocation, wherever applicable
+        reduced_dims = [ -1 for i in xrange(0, len(comp.domain))]
+        scratch = [ False for i in xrange(0, len(comp.domain))]
+        if not is_liveout and not is_output:
+            for part in group_parts[comp]:
+                for i in xrange(0, len(comp.domain)):
+                    if i in part.dim_scratch_size:  # as a key
+                        reduced_dims[i] = max(reduced_dims[i], \
+                                              part.dim_scratch_size[i])
+                        scratch[i] = True
+
+        # 1.2. prepare the sizes of each dimension for allocation
+        dims = []
+        for i in xrange(0, len(comp.domain)):
+            interval = comp.domain[i]
+            if reduced_dims[i] == -1:
+                # NOTE interval step is always +1
+                dim_expr = expr.simplifyExpr(interval.upperBound -
+                                             interval.lowerBound + 1)
+
+                # FIXME Creating both a cVariable (for C declaration) and a
+                # Variable (to append to dims) with same namestring.
+                # Link both these properly.
+                dim_var_name = genc.CNameGen.get_temp_var_name()
+
+                dim_var = Variable(Int, dim_var_name)
+                dim_c_var = genc.CVariable(genc.c_int, dim_var_name)
+
+                dim_var_decl = \
+                            genc.CDeclaration(genc.c_int, dim_c_var, dim_expr)
+
+                body.add(dim_var_decl)
+                dims.append(dim_var)
+            else:
+                dims.append(reduced_dims[i])
+
+        # 1.3. declare and allocate arrays
+        array_type = genc.TypeMap.convert(comp.typ)
+        array = genc.CArray(array_type, comp.name, dims)
+        array_ptr = genc.CPointer(array_type, 1)
+        cfunc_map[comp] = (array, scratch)
+
+        if is_liveout:
+            array.layout = 'contigous'
+            # do not allocate for output arrays if they are already allocated
+            if not is_output or not outsExternAlloc:
+                array_decl = genc.CDeclaration(array_ptr, array)
+                body.add(array_decl)
+                array.allocate_contigous(body, pooled)
+
+        # array is freed, if comp is a group liveout and not an output
+        if not is_output and is_liveout:
+            freelist.append(array)
+
+        # 1.4. generate scan loops
+
+    # 2. generate code for built isl ast
+    if g.polyRep.polyast != []:
+        for ast in g.polyRep.polyast:
+            #generateCNaiveFromIslAst(ast, body, cfuncMap, cparamMap)
+            pass
+
+    # 3. Deallocate storage
+    for array in freelist:
+        array.deallocate(body, pooled)
+        pass
+
+    return
+
+def generate_code_for_pipeline(pipeline, outsExternAlloc=True, is_io_void_ptr=True):
+    sorted_groups = pipeline.getOrderedGroups()
     # Discard the level order information
     sorted_groups = [ g[0] for g in sorted_groups ]
     # Create a top level module for the pipeline
@@ -57,7 +184,7 @@ def generate_code_for_pipeline(pipe, outsExternAlloc=True, is_io_void_ptr=True):
             pipeline_args[cvar] = cvar.typ
 
         # 2.2. collect inputs
-        inputs = sorted(pipe.inputs, key=lambda x: x.name)
+        inputs = sorted(pipeline.inputs, key=lambda x: x.name)
         for img in inputs:
             if is_io_void_ptr:
                 img_type = genc.c_void
@@ -70,11 +197,11 @@ def generate_code_for_pipeline(pipe, outsExternAlloc=True, is_io_void_ptr=True):
             pipeline_args[cvar] = cvar.typ
             # Bind input functions to C arrays
             carr = genc.CArray(img_type, img.name, img.dimensions,
-                              'contigous')
+                              'contiguous')
             cfunc_map[img] = carr
 
         # 2.3. collect outputs
-        outputs = sorted(pipe.outputs, key=lambda x: x.name)
+        outputs = sorted(pipeline.outputs, key=lambda x: x.name)
         if outsExternAlloc:
             pass_by_type = genc.CReference
         else:
@@ -93,7 +220,7 @@ def generate_code_for_pipeline(pipe, outsExternAlloc=True, is_io_void_ptr=True):
             pipeline_args[cvar] = cvar.typ
 
         # 2.4. function name and declaration
-        cpipe_name = 'pipeline_' + pipe.name
+        cpipe_name = 'pipeline_' + pipeline.name
         cpipe = genc.CFunction(genc.c_void, cpipe_name, pipeline_args)
         cpipe_decl = genc.CFunctionDecl(cpipe)
         cpipe_body = genc.CFunctionBody(cpipe_decl)
@@ -127,6 +254,9 @@ def generate_code_for_pipeline(pipe, outsExternAlloc=True, is_io_void_ptr=True):
                     pbody.add(var_assign)
 
             for g in sorted_groups:
-                generate_code_for_group(g, pbody, cparam_map, cfunc_map)
+                generate_code_for_group(pipeline, g, pbody, \
+                                        pipeline._options, \
+                                        cfunc_map, cparam_map, \
+                                        outputs, outsExternAlloc)
 
     return m

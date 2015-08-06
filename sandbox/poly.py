@@ -136,6 +136,9 @@ class PolyPart(object):
         # attempt to improve locality and uniformize dependencies.
         self.levelNo = _levelNo
 
+        # maps tiled dimensions to their respective scratchpad sizes
+        self.dim_scratch_size = {}
+
     @property
     def align(self):
         align_clone = [i for i in self._align]

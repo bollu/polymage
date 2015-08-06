@@ -385,14 +385,15 @@ class CArrayAccess(CExpression):
         return self.array.name + access_str
 
 class CArray(CName):
-    def __init__(self, _typ, _name, _dims, _layout):
+    def __init__(self, _typ, _name, _dims, _layout=None):
         assert(len(_dims) > 0)
         assert isinstance(_typ, CType)
-        assert(_layout == 'contigous' or _layout == 'multidim')
+        assert(_layout == 'contiguous' or _layout == 'multidim' or \
+               _layout == None)
         CName.__init__(self, _name)
         self.typ = _typ
         self.dims = _dims
-        self.layout = None
+        self.layout = _layout
 
     def __call__(self, *dims):        
         return CArrayAccess(self, dims)
@@ -403,7 +404,7 @@ class CArray(CName):
                return False
         return True
 
-    def allocate_contigous(self, block):
+    def allocate_contigous(self, block, pooled):
         if self.layout == 'contigous':
             # Generate a code block which dynamically allocated memory 
             # for the given array. Single chunk allocation.
@@ -411,15 +412,15 @@ class CArray(CName):
             cast_type = CPointer(self.typ, 1)
             for i in xrange(1, len(self.dims)):
                 size_expr = size_expr * self.dims[i]
-            #expr = CCast(cast_type, CMemAlign(64, CSizeof(self.typ) * size_expr))
-            expr = CCast(cast_type, CMalloc(CSizeof(self.typ) * size_expr))
+            #expr = CCast(cast_type, c_memalign(64, CSizeof(self.typ) * size_expr))
+            expr = CCast(cast_type, c_malloc(CSizeof(self.typ) * size_expr))
             block.add(CAssign(self.name, expr))
             # Counter which might come in handy
             #var = CVariable(cInt, "_c_" + self.name)
             #var_decl = CDeclaration(cInt, var, 0)
             #block.add(var_decl)
 
-            block.add(CStatement(CMemSet(self.name, 0, CSizeof(self.typ) * size_expr)))
+            #block.add(CStatement(c_memset(self.name, 0, CSizeof(self.typ) * size_expr)))
         elif self.layout == 'multidim':
             # Generate a code block which dynamically allocated memory 
             # for the given array. Multi chunk allocation.
@@ -427,7 +428,7 @@ class CArray(CName):
             assert(l > 0)
             cast_type = CPointer(self.typ, l)
             size_type = CPointer(self.typ, l-1)
-            expr = CCast(cast_type, CMemAlign(32, CSizeof(size_type) * self.dims[0]))
+            expr = CCast(cast_type, c_memalign(32, CSizeof(size_type) * self.dims[0]))
             block.add(CAssign(self.name, expr))
             arglist = []
             for i in xrange(1, l):
@@ -442,14 +443,14 @@ class CArray(CName):
                
                 cast_type = CPointer(self.typ, l-i)
                 size_type = CPointer(self.typ, l-i-1)
-                expr = CCast(cast_type, CMemAlign(32, CSizeof(size_type) * self.dims[i]))
+                expr = CCast(cast_type, c_memalign(32, CSizeof(size_type) * self.dims[i]))
                 loop.body.add(CAssign(self(*arglist), expr), False)
                
                 block = loop.body
 
-    def deallocate(self, block):
+    def deallocate(self, block, pooled):
         assert self.layout == 'contigous'
-        block.add(CStatement(CFree(self.name)))
+        block.add(CStatement(c_free(self.name)))
 
 class CArrayDecl(AbstractCgenObject):
     def __init__(self, _carray):

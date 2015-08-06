@@ -4,9 +4,9 @@ from poly import *
 import logging
 
 # LOG CONFIG #
-logging.basicConfig(level=logging.INFO, \
-                    format="%(levelname)s: %(name)s: %(message)s")
-LOG = logging.getLogger("schedule.py").log
+schedule_logger = logging.getLogger("schedule.py")
+schedule_logger.setLevel(logging.INFO)
+LOG = schedule_logger.log
 
 def getParentParts(part, group):
      refs = part.getPartRefs()
@@ -72,11 +72,11 @@ def align_and_scale_parts(pipeline, group):
         in its first dimension.
     """
 
-    # [ LOG
+    # ***
     log_level = logging.DEBUG
     LOG(log_level, "___________________________________")
     LOG(log_level, "in align_and_scale_parts()")
-    # LOG ]
+    # ***
 
     def compatible_align(align1, align2):
         '''
@@ -161,12 +161,12 @@ def align_and_scale_parts(pipeline, group):
 
         part_dom_vars = part.comp.variableDomain[0]
 
-        # [ LOG
+        # ***
         log_level = logging.DEBUG-2
         log_str = "aligning and scaling with all ref-part variables..."
         LOG(log_level, "")
         LOG(log_level, log_str)
-        # LOG ]
+        # ***
 
         var_pos = 0
         for var in part_dom_vars:
@@ -211,13 +211,13 @@ def align_and_scale_parts(pipeline, group):
                 part_align[dim] = residual_align.pop()
                 part_scale[dim] = 1
 
-        # [ LOG
+        # ***
         log_level = logging.DEBUG-2
         log_str = "rel_align = "+ \
                   str([str(key)+":"+str(rel_align[key]) \
                        for key in rel_align])
         LOG(log_level, log_str)
-        # LOG ]
+        # ***
 
         # extend the alignment to the maximum number of dimensions
         # and set the default scaling = '-'
@@ -244,12 +244,12 @@ def align_and_scale_parts(pipeline, group):
 
         old_scale = part.scale
 
-        # [ LOG
+        # ***
         log_level = logging.DEBUG-2
         log_str = "aligning and scaling with all ref-parts..."
         LOG(log_level, "")
         LOG(log_level, log_str)
-        # LOG ]
+        # ***
 
         ref_poly_parts = group.polyRep.polyParts[ref_comp]
         for ref_part in ref_poly_parts:
@@ -272,7 +272,7 @@ def align_and_scale_parts(pipeline, group):
             ref_part_align = ref_part.align
             ref_part_scale = ref_part.scale
 
-            # [ LOG
+            # ***
             log_level = logging.DEBUG-2
             LOG(log_level, "")
             log_str1 = "ref_part_align = "+str([i for i in ref_part_align])
@@ -280,7 +280,7 @@ def align_and_scale_parts(pipeline, group):
             LOG(log_level, "ref = %s", str(ref_part.comp.name))
             LOG(log_level, log_str1)
             LOG(log_level, log_str2)
-            # LOG ]
+            # ***
 
             # process the argument list
             ref_args = ref.arguments
@@ -288,7 +288,7 @@ def align_and_scale_parts(pipeline, group):
             for i in range(len(ref_arg_vars), len(ref_part_align)):
                 ref_arg_vars.append('-')
 
-            # [ LOG
+            # ***
             log_level = logging.DEBUG-2
             log_str1 = "ref_arg_vars  = "+ \
                       str([i.__str__() for i in ref_arg_vars])
@@ -296,13 +296,13 @@ def align_and_scale_parts(pipeline, group):
                       str([i.__str__() for i in ref_arg_coeffs])
             LOG(log_level, log_str1)
             LOG(log_level, log_str2)
-            # LOG ]
+            # ***
 
             # match the part variables with the reference variables
             part_align, part_scale = \
                 align_scale_vars(part, ref_part, ref_arg_vars, ref_arg_coeffs)
 
-            # [ LOG
+            # ***
             log_level = logging.DEBUG-2
             log_str1 = "old_align = "+str([i for i in old_align])
             log_str2 = "old_scale = "+str([i for i in old_scale])
@@ -314,7 +314,7 @@ def align_and_scale_parts(pipeline, group):
             log_str2 = "part_scale = "+str([i for i in part_scale])
             LOG(log_level, log_str1)
             LOG(log_level, log_str2)
-            # LOG ]
+            # ***
 
             part.set_align(part_align)
             part.set_scale(part_scale)
@@ -360,12 +360,12 @@ def align_and_scale_parts(pipeline, group):
 
     # initial alignment and scaling for all the base parts
     for part in base_parts:
-        # [ LOG
+        # ***
         log_level = logging.DEBUG-1
         LOG(log_level, "____")
         LOG(log_level, str(part.comp.name)+\
                        " (level : "+str(part.levelNo)+")")
-        # LOG ]
+        # ***
 
         part.set_align(base_align)
         part.set_scale(base_scale)
@@ -373,12 +373,12 @@ def align_and_scale_parts(pipeline, group):
     other_parts = [part for part in sorted_parts \
                         if part not in base_parts]
     for part in other_parts:
-        # [ LOG
+        # ***
         log_level = logging.DEBUG-1
         LOG(log_level, "____")
         LOG(log_level, str(part.comp.name)+\
                        " (level : "+str(part.levelNo)+")")
-        # LOG ]
+        # ***
 
         old_align = []
         old_scale = []
@@ -388,11 +388,11 @@ def align_and_scale_parts(pipeline, group):
         part_align = part.align
         part_scale = part.scale
 
-        # [ LOG
+        # ***
         log_level = logging.DEBUG-2
         LOG(log_level, "")
         LOG(log_level, "aligning and scaling with all refs...")
-        # LOG ]
+        # ***
 
         refs = part.getPartRefs()
         if len(refs) > 0:
@@ -472,7 +472,7 @@ def align_and_scale_parts(pipeline, group):
                 new_scale[dim] = '-'
         part.set_scale(new_scale)
 
-        # [ LOG
+        # ***
         log_level = logging.DEBUG
         LOG(log_level, part.comp.name)
 
@@ -480,14 +480,14 @@ def align_and_scale_parts(pipeline, group):
         log_str2 = "part.scale = "+str([i for i in part.scale])
         LOG(log_level, log_str1)
         LOG(log_level, log_str2)
-        # LOG ]
+        # ***
 
-    # [ LOG
+    # ***
     log_level = logging.DEBUG
     LOG(log_level, "")
     LOG(log_level, "done ... align_parts()")
     LOG(log_level, "___________________________________")
-    # LOG ]
+    # ***
 
     return True
 

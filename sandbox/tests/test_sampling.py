@@ -101,7 +101,7 @@ def test_sampling():
     groups = [group1, group2, group3, group4]
 
     # build the pipeline
-    pipeline = buildPipeline(live_outs, grouping = groups)
+    pipeline = buildPipeline(live_outs, grouping = groups, pipe_name="up")
 
     filename = 'down_graph.dot'
     pipeline.originalGraph.write(filename)
@@ -109,3 +109,9 @@ def test_sampling():
     filename = 'down_graph_grouped.dot'
     g = pipeline.drawPipelineGraph()
     g.write(filename)
+
+    filename = 'sampling_naive.cpp'
+    c_file = open(filename, 'w')
+    c_file.write(pipeline.generateCode().__str__())
+    c_file.close()
+
