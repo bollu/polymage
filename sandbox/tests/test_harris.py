@@ -82,12 +82,14 @@ def test_harris_corner():
 
     pipeline = buildPipeline([harris], grouping = [[Ix, Iy, Ixx, Iyy, Ixy], [Sxx, Sxy, Syy], [det, trace, harris]], pipe_name="harris")
 
+    #'''
     filename = 'harris_graph.dot'
     pipeline.originalGraph.write(filename)
     
     filename = 'harris_graph_grouped.dot'
     g = pipeline.drawPipelineGraph()
     g.write(filename)
+    #'''
 
     filename = 'harris_naive.cpp'
     c_file = open(filename, 'w')

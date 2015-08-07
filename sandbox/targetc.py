@@ -1,7 +1,26 @@
 from __future__ import absolute_import, division, print_function
 
+#import sys
+#sys.path.insert(0, '../../cgen')
+
 import cgen
 from cexpr import *
+
+# catch the excpetion from python3 and sort it out ahead of time
+try:
+    unicode = unicode
+except NameError:
+    # 'unicode' is undefined, must be Python 3
+    str = str
+    unicode = str
+    bytes = bytes
+    basestring = (str,bytes)
+else:
+    # 'unicode' exists, must be Python 2
+    str = str
+    unicode = unicode
+    bytes = str
+    basestring = basestring
 
 class CNameGen(object):
     _iterator_prefix = "_ci"
@@ -89,7 +108,7 @@ class CPointer(AbstractCgenObject):
         self.dim  = _dim
     def _cgen(self):
         decl = cgen.POD(self.typ, '')
-        for i in xrange(0, self.dim):
+        for i in range(0, self.dim):
             decl = cgen.Pointer(decl)
         return decl.inline(True)
 
@@ -99,7 +118,7 @@ class CReference(CPointer):
     def _cgen(self):
         decl = cgen.POD(self.typ, '')
         decl = cgen.Reference(decl)
-        for i in xrange(0, self.dim):
+        for i in range(0, self.dim):
             decl = cgen.Pointer(decl)
         return decl.inline(True)
 
@@ -365,9 +384,9 @@ class CArrayAccess(CExpression):
                 access_str = access_str + '[' + dim.__str__() + ']'
         elif self.array.layout == 'contigous':
             expr = None
-            for i in xrange(0, len(self.dims)):
+            for i in range(0, len(self.dims)):
                 multiplier = None
-                for j in xrange(i+1, len(self.array.dims)):
+                for j in range(i+1, len(self.array.dims)):
                     if multiplier is None:
                         multiplier = self.array.dims[j]
                     else:
@@ -410,7 +429,7 @@ class CArray(CName):
             # for the given array. Single chunk allocation.
             size_expr = self.dims[0]
             cast_type = CPointer(self.typ, 1)
-            for i in xrange(1, len(self.dims)):
+            for i in range(1, len(self.dims)):
                 size_expr = size_expr * self.dims[i]
             #expr = CCast(cast_type, c_memalign(64, CSizeof(self.typ) * size_expr))
             expr = CCast(cast_type, c_malloc(CSizeof(self.typ) * size_expr))
@@ -431,7 +450,7 @@ class CArray(CName):
             expr = CCast(cast_type, c_memalign(32, CSizeof(size_type) * self.dims[0]))
             block.add(CAssign(self.name, expr))
             arglist = []
-            for i in xrange(1, l):
+            for i in range(1, l):
                 # allocate for current level
                 var = CVariable(cUInt, CNameGen.get_iterator_name())
                 arglist.append(var)

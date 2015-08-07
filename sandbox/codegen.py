@@ -66,11 +66,11 @@ def generate_code_for_group(pipeline, g, body, options, \
         is_liveout = is_comp_liveout[comp]
 
         # 1.1. scratchpad allocation, wherever applicable
-        reduced_dims = [ -1 for i in xrange(0, len(comp.domain))]
-        scratch = [ False for i in xrange(0, len(comp.domain))]
+        reduced_dims = [ -1 for i in range(0, len(comp.domain))]
+        scratch = [ False for i in range(0, len(comp.domain))]
         if not is_liveout and not is_output:
             for part in group_parts[comp]:
-                for i in xrange(0, len(comp.domain)):
+                for i in range(0, len(comp.domain)):
                     if i in part.dim_scratch_size:  # as a key
                         reduced_dims[i] = max(reduced_dims[i], \
                                               part.dim_scratch_size[i])
@@ -78,7 +78,7 @@ def generate_code_for_group(pipeline, g, body, options, \
 
         # 1.2. prepare the sizes of each dimension for allocation
         dims = []
-        for i in xrange(0, len(comp.domain)):
+        for i in range(0, len(comp.domain)):
             interval = comp.domain[i]
             if reduced_dims[i] == -1:
                 # NOTE interval step is always +1
