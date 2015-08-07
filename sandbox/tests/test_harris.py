@@ -88,12 +88,14 @@ def test_harris_corner():
                              #grouping = groups, \
                              pipe_name="harris")
 
+    #'''
     filename = 'harris_graph.dot'
     pipeline.originalGraph.write(filename)
     
     filename = 'harris_graph_grouped.dot'
     g = pipeline.drawPipelineGraph()
     g.write(filename)
+    #'''
 
     filename = 'harris_naive.cpp'
     c_file = open(filename, 'w')
