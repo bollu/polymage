@@ -7,8 +7,10 @@ except ImportError:
     import Queue as queue
 
 import pygraphviz as pgv
+import targetc as genc
 
 from constructs import *
+from expression import *
 from codegen import *
 from schedule import *
 from poly import *
@@ -228,7 +230,7 @@ class Pipeline:
         ''' BASE SCHEDULE AND CODEGEN '''
         for g in list(set(self._groups.values())):
             baseSchedule(g)
-            g.polyRep.generateCode()
+            #g.polyRep.generateCode()
 
     @property
     def groups(self):
