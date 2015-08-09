@@ -418,109 +418,109 @@ class PolyRep(object):
                 polyPart.schedMap.set_tuple_id(isl._isl.dim_type.in_, id_)
         self.polyParts[comp].append(polyPart)
 
-    def makePolyParts(self, schedMap, expr, pred, comp, 
-                      align, scale, levelNo):
+    def makePolyParts(self, sched_map, expr, pred, comp, 
+                      align, scale, level_no):
         # Detect selects with modulo constraints and split into 
         # multiple parts. This technique can also be applied to the
         # predicate but for now we focus on selects.
-        polyParts = []
+        poly_parts = []
         # This is very very temporary solution there should be a 
         # better way of doing this. Only targetting conditions 
         # of the form (affine)%constant == constant.
-        brokenParts = []
+        broken_parts = []
         if isinstance(expr, Select):
             conjuncts = expr.condition.splitToConjuncts()
             if len(conjuncts) == 1 and len(conjuncts[0]) == 1:
                 cond = conjuncts[0][0]
-                leftExpr = cond.lhs
-                rightExpr = cond.rhs
-                isLeftModulo = isAffine(leftExpr, includeModulo = True) and \
-                               not isAffine(leftExpr)
-                isRightConstant = isConstantExpr(rightExpr)
-                breakSelect = False
-                if isLeftModulo and isRightConstant and \
+                left_expr = cond.lhs
+                right_expr = cond.rhs
+                is_left_modulo = isAffine(left_expr, includeModulo = True) and \
+                               not isAffine(left_expr)
+                is_right_constant = is_constant_expr(right_expr)
+                break_select = False
+                if is_left_modulo and is_right_constant and \
                     cond.conditional == '==' and \
-                    isinstance(leftExpr, AbstractBinaryOpNode)\
-                    and leftExpr.op == '%' and isAffine(leftExpr.left)\
-                    and isConstantExpr(leftExpr.right):
-                    breakSelect = True
-                if breakSelect:
-                    leftCoeff = get_affine_var_and_param_coeff(leftExpr.left)
-                    leftCoeff = mapCoeffToDim(leftCoeff)
-                    leftConst = get_constant_from_expr(leftExpr.left, affine = True)
-                    rightConst = get_constant_from_expr(rightExpr, affine = True)
-                    modConst = get_constant_from_expr(leftExpr.right, affine = True)
+                    isinstance(left_expr, AbstractBinaryOpNode)\
+                    and left_expr.op == '%' and isAffine(left_expr.left)\
+                    and is_constant_expr(left_expr.right):
+                    break_select = True
+                if break_select:
+                    left_coeff = get_affine_var_and_param_coeff(left_expr.left)
+                    left_coeff = mapCoeffToDim(left_coeff)
+                    left_const = get_constant_from_expr(left_expr.left, affine = True)
+                    right_const = get_constant_from_expr(right_expr, affine = True)
+                    mod_const = get_constant_from_expr(left_expr.right, affine = True)
 
-                    mulName = '_Mul_'
-                    remName = '_Rem_'
-                    trueSched = schedMap.copy()
-                    dimIn = trueSched.dim(isl._isl.dim_type.in_)
-                    trueSched = trueSched.insert_dims(isl._isl.dim_type.in_, 
-                                                      dimIn, 1)
-                    trueSched = trueSched.set_dim_name(isl._isl.dim_type.in_, 
-                                                       dimIn, mulName)
-                
+                    mul_name = '_Mul_'
+                    rem_name = '_Rem_'
+                    true_sched = sched_map.copy()
+                    dim_in = true_sched.dim(isl._isl.dim_type.in_)
+                    true_sched = true_sched.insert_dims(isl._isl.dim_type.in_, 
+                                                      dim_in, 1)
+                    true_sched = true_sched.set_dim_name(isl._isl.dim_type.in_, 
+                                                       dim_in, mul_name)
+
                     eqs = []
-                    leftCoeff[('constant', 0)] = leftConst - rightConst 
-                    leftCoeff[('in', dimIn)] = -modConst
-                    eqs.append(leftCoeff)
+                    left_coeff[('constant', 0)] = left_const - right_const
+                    left_coeff[('in', dim_in)] = -mod_const
+                    eqs.append(left_coeff)
 
-                    trueSched = addConstraints(trueSched, [], eqs)
-                    trueSched = trueSched.project_out(isl._isl.dim_type.in_, 
-                                                      dimIn, 1)
-                    brokenParts.append((trueSched, expr.trueExpression))
+                    true_sched = addConstraints(true_sched, [], eqs)
+                    true_sched = true_sched.project_out(isl._isl.dim_type.in_, 
+                                                      dim_in, 1)
+                    broken_parts.append((true_sched, expr.trueExpression))
 
-                    falseSched = schedMap.copy()
-                    dimIn = falseSched.dim(isl._isl.dim_type.in_)
-                    falseSched = falseSched.insert_dims(isl._isl.dim_type.in_, 
-                                                        dimIn, 2)
-                    falseSched = falseSched.set_dim_name(isl._isl.dim_type.in_,
-                                                         dimIn, mulName)
-                    falseSched = falseSched.set_dim_name(isl._isl.dim_type.in_, 
-                                                         dimIn + 1, remName)
-                
+                    false_sched = sched_map.copy()
+                    dim_in = false_sched.dim(isl._isl.dim_type.in_)
+                    false_sched = false_sched.insert_dims(isl._isl.dim_type.in_, 
+                                                        dim_in, 2)
+                    false_sched = false_sched.set_dim_name(isl._isl.dim_type.in_,
+                                                         dim_in, mul_name)
+                    false_sched = false_sched.set_dim_name(isl._isl.dim_type.in_, 
+                                                         dim_in + 1, rem_name)
+
                     eqs = []
-                    leftCoeff[('constant', 0)] = leftConst - rightConst 
-                    leftCoeff[('in', dimIn)] = -modConst
-                    leftCoeff[('in', dimIn+1)] = -1
-                    eqs.append(leftCoeff)
+                    left_coeff[('constant', 0)] = left_const - right_const 
+                    left_coeff[('in', dim_in)] = -mod_const
+                    left_coeff[('in', dim_in+1)] = -1
+                    eqs.append(left_coeff)
 
                     ineqs = []
                     coeff = {}
-                    coeff[('in', dimIn+1)] = 1
+                    coeff[('in', dim_in+1)] = 1
                     coeff[('constant', 0)] = -1
                     ineqs.append(coeff)
                 
                     coeff = {}
-                    coeff[('in', dimIn+1)] = -1
-                    coeff[('constant', 0)] = modConst - 1
+                    coeff[('in', dim_in+1)] = -1
+                    coeff[('constant', 0)] = mod_const - 1
                     ineqs.append(coeff)
 
-                    falseSched = addConstraints(falseSched, ineqs, eqs)
-                    falseSched = falseSched.project_out(isl._isl.dim_type.in_,
-                                                        dimIn, 2)                    
-                    brokenParts.append((falseSched, expr.falseExpression))
+                    false_sched = addConstraints(false_sched, ineqs, eqs)
+                    false_sched = false_sched.project_out(isl._isl.dim_type.in_,
+                                                        dim_in, 2)
+                    broken_parts.append((false_sched, expr.falseExpression))
 
-        # Note the align and scale lists are cloned otherwise all the 
+        # Note the align and scale lists are cloned otherwise all the
         # parts will be sharing the same alignment and scaling
-        if not brokenParts:
-            polyPart = PolyPart(schedMap, expr, pred, comp, list(align), 
-                                list(scale), levelNo)
+        if not broken_parts:
+            poly_part = PolyPart(sched_map, expr, pred, comp, list(align),
+                                list(scale), level_no)
             # Create a user pointer, tuple name and add it to the map
-            id_ = isl.Id.alloc(self.ctx, comp.name, polyPart)                            
-            polyPart.schedMap = polyPart.schedMap.set_tuple_id(
+            id_ = isl.Id.alloc(self.ctx, comp.name, poly_part)
+            poly_part.schedMap = poly_part.schedMap.set_tuple_id(
                                           isl._isl.dim_type.in_, id_)
-            polyParts.append(polyPart)
+            poly_parts.append(poly_part)
         else:
-            for bschedMap, bexpr in brokenParts:
-                polyPart = PolyPart(bschedMap, bexpr, pred, comp, list(align), 
-                                    list(scale), levelNo)
+            for bsched_map, bexpr in broken_parts:
+                poly_part = PolyPart(bsched_map, bexpr, pred, comp, list(align),
+                                    list(scale), level_no)
                 # Create a user pointer, tuple name and add it to the map
-                id_ = isl.Id.alloc(self.ctx, comp.name, polyPart)                            
-                polyPart.schedMap = polyPart.schedMap.set_tuple_id(
+                id_ = isl.Id.alloc(self.ctx, comp.name, poly_part)
+                poly_part.schedMap = poly_part.schedMap.set_tuple_id(
                                           isl._isl.dim_type.in_, id_)
-                polyParts.append(polyPart)
-        return polyParts
+                poly_parts.append(poly_part)
+        return poly_parts
 
     def defaultAlignAndScale(self, sched):
         dimOut = sched.dim(isl._isl.dim_type.out)

@@ -26,7 +26,6 @@ def generate_c_expr(exp, cparam_map, cvar_map, cfunc_map,
         child = generate_c_expr(exp.child, cparam_map, cvar_map,
                                 cfunc_map, scratch_map, prologue_stmts)
         return AbstractUnaryOpNode(child, exp.op)
-    # FIXME
     if isinstance(exp, Value):
         return genc.CValue(exp.value, exp.typ)
     if isinstance(exp, Variable):
@@ -38,95 +37,130 @@ def generate_c_expr(exp, cparam_map, cvar_map, cfunc_map,
         num_args = len(exp.objectRef.domain)
         shifted_args = []
         for i in range(num_args):
-            #
             scratch_arg = (exp.arguments[i] -
-                            exp.objectRef.domain[i].lowerBound)
+                           exp.objectRef.domain[i].lowerBound)
+            # TESTME
             if scratch[i]:
                 scratch_arg = substituteVars(exp.arguments[i], scratch_map)
             shifted_args.append(simplifyExpr(scratch_arg))
         args = [ generate_c_expr(arg, cparam_map, cvar_map, cfunc_map,
-                               scratch_map, prologue_stmts) \
+                                 scratch_map, prologue_stmts)
                  for arg in shifted_args ]
         return array(*args)
+    # TESTME
     if isinstance(exp, Select):
-        ccond = generate_cCond(exp.condition, cparam_map,
-                              cvar_map, cfunc_map, scratch_map, prologue_stmts)
-        true_expr = generate_c_expr(exp.trueExpression, cparam_map, cvar_map,
-                                 cfunc_map, scratch_map, prologue_stmts)
-        false_expr = generate_c_expr(exp.falseExpression, cparam_map, cvar_map,
-                                  cfunc_map, scratch_map, prologue_stmts)
+        # ADDME
+        c_cond = generate_c_cond(exp.condition,
+                                 cparam_map, cvar_map, cfunc_map,
+                                 scratch_map, prologue_stmts)
+        true_expr = generate_c_expr(exp.trueExpression,
+                                    cparam_map, cvar_map, cfunc_map,
+                                    scratch_map, prologue_stmts)
+        false_expr = generate_c_expr(exp.falseExpression,
+                                     cparam_map, cvar_map, cfunc_map,
+                                     scratch_map, prologue_stmts)
         if prologue_stmts is not None:
-            var_type = genc.cgenType.get(getType(exp.trueExpression))
-            truec_var = genc.cVariable(var_type, genc.cNameGen.getTempVarName())
-            decl = genc.cDeclaration(var_type, truec_var, true_expr)
+            # selects are executed with both true and false paths computed
+            # before the condition check
+
+            # true path
+            var_type = genc.TypeMap.convert(getType(exp.trueExpression))
+            true_c_var = genc.CVariable(var_type, genc.CNameGen.get_temp_var_name())
+            decl = genc.CDeclaration(var_type, true_c_var, true_expr)
             prologue_stmts.append(decl)
 
-            var_type = genc.cgenType.get(getType(exp.falseExpression))
-            falsec_var = genc.cVariable(var_type, genc.cNameGen.getTempVarName())
-            decl = genc.cDeclaration(var_type, falsec_var, false_expr)
+            # false path
+            var_type = genc.TypeMap.convert(getType(exp.falseExpression))
+            false_c_var = genc.CVariable(var_type, genc.CNameGen.get_temp_var_name())
+            decl = genc.CDeclaration(var_type, false_c_var, false_expr)
             prologue_stmts.append(decl)
 
-            var_type = genc.cgenType.get(getType(exp))
-            selc_var = genc.cVariable(var_type, genc.cNameGen.getTempVarName())
-            decl = genc.cDeclaration(var_type, selc_var,
-                                     genc.cSelect(ccond, truec_var, falsec_var))
+            var_type = genc.TypeMap.convert(getType(exp))
+            sel_c_var = genc.CVariable(var_type, genc.CNameGen.get_temp_var_name())
+            decl = genc.CDeclaration(var_type, sel_c_var,
+                                     genc.CSelect(c_cond, true_c_var, false_c_var))
             prologue_stmts.append(decl)
 
-            return selc_var
+            return sel_c_var
 
-        return genc.cSelect(ccond, true_expr, false_expr)
+        return genc.CSelect(c_cond, true_expr, false_expr)
+    # TESTME
     if isinstance(exp, Max):
-        cexpr1 = generate_c_expr(exp.arguments[0], cparam_map, cvar_map,
-                               cfunc_map, scratch_map, prologue_stmts)
-        cexpr2 = generate_c_expr(exp.arguments[1], cparam_map, cvar_map,
-                               cfunc_map, scratch_map, prologue_stmts)
-        return genc.cMax(cexpr1, cexpr2)
+        cexpr1 = generate_c_expr(exp.arguments[0],
+                                 cparam_map, cvar_map, cfunc_map,
+                                 scratch_map, prologue_stmts)
+        cexpr2 = generate_c_expr(exp.arguments[1],
+                                 cparam_map, cvar_map, cfunc_map,
+                                 scratch_map, prologue_stmts)
+        return genc.CMax(cexpr1, cexpr2)
+    # TESTME
     if isinstance(exp, Min):
-        cexpr1 = generate_c_expr(exp.arguments[0], cparam_map, cvar_map,
-                               cfunc_map, scratch_map, prologue_stmts)
-        cexpr2 = generate_c_expr(exp.arguments[1], cparam_map, cvar_map,
-                               cfunc_map, scratch_map, prologue_stmts)
-        return genc.cMin(cexpr1, cexpr2)
+        cexpr1 = generate_c_expr(exp.arguments[0],
+                                 cparam_map, cvar_map, cfunc_map,
+                                 scratch_map, prologue_stmts)
+        cexpr2 = generate_c_expr(exp.arguments[1],
+                                 cparam_map, cvar_map, cfunc_map,
+                                 scratch_map, prologue_stmts)
+        return genc.CMin(cexpr1, cexpr2)
+    # TESTME
     if isinstance(exp, Pow):
-        cexpr1 = generate_c_expr(exp.arguments[0], cparam_map, cvar_map,
-                               cfunc_map, scratch_map, prologue_stmts)
-        cexpr2 = generate_c_expr(exp.arguments[1], cparam_map, cvar_map,
-                               cfunc_map, scratch_map, prologue_stmts)
-        return genc.cPow(cexpr1, cexpr2)
+        cexpr1 = generate_c_expr(exp.arguments[0],
+                                 cparam_map, cvar_map, cfunc_map,
+                                 scratch_map, prologue_stmts)
+        cexpr2 = generate_c_expr(exp.arguments[1],
+                                 cparam_map, cvar_map, cfunc_map,
+                                 scratch_map, prologue_stmts)
+        return genc.CPow(cexpr1, cexpr2)
+    # TESTME
     if isinstance(exp, Powf):
-        cexpr1 = generate_c_expr(exp.arguments[0], cparam_map, cvar_map, cfunc_map)
-        cexpr2 = generate_c_expr(exp.arguments[1], cparam_map, cvar_map, cfunc_map)
-        return genc.cPowf(cexpr1, cexpr2)
+        cexpr1 = generate_c_expr(exp.arguments[0],
+                                 cparam_map, cvar_map, cfunc_map)
+        cexpr2 = generate_c_expr(exp.arguments[1],
+                                 cparam_map, cvar_map, cfunc_map)
+        return genc.CPowf(cexpr1, cexpr2)
+    # TESTME
     if isinstance(exp, Exp):
-        cexpr = generate_c_expr(exp.arguments[0], cparam_map, cvar_map,
-                              cfunc_map, scratch_map, prologue_stmts)
-        return genc.cExp(cexpr)
+        cexpr = generate_c_expr(exp.arguments[0],
+                                cparam_map, cvar_map, cfunc_map,
+                                scratch_map, prologue_stmts)
+        return genc.CExp(cexpr)
+    # TESTME
     if isinstance(exp, Sqrt):
-        cexpr = generate_c_expr(exp.arguments[0], cparam_map, cvar_map,
-                              cfunc_map, scratch_map, prologue_stmts)
-        return genc.cSqrt(cexpr)
+        cexpr = generate_c_expr(exp.arguments[0],
+                                cparam_map, cvar_map, cfunc_map,
+                                scratch_map, prologue_stmts)
+        return genc.CSqrt(cexpr)
+    # TESTME
     if isinstance(exp, Sqrtf):
-        cexpr = generate_c_expr(exp.arguments[0], cparam_map, cvar_map,
-                              cfunc_map, scratch_map, prologue_stmts)
-        return genc.cSqrtf(cexpr)
+        cexpr = generate_c_expr(exp.arguments[0],
+                                cparam_map, cvar_map, cfunc_map,
+                                scratch_map, prologue_stmts)
+        return genc.CSqrtf(cexpr)
+    # TESTME
     if isinstance(exp, Sin):
-        cexpr = generate_c_expr(exp.arguments[0], cparam_map, cvar_map,
-                              cfunc_map, scratch_map, prologue_stmts)
-        return genc.cSin(cexpr)
+        cexpr = generate_c_expr(exp.arguments[0],
+                                cparam_map, cvar_map, cfunc_map,
+                                scratch_map, prologue_stmts)
+        return genc.CSin(cexpr)
+    # TESTME
     if isinstance(exp, Cos):
-        cexpr = generate_c_expr(exp.arguments[0], cparam_map, cvar_map,
-                              cfunc_map, scratch_map, prologue_stmts)
-        return genc.cCos(cexpr)
+        cexpr = generate_c_expr(exp.arguments[0],
+                                cparam_map, cvar_map, cfunc_map,
+                                scratch_map, prologue_stmts)
+        return genc.CCos(cexpr)
+    # TESTME
     if isinstance(exp, Abs):
-        cexpr = generate_c_expr(exp.arguments[0], cparam_map, cvar_map,
-                              cfunc_map, scratch_map, prologue_stmts)
-        return genc.cAbs(cexpr)
+        cexpr = generate_c_expr(exp.arguments[0],
+                                cparam_map, cvar_map, cfunc_map,
+                                scratch_map, prologue_stmts)
+        return genc.CAbs(cexpr)
+    # TESTME
     if isinstance(exp, Cast):
-        cexpr = generate_c_expr(exp.expression, cparam_map, cvar_map,
-                              cfunc_map, scratch_map, prologue_stmts)
-        return genc.cCast(genc.cgenType.get(exp.typ), cexpr)
+        cexpr = generate_c_expr(exp.expression,
+                                cparam_map, cvar_map, cfunc_map,
+                                scratch_map, prologue_stmts)
+        return genc.CCast(genc.TypeMap.convert(exp.typ), cexpr)
     raise TypeError(type(exp))
-
 
 def create_loop_variables(group, variables):
     cvar_map = {}
