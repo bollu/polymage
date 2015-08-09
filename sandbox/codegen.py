@@ -155,7 +155,7 @@ def create_perfect_nested_loop(group, pipe_body, variables, domains,
         cond = genc.CCond(var, comp, ub)
         incr = genc.CAssign(var, var+1)
 
-        loop = genc.CFor(var_decl, cond, inc)
+        loop = genc.CFor(var_decl, cond, incr)
         lbody.add(loop, False)
         lbody = loop.body
 

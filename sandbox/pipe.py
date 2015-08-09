@@ -6,7 +6,7 @@ try:
 except ImportError:
     import Queue as queue
 
-import pygraphviz as pgv
+#import pygraphviz as pgv
 import targetc as genc
 
 from constructs import *
@@ -144,15 +144,13 @@ class Group:
 class Pipeline:
     def __init__(self, _ctx, _outputs, \
                  _paramConstraints, _grouping, \
-                 _options, _name=None):
+                 _options, _name = None):
         # Name of the pipleline is a concatenation of the names of the 
         # pipeline outputs, unless it is explicitly named.
         if _name is None:
-            _name = ""
-            for out in _outputs:
-                _name = _name + out.name
+            _name = ''.join([out.name for out in _outputs])
 
-        self._name   = _name
+        self._name = _name
 
         self._ctx = _ctx
         self._orgOutputs = _outputs
@@ -201,7 +199,7 @@ class Pipeline:
 
         # Store the initial pipeline graph. The compiler can modify 
         # the pipeline by inlining functions.
-        self._initialGraph = self.drawPipelineGraph()
+        #self._initialGraph = self.drawPipelineGraph()
 
         # Make a list of all the input groups
         inputs = []
@@ -215,11 +213,13 @@ class Pipeline:
             # for each group
             for g in self._grouping:
                 # get clones of all functions
-                merge_group_list = [self._groups[self._cloneMap[f]] for f in g]
+                merge_group_list = \
+                    [self._groups[self._cloneMap[f]] for f in g]
                 if len(merge_group_list) > 1:
                      merged = merge_group_list[0]
                      for i in range(1, len(merge_group_list)):
-                        merged = self.merge_groups(merged, merge_group_list[i])
+                        merged = \
+                            self.merge_groups(merged, merge_group_list[i])
                         # to be done after each merging, to know if the
                         # merging was valid
                         align_and_scale_parts(self, merged)
@@ -229,7 +229,7 @@ class Pipeline:
 
         ''' BASE SCHEDULE AND CODEGEN '''
         for g in list(set(self._groups.values())):
-            baseSchedule(g)
+            base_schedule(g)
             #g.polyRep.generateCode()
 
     @property
@@ -279,6 +279,7 @@ class Pipeline:
             params = params + group.getParameters()
         return list(set(params))
 
+    '''
     def drawPipelineGraph(self):
         G = pgv.AGraph(strict=False, directed=True)
         groupList = list(set([self._groups[f] for f in self._groups]))
@@ -299,8 +300,9 @@ class Pipeline:
 
         G.layout(prog='dot')
         return G
+    '''
 
-    def generateCode(self):
+    def generate_code(self):
         return generate_code_for_pipeline(self)
 
     def merge_groups(self, g1, g2):

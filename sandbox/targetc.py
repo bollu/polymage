@@ -41,6 +41,14 @@ class CNameGen(object):
         cls._temp_count+=1
         return name
 
+class CValue(Value):
+    def __init__(self, _value, _typ):
+        Value.__init__(self, _value, _typ)
+    def __str__(self):
+        if (self._typ == Float):
+            return self._value.__str__()
+        return self._value.__str__()
+
 class CExpression(AbstractExpression):
     pass
 

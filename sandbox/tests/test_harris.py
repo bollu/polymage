@@ -99,7 +99,7 @@ def test_harris_corner():
 
     filename = 'harris_naive.cpp'
     c_file = open(filename, 'w')
-    c_file.write(pipeline.generateCode().__str__())
+    c_file.write(pipeline.generate_code().__str__())
     c_file.close()
 
 

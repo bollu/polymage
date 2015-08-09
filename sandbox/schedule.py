@@ -17,7 +17,7 @@ def getParentParts(part, group):
                  parentParts.extend(group.polyRep.polyParts[ref.objectRef])
      return list(set(parentParts))
 
-def baseSchedule(group):
+def base_schedule(group):
     """
     Construct the base schedule for a group with a polyhedral representation.
     """
