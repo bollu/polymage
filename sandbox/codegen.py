@@ -14,6 +14,27 @@ codegen_logger = logging.getLogger("codegen.py")
 codegen_logger.setLevel(logging.DEBUG)
 LOG = codegen_logger.log
 
+def generate_c_cond(cond,
+                    cparam_map, cvar_map, cfunc_map, 
+                    scratch_map = {}, prologue_stmts = None):
+    if (cond.conditional in ['&&', '||']):
+        left_cond = generate_c_cond(cond.lhs,
+                                    cparam_map, cvar_map, cfunc_map,
+                                    scratch_map)
+        right_cond = generate_c_cond(cond.rhs,
+                                     cparam_map, cvar_map, cfunc_map,
+                                     scratch_map, prologue_stmts)
+        return genc.CCond(left_cond, cond.conditional, right_cond)
+    elif (cond.conditional in ['<', '<=', '>', '>=', '==', '!=']):
+        left_cond = generate_cExpr(cond.lhs,
+                                   cparam_map, cvar_map, cfunc_map,
+                                   scratch_map, prologue_stmts)
+        right_cond = generate_cExpr(cond.rhs,
+                                    cparam_map, cvar_map, cfunc_map,
+                                    scratch_map, prologue_stmts)
+        return genc.CCond(left_cond, cond.conditional, right_cond)
+    assert False
+
 def generate_c_expr(exp, cparam_map, cvar_map, cfunc_map,
                     scratch_map = {}, prologue_stmts = None):
     if isinstance(exp, AbstractBinaryOpNode):
@@ -210,8 +231,7 @@ def generate_function_scan_loops(group, comp_obj, pipe_body, \
                                    comp_obj.variables, comp_obj.domain,
                                    cfunc_map, cparam_map, cvar_map)
 
-    pass
-
+# ADDME
 def generate_reduction_scan_loops(group, comp_obj, pipe_body, \
                                   cparam_map, cfunc_map):
     """
