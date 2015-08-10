@@ -49,6 +49,51 @@ class CValue(Value):
             return self._value.__str__()
         return self._value.__str__()
 
+class CSelect(Select):
+    def __init__(self, _c_cond, _true_cExpr, _false_cExpr):
+        Select.__init__(self, _c_cond, _true_cExpr, _false_cExpr, False)
+
+class CMax(Max):
+    def __init__(self, _expr1, _expr2):
+        Max.__init__(self, _expr1, _expr2, False)
+
+class CMin(Min):
+    def __init__(self, _expr1, _expr2):
+        Min.__init__(self, _expr1, _expr2, False)
+
+class CPow(Pow):
+    def __init__(self, _expr1, _expr2):
+        Pow.__init__(self, _expr1, _expr2)
+
+class CPowf(Powf):
+    def __init__(self, _expr1, _expr2):
+        Powf.__init__(self, _expr1, _expr2)
+
+class CExp(Exp):
+    def __init__(self, _expr):
+        Exp.__init__(self, _expr)
+
+class CSin(Sin):
+    def __init__(self, _expr):
+        Sin.__init__(self, _expr)
+
+class CCos(Cos):
+    def __init__(self, _expr):
+        Cos.__init__(self, _expr)
+
+class CSqrt(Sqrt):
+    def __init__(self, _expr):
+        Sqrt.__init__(self, _expr)
+
+class CSqrtf(Sqrtf):
+    def __init__(self, _expr):
+        Sqrtf.__init__(self, _expr)
+
+class CAbs(Abs):
+    def __init__(self, _expr):
+        Abs.__init__(self, _expr)
+
+
 class CExpression(AbstractExpression):
     pass
 
@@ -352,7 +397,7 @@ class CIfThen(AbstractCgenObject):
     def __init__(self, _cond):
         assert(isinstance(_cond, CCond))
         self.cond = _cond
-        self.if_block   = CBlock(self)
+        self.if_block = CBlock(self)
     def _cgen(self):
             return cgen.If(self.cond.__str__(), self.if_block._cgen())
 
@@ -390,7 +435,7 @@ class CArrayAccess(CExpression):
         if self.array.layout == 'multidim':
             for dim in self.dims:
                 access_str = access_str + '[' + dim.__str__() + ']'
-        elif self.array.layout == 'contigous':
+        elif self.array.layout == 'contiguous':
             expr = None
             for i in range(0, len(self.dims)):
                 multiplier = None
@@ -408,15 +453,15 @@ class CArrayAccess(CExpression):
                     expr = expr + product
             access_str = '[' + expr.__str__() + ']'
         else:
+            print(self.array.layout)
             assert False, self.array.name
         return self.array.name + access_str
 
 class CArray(CName):
-    def __init__(self, _typ, _name, _dims, _layout=None):
+    def __init__(self, _typ, _name, _dims, _layout='contiguous'):
         assert(len(_dims) > 0)
         assert isinstance(_typ, CType)
-        assert(_layout == 'contiguous' or _layout == 'multidim' or \
-               _layout == None)
+        assert(_layout == 'contiguous' or _layout == 'multidim')
         CName.__init__(self, _name)
         self.typ = _typ
         self.dims = _dims
@@ -431,8 +476,8 @@ class CArray(CName):
                return False
         return True
 
-    def allocate_contigous(self, block, pooled):
-        if self.layout == 'contigous':
+    def allocate_contiguous(self, block, pooled):
+        if self.layout == 'contiguous':
             # Generate a code block which dynamically allocated memory 
             # for the given array. Single chunk allocation.
             size_expr = self.dims[0]
@@ -476,7 +521,7 @@ class CArray(CName):
                 block = loop.body
 
     def deallocate(self, block, pooled):
-        assert self.layout == 'contigous'
+        assert self.layout == 'contiguous'
         block.add(CStatement(c_free(self.name)))
 
 class CArrayDecl(AbstractCgenObject):

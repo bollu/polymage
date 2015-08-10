@@ -26,10 +26,10 @@ def generate_c_cond(cond,
                                      scratch_map, prologue_stmts)
         return genc.CCond(left_cond, cond.conditional, right_cond)
     elif (cond.conditional in ['<', '<=', '>', '>=', '==', '!=']):
-        left_cond = generate_cExpr(cond.lhs,
+        left_cond = generate_c_expr(cond.lhs,
                                    cparam_map, cvar_map, cfunc_map,
                                    scratch_map, prologue_stmts)
-        right_cond = generate_cExpr(cond.rhs,
+        right_cond = generate_c_expr(cond.rhs,
                                     cparam_map, cvar_map, cfunc_map,
                                     scratch_map, prologue_stmts)
         return genc.CCond(left_cond, cond.conditional, right_cond)
@@ -61,7 +61,7 @@ def generate_c_expr(exp, cparam_map, cvar_map, cfunc_map,
             scratch_arg = (exp.arguments[i] -
                            exp.objectRef.domain[i].lowerBound)
             # TESTME
-            if scratch[i]:
+            if scratch and scratch[i]:
                 scratch_arg = substituteVars(exp.arguments[i], scratch_map)
             shifted_args.append(simplifyExpr(scratch_arg))
         args = [ generate_c_expr(arg, cparam_map, cvar_map, cfunc_map,
@@ -70,7 +70,6 @@ def generate_c_expr(exp, cparam_map, cvar_map, cfunc_map,
         return array(*args)
     # TESTME
     if isinstance(exp, Select):
-        # ADDME
         c_cond = generate_c_cond(exp.condition,
                                  cparam_map, cvar_map, cfunc_map,
                                  scratch_map, prologue_stmts)
@@ -231,6 +230,47 @@ def generate_function_scan_loops(group, comp_obj, pipe_body, \
                                    comp_obj.variables, comp_obj.domain,
                                    cfunc_map, cparam_map, cvar_map)
 
+    arglist = comp_obj.variables
+    # Convert function definition into a C expression and add it to
+    # loop body
+
+    # has_expr = False
+    for case in comp_obj.defn:
+        if(isinstance(case, AbstractExpression)):
+            case_expr = generate_c_expr(case,
+                                        cparam_map, cvar_map, cfunc_map)
+            array_ref = generate_c_expr(comp_obj(*arglist),
+                                        cparam_map, cvar_map, cfunc_map)
+            assign = genc.CAssign(array_ref, case_expr)
+            lbody.add(assign, False)
+            #has_expr = True
+        elif(isinstance(case, Case)):
+            c_cond = generate_c_cond(case.condition,
+                                     cparam_map, cvar_map, cfunc_map)
+            case_expr = generate_c_expr(case.expression,
+                                        cparam_map, cvar_map, cfunc_map)
+            cif = genc.CIfThen(c_cond)
+
+            if (isinstance(case.expression, AbstractExpression)):
+                array_ref = generate_c_expr(comp_obj(*arglist),
+                                            cparam_map, cvar_map, cfunc_map)
+                assign = genc.CAssign(array_ref, case_expr)
+                # FIXME: aliased referencing works, but direct call to
+                # add method fails with assertion on block._is_open()
+                with cif.if_block as ifblock:
+                    ifblock.add(assign)
+                    # ifblock.add(genc.CContinue())
+            else:
+                assert False
+            lbody.add(cif, False)
+        else:
+            assert False
+    #if not has_expr:
+    #    case_expr = generate_c_expr(comp_obj.default,
+    #                                cparam_map, cvar_map, cfunc_map)
+    #    assign = genc.CAssign(array(*arglist), case_expr)
+    #    lbody.add(assign, False)
+
 # ADDME
 def generate_reduction_scan_loops(group, comp_obj, pipe_body, \
                                   cparam_map, cfunc_map):
@@ -334,12 +374,12 @@ def generate_code_for_group(pipeline, g, body, options, \
         cfunc_map[comp] = (array, scratch)
 
         if is_liveout:
-            array.layout = 'contigous'
+            array.layout = 'contiguous'
             # do not allocate for output arrays if they are already allocated
             if not is_output or not outsExternAlloc:
                 array_decl = genc.CDeclaration(array_ptr, array)
                 body.add(array_decl)
-                array.allocate_contigous(body, pooled)
+                array.allocate_contiguous(body, pooled)
 
         # array is freed, if comp is a group liveout and not an output
         if not is_output and is_liveout:
@@ -427,7 +467,7 @@ def generate_code_for_pipeline(pipeline, outsExternAlloc=True, is_io_void_ptr=Tr
             # Bind input functions to C arrays
             carr = genc.CArray(img_type, img.name, img.dimensions,
                               'contiguous')
-            cfunc_map[img] = carr
+            cfunc_map[img] = (carr, [])
 
         # 2.3. collect outputs
         outputs = sorted(pipeline.outputs, key=lambda x: x.name)
