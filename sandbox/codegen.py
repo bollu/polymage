@@ -68,7 +68,6 @@ def generate_c_expr(exp, cparam_map, cvar_map, cfunc_map,
                                  scratch_map, prologue_stmts)
                  for arg in shifted_args ]
         return array(*args)
-    # TESTME
     if isinstance(exp, Select):
         c_cond = generate_c_cond(exp.condition,
                                  cparam_map, cvar_map, cfunc_map,
@@ -104,7 +103,6 @@ def generate_c_expr(exp, cparam_map, cvar_map, cfunc_map,
             return sel_c_var
 
         return genc.CSelect(c_cond, true_expr, false_expr)
-    # TESTME
     if isinstance(exp, Max):
         cexpr1 = generate_c_expr(exp.arguments[0],
                                  cparam_map, cvar_map, cfunc_map,
@@ -113,7 +111,6 @@ def generate_c_expr(exp, cparam_map, cvar_map, cfunc_map,
                                  cparam_map, cvar_map, cfunc_map,
                                  scratch_map, prologue_stmts)
         return genc.CMax(cexpr1, cexpr2)
-    # TESTME
     if isinstance(exp, Min):
         cexpr1 = generate_c_expr(exp.arguments[0],
                                  cparam_map, cvar_map, cfunc_map,
@@ -122,7 +119,6 @@ def generate_c_expr(exp, cparam_map, cvar_map, cfunc_map,
                                  cparam_map, cvar_map, cfunc_map,
                                  scratch_map, prologue_stmts)
         return genc.CMin(cexpr1, cexpr2)
-    # TESTME
     if isinstance(exp, Pow):
         cexpr1 = generate_c_expr(exp.arguments[0],
                                  cparam_map, cvar_map, cfunc_map,
@@ -131,50 +127,42 @@ def generate_c_expr(exp, cparam_map, cvar_map, cfunc_map,
                                  cparam_map, cvar_map, cfunc_map,
                                  scratch_map, prologue_stmts)
         return genc.CPow(cexpr1, cexpr2)
-    # TESTME
     if isinstance(exp, Powf):
         cexpr1 = generate_c_expr(exp.arguments[0],
                                  cparam_map, cvar_map, cfunc_map)
         cexpr2 = generate_c_expr(exp.arguments[1],
                                  cparam_map, cvar_map, cfunc_map)
         return genc.CPowf(cexpr1, cexpr2)
-    # TESTME
     if isinstance(exp, Exp):
         cexpr = generate_c_expr(exp.arguments[0],
                                 cparam_map, cvar_map, cfunc_map,
                                 scratch_map, prologue_stmts)
         return genc.CExp(cexpr)
-    # TESTME
     if isinstance(exp, Sqrt):
         cexpr = generate_c_expr(exp.arguments[0],
                                 cparam_map, cvar_map, cfunc_map,
                                 scratch_map, prologue_stmts)
         return genc.CSqrt(cexpr)
-    # TESTME
     if isinstance(exp, Sqrtf):
         cexpr = generate_c_expr(exp.arguments[0],
                                 cparam_map, cvar_map, cfunc_map,
                                 scratch_map, prologue_stmts)
         return genc.CSqrtf(cexpr)
-    # TESTME
     if isinstance(exp, Sin):
         cexpr = generate_c_expr(exp.arguments[0],
                                 cparam_map, cvar_map, cfunc_map,
                                 scratch_map, prologue_stmts)
         return genc.CSin(cexpr)
-    # TESTME
     if isinstance(exp, Cos):
         cexpr = generate_c_expr(exp.arguments[0],
                                 cparam_map, cvar_map, cfunc_map,
                                 scratch_map, prologue_stmts)
         return genc.CCos(cexpr)
-    # TESTME
     if isinstance(exp, Abs):
         cexpr = generate_c_expr(exp.arguments[0],
                                 cparam_map, cvar_map, cfunc_map,
                                 scratch_map, prologue_stmts)
         return genc.CAbs(cexpr)
-    # TESTME
     if isinstance(exp, Cast):
         cexpr = generate_c_expr(exp.expression,
                                 cparam_map, cvar_map, cfunc_map,
@@ -220,7 +208,6 @@ def generate_function_scan_loops(group, comp_obj, pipe_body, \
     """
     generates code for Function class
     """
-
     # Compute function points in lexicographic order of domain
     cvar_map = create_loop_variables(group, comp_obj.variables)
 
@@ -233,8 +220,6 @@ def generate_function_scan_loops(group, comp_obj, pipe_body, \
     arglist = comp_obj.variables
     # Convert function definition into a C expression and add it to
     # loop body
-
-    # has_expr = False
     for case in comp_obj.defn:
         if(isinstance(case, AbstractExpression)):
             case_expr = generate_c_expr(case,
@@ -243,7 +228,6 @@ def generate_function_scan_loops(group, comp_obj, pipe_body, \
                                         cparam_map, cvar_map, cfunc_map)
             assign = genc.CAssign(array_ref, case_expr)
             lbody.add(assign, False)
-            #has_expr = True
         elif(isinstance(case, Case)):
             c_cond = generate_c_cond(case.condition,
                                      cparam_map, cvar_map, cfunc_map)
@@ -259,27 +243,56 @@ def generate_function_scan_loops(group, comp_obj, pipe_body, \
                 # add method fails with assertion on block._is_open()
                 with cif.if_block as ifblock:
                     ifblock.add(assign)
-                    # ifblock.add(genc.CContinue())
             else:
                 assert False
             lbody.add(cif, False)
         else:
             assert False
-    #if not has_expr:
-    #    case_expr = generate_c_expr(comp_obj.default,
-    #                                cparam_map, cvar_map, cfunc_map)
-    #    assign = genc.CAssign(array(*arglist), case_expr)
-    #    lbody.add(assign, False)
 
-# ADDME
+# TESTME
 def generate_reduction_scan_loops(group, comp_obj, pipe_body, \
                                   cparam_map, cfunc_map):
     """
-    generates code for Accumulator class
+    generates code for Reduction class
     """
+    # Compute Reduction points in lexicographic order of reduction domain
+    cvar_map = self.create_loop_variables(comp_obj.reductionVariables)
 
-    pass
+    # Generate loops. lbody is the body of the innermost loop.
+    lbody = \
+        self.create_perfect_nested_loop(body, comp_obj.reductionVariables,
+                                        comp_obj.reductionDomain,
+                                        cfunc_map, cparam_map, cvar_map)
 
+    # Convert function definition into a C expression and add it to loop body
+    for case in comp_obj.definition:
+        if(isinstance(case, Reduction)):
+            case_expr = generate_c_expr(case.expression,
+                                        cparam_map, cvar_map, cfunc_map)
+            ref_args = case.accumulateRef.arguments
+            accum_ref = generate_c_expr(obj(*refArgs),
+                                        cparam_map, cvar_map,cfunc_map)
+            assign = genc.CAssign(accum_ref, accum_ref + case_expr)
+            lbody.add(assign, False)
+        elif(isinstance(case, Case)):
+            c_cond = generate_c_cond(case.condition,
+                                     cparam_map, cvar_map, cfunc_map)
+            cond_expr = generate_c_expr(case.expression,
+                                        cparam_map, cvar_map, cfunc_map)
+            cif = genc.CIfThen(c_cond)
+
+            if(isinstance(case.expression, Reduction)):
+                ref_args = case.accumulateRef.arguments
+                accum_ref = generate_c_expr(comp_obj(*refArgs),
+                                            cparam_map, cvar_map,cfunc_map)
+                assign = genc.CAssign(accum_ref, accum_ref + cond_expr)
+                with cif.if_block as ifblock:
+                    ifblock.add(assign)
+            else:
+                assert False
+            lbody.add(cif, False)
+        else:
+            assert False
 
 def generate_code_for_group(pipeline, g, body, options, \
                             cfunc_map, cparam_map, \

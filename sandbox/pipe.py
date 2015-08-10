@@ -6,7 +6,7 @@ try:
 except ImportError:
     import Queue as queue
 
-#import pygraphviz as pgv
+import pygraphviz as pgv
 import targetc as genc
 
 from constructs import *
@@ -199,7 +199,7 @@ class Pipeline:
 
         # Store the initial pipeline graph. The compiler can modify 
         # the pipeline by inlining functions.
-        #self._initialGraph = self.drawPipelineGraph()
+        self._initialGraph = self.drawPipelineGraph()
 
         # Make a list of all the input groups
         inputs = []
@@ -279,7 +279,6 @@ class Pipeline:
             params = params + group.getParameters()
         return list(set(params))
 
-    '''
     def drawPipelineGraph(self):
         G = pgv.AGraph(strict=False, directed=True)
         groupList = list(set([self._groups[f] for f in self._groups]))
@@ -300,7 +299,6 @@ class Pipeline:
 
         G.layout(prog='dot')
         return G
-    '''
 
     def generate_code(self):
         return generate_code_for_pipeline(self)

@@ -767,8 +767,8 @@ class Reduction(Function):
         newBody = [ r.clone() for r in self._body ]
         varDom = ( [ v.clone() for v in self._variables], 
                    [ d.clone() for d in self._varDomain] )
-        redDom = ( [ r.clone for r in self._redVariables],
-                   [ d.clone for d in self._redDomain] )
+        redDom = ( [ r.clone() for r in self._redVariables],
+                   [ d.clone() for d in self._redDomain] )
         newRed = Reduction(varDom, redDom, self._typ, self._name)
         newRed.defn = newBody
         newRed.default = self._default.clone()
