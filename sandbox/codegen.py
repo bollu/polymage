@@ -5,6 +5,7 @@ from collections import OrderedDict
 import pipe
 from constructs import *
 from expression import *
+import islpy as isl
 import expr_ast as expr
 import targetc as genc
 import logging
@@ -13,6 +14,294 @@ import logging
 codegen_logger = logging.getLogger("codegen.py")
 codegen_logger.setLevel(logging.DEBUG)
 LOG = codegen_logger.log
+
+# short hands for methods
+new_temp = genc.CNameGen.get_temp_var_name
+new_iter = genc.CNameGen.get_iterator_name
+
+def isl_expr_to_cgen(expr, prologue_stmts = None):
+
+    print(expr)
+
+    # short hand
+    exp_arg = expr.get_op_arg  #method
+    op_typ = expr.get_op_type()
+    exp_n_args = expr.get_op_n_arg()
+
+    prolog = prologue_stmts
+    if expr.get_type() == isl._isl.ast_expr_type.op:
+        if (op_typ == isl._isl.ast_op_type.access or
+            op_typ == isl._isl.ast_op_type.call or
+            op_typ == isl._isl.ast_op_type.cond or
+            op_typ == isl._isl.ast_op_type.member or
+            op_typ == isl._isl.ast_op_type.cond or
+            op_typ == isl._isl.ast_op_type.select):
+            #print(op_typ)
+            assert False
+        if op_typ == isl._isl.ast_op_type.min:
+            num_args = exp_n_args
+            cmin = genc.CMin(isl_expr_to_cgen(exp_arg(0), prolog),\
+                             isl_expr_to_cgen(exp_arg(1), prolog))
+            for i in xrange(2, num_args):
+                cmin = genc.CMin(cmin, isl_expr_to_cgen(exp_arg(i), prolog))
+            if prolog is not None:
+                var_type = genc.TypeMap.convert(Int)
+                min_cvar = genc.CVariable(var_type, new_temp())
+                decl = genc.CDeclaration(var_type, min_cvar, cmin)
+                prolog.append(decl)
+                cmin = min_cvar
+            return cmin
+        if op_typ == isl._isl.ast_op_type.max:
+            num_args = exp_n_args
+            cmax = genc.CMax(isl_expr_to_cgen(exp_arg(0), prolog),
+                             isl_expr_to_cgen(exp_arg(1), prolog))
+            for i in xrange(2, numArgs):
+                cmax = genc.CMax(cmax, \
+                                 isl_expr_to_cgen(exp_arg(i), prolog))
+            if prolog is not None:
+                var_type = genc.TypeMap.convert(Int)
+                max_cvar = genc.CVariable(var_type, new_temp())
+                decl = genc.CDeclaration(var_type, max_cvar, cmax)
+                prolog.append(decl)
+                cmax = max_cvar
+            return cmax
+        if op_typ == isl._isl.ast_op_type.fdiv_q:
+            assert exp_n_args == 2
+            return genc.CMacroFloord(isl_expr_to_cgen(exp_arg(0), prolog),
+                                     isl_expr_to_cgen(exp_arg(1), prolog))
+        if op_typ == isl._isl.ast_op_type.add:
+            assert exp_n_args == 2
+            return isl_expr_to_cgen(exp_arg(0), prolog) + \
+                   isl_expr_to_cgen(exp_arg(1), prolog)
+        if op_typ == isl._isl.ast_op_type.mul:
+            assert exp_n_args == 2
+            return isl_expr_to_cgen(exp_arg(0), prolog) * \
+                   isl_expr_to_cgen(exp_arg(1), prolog)
+        if (op_typ == isl._isl.ast_op_type.div or
+            op_typ == isl._isl.ast_op_type.pdiv_q):
+            assert exp_n_args == 2
+            return isl_expr_to_cgen(exp_arg(0), prolog) / \
+                   isl_expr_to_cgen(exp_arg(1), prolog)
+        if op_typ == isl._isl.ast_op_type.pdiv_r:
+            assert exp_n_args == 2
+            return isl_expr_to_cgen(exp_arg(0), prolog) % \
+                   isl_expr_to_cgen(exp_arg(1), prolog)
+        if op_typ == isl._isl.ast_op_type.sub:
+            assert exp_n_args == 2
+            return isl_expr_to_cgen(exp_arg(0), prolog) - \
+                   isl_expr_to_cgen(exp_arg(1), prolog)
+        if op_typ == isl._isl.ast_op_type.minus:
+            assert exp_n_args == 1
+            return -isl_expr_to_cgen(exp_arg(0), prolog)
+        if (op_typ == isl._isl.ast_op_type.names['and'] or
+            op_typ == isl._isl.ast_op_type.and_then):
+            assert exp_n_args == 2
+            return isl_expr_to_cgen(exp_arg(0), prolog) & \
+                   isl_expr_to_cgen(exp_arg(1), prolog)
+        if (op_typ == isl._isl.ast_op_type.names['or'] or
+            op_typ == isl._isl.ast_op_type.or_else):
+            assert exp_n_args == 2
+            return isl_expr_to_cgen(exp_arg(0), prolog) |\
+                   isl_expr_to_cgen(exp_arg(1), prolog)
+
+    if expr.get_type() == isl._isl.ast_expr_type.int:
+        return expr.get_val().to_python()
+    if expr.get_type() == isl._isl.ast_expr_type.id:
+        return genc.CVariable(genc.CInt, expr.get_id().get_name())
+
+def isl_cond_to_cgen(cond, prologue_stmts = None):
+    comp_dict = { isl._isl.ast_op_type.eq: '==',
+                  isl._isl.ast_op_type.ge: '>=',
+                  isl._isl.ast_op_type.gt: '>',
+                  isl._isl.ast_op_type.le: '<=',
+                  isl._isl.ast_op_type.lt: '<' ,
+                  isl._isl.ast_op_type.names['and']: '&&',
+                  isl._isl.ast_op_type.and_then: '&&',
+                  isl._isl.ast_op_type.names['or']: '||',
+                  isl._isl.ast_op_type.or_else: '||' }
+
+    assert cond.get_op_type() in comp_dict
+    comp = comp_dict[cond.get_op_type()]
+    assert cond.get_op_n_arg() == 2
+    if (comp == '&&' or comp == '||'):
+        left = isl_cond_to_cgen(cond.get_op_arg(0), prologue_stmts)
+        right = isl_cond_to_cgen(cond.get_op_arg(1), prologue_stmts)
+    else:
+        left = isl_expr_to_cgen(cond.get_op_arg(0), prologue_stmts)
+        right = isl_expr_to_cgen(cond.get_op_arg(1), prologue_stmts)
+
+    return genc.CCond(left, comp, right)
+
+def is_inner_most_parallel(node):
+    # Check if there are no parallel loops within the node
+    no_inner_parallel = True
+    if node.get_type() == isl._isl.ast_node_type.block:
+        num_nodes = (node.block_get_children().n_ast_node())
+        for i in xrange(0, num_nodes):
+            child =  node.block_get_children().get_ast_node(i)
+            no_inner_parallel = no_inner_parallel and \
+                                is_inner_most_parallel(child)
+    else:
+        if node.get_type() == isl._isl.ast_node_type.names['for']:
+            user_nodes = get_user_nodes_in_body(node.for_get_body())
+            var = isl_expr_to_cgen(node.for_get_iterator())
+            if is_sched_dim_parallel(user_nodes, var.name):
+                no_inner_parallel = False
+        elif node.get_type() == isl._isl.ast_node_type.names['if']:
+            no_inner_parallel = no_inner_parallel and \
+                              is_inner_most_parallel(node.if_get_then())
+            has_else = node.if_has_else()
+            if has_else:
+              no_inner_parallel = no_inner_parallel and \
+                                is_inner_most_parallel(node.if_get_else())
+        elif node.get_type() == isl._isl.ast_node_type.user:
+            pass
+        else:
+            assert False
+    return no_inner_parallel
+
+def get_user_nodes_in_body(body):
+    user_nodes = []
+    if body.get_type() == isl._isl.ast_node_type.block:
+        num_nodes = (body.block_get_children().n_ast_node())
+        for i in range(0, num_nodes):
+            child = body.block_get_children().get_ast_node(i)
+            user_nodes += get_user_nodes_in_body(child)
+    else:
+        if body.get_type() == isl._isl.ast_node_type.names['for']:
+            user_nodes += get_user_nodes_in_body(body.for_get_body())
+        elif body.get_type() == isl._isl.ast_node_type.names['if']:
+            user_nodes += get_user_nodes_in_body(body.if_get_then())
+            if body.if_has_else():
+              user_nodes += get_user_nodes_in_body(body.if_get_else())
+        elif body.get_type() == isl._isl.ast_node_type.user:
+            user_nodes += [body]
+        else:
+            assert False
+    return user_nodes
+
+def is_sched_dim_parallel(user_nodes, sched_dim_name):
+    is_parallel = True
+    for node in user_nodes:
+        part = node.user_get_expr().get_op_arg(0).get_id().get_user()
+        if sched_dim_name not in part.parallelSchedDims:
+            is_parallel = False
+    return is_parallel
+
+def is_sched_dim_vector(user_nodes, sched_dim_name):
+    is_vector = True
+    for node in user_nodes:
+        part = node.user_get_expr().get_op_arg(0).get_id().get_user()
+        if sched_dim_name not in part.vector_sched_dim:
+            is_vector = False
+    return is_vector
+
+def get_arrays_for_user_nodes(user_nodes, cfunc_map):
+    arrays = []
+    for node in user_nodes:
+        part = node.user_get_expr().get_op_arg(0).get_id().get_user()
+        array, scratch = cfunc_map[part.comp]
+        if (array not in arrays) and (True in scratch):
+            arrays.append(array)
+    return arrays
+
+def generate_c_naive_from_isl_ast(node, body, cparam_map, cfunc_map):
+    if node.get_type() == isl._isl.ast_node_type.block:
+        num_nodes = (node.block_get_children().n_ast_node())
+        for i in xrange(0, num_nodes):
+            child = node.block_get_children().get_ast_node(i)
+            generate_c_naive_from_isl_ast(child, body, cparam_map, cfunc_map)
+    else:
+        if node.get_type() == isl._isl.ast_node_type.names['for']:
+            # Convert lb and ub expressions to C expressions
+            prologue = []
+            cond = isl_cond_to_cgen(node.for_get_cond(), prologue)
+            var = isl_expr_to_cgen(node.for_get_iterator())
+            incr = genc.CAssign(var, var+isl_expr_to_cgen(node.for_get_inc()))
+            if prologue is not None:
+                for s in prologue:
+                    body.add(s)
+
+            prologue = []
+            init = isl_expr_to_cgen(node.for_get_init(), prologue)
+            if prologue is not None:
+                for s in prologue:
+                    body.add(s)
+            var_decl =  genc.CDeclaration(var.typ, var, init)
+            loop = genc.CFor(var_decl, cond, incr)
+
+            # Check if the loop is a parallel or a vector dimension by
+            # examining the loop body.
+            user_nodes = get_user_nodes_in_body(node.for_get_body())
+
+            #dim_parallel = is_sched_dim_parallel(user_nodes, var.name)
+            #dim_vector = is_sched_dim_vector(user_nodes, var.name)
+            arrays = get_arrays_for_user_nodes(user_nodes, cfunc_map)
+
+            if dim_parallel:
+                omp_pragma = genc.CPragma("omp parallel for schedule(static)")
+                body.add(omp_pragma)
+            if dim_vector:
+                vec_pragma = genc.CPragma("ivdep")
+                body.add(vec_pragma)
+
+            body.add(loop)
+            # Assuming only one parallel dimension and a whole lot
+            # of other things.
+            freelist = []
+            if dim_parallel:
+                with loop.body as lbody:
+                    for array in arrays:
+                        if array.is_constant_size() and False:
+                        #if array.is_constant_size():
+                            array_decl = genc.CArrayDecl(array)
+                            lbody.add(array_decl)
+                        else:
+                            array_ptr = genc.CPointer(array.typ, 1)
+                            array_decl = genc.CDeclaration(array_ptr, array)
+                            lbody.add(array_decl)
+                            array.allocate_contigous(lbody)
+                            freelist.append(array)
+            with loop.body as lbody:
+                generate_c_naive_from_isl_ast(node.for_get_body(), lbody,
+                                              cparam_map, cfunc_map)
+                # Deallocate storage
+                for array in freelist:
+                    array.deallocate(lbody)
+
+        if node.get_type() == isl._isl.ast_node_type.names['if']:
+            if_cond = isl_cond_to_cgen(node.if_get_cond())
+            if node.if_has_else():
+                cif_else = genc.CIfThenElse(if_cond)
+                with cif_else.if_block as ifblock:
+                    generate_c_naive_from_isl_ast(node.if_get_then(), \
+                                                  ifblock, \
+                                                  cparam_map, cfunc_map)
+                with cif_else.else_block as elseblock:
+                    generate_c_naive_from_isl_ast(node.if_get_else(), \
+                                                  else_block, \
+                                                  cparam_map, cfunc_map)
+                body.add(cif_else)
+            else:
+                cif = genc.CIfThen(if_cond)
+                with cif.if_block as ifblock:
+                    generate_c_naive_from_isl_ast(node.if_get_then(), \
+                                                  ifblock, \
+                                                  cparam_map, cfunc_map)
+                body.add(cif)
+
+        if node.get_type() == isl._isl.ast_node_type.user:
+            # The first argument is the computation object.
+            # Retrieving the polyPart.
+            poly_part = node.user_get_expr().get_op_arg(0).get_id().get_user()
+            if isinstance(poly_part.expr, Reduction):
+                generate_c_naive_from_reduction_node(node, body, \
+                                                     cfunc_map, cparam_map)
+            elif isinstance(poly_part.expr, AbstractExpression):
+                generate_c_naive_from_expression_node(node, body, \
+                                                      cparam_map, cfunc_map)
+            else:
+                assert False
 
 def generate_c_cond(cond,
                     cparam_map, cvar_map, cfunc_map, 
@@ -84,18 +373,18 @@ def generate_c_expr(exp, cparam_map, cvar_map, cfunc_map,
 
             # true path
             var_type = genc.TypeMap.convert(getType(exp.trueExpression))
-            true_c_var = genc.CVariable(var_type, genc.CNameGen.get_temp_var_name())
+            true_c_var = genc.CVariable(var_type, new_temp())
             decl = genc.CDeclaration(var_type, true_c_var, true_expr)
             prologue_stmts.append(decl)
 
             # false path
             var_type = genc.TypeMap.convert(getType(exp.falseExpression))
-            false_c_var = genc.CVariable(var_type, genc.CNameGen.get_temp_var_name())
+            false_c_var = genc.CVariable(var_type, new_temp())
             decl = genc.CDeclaration(var_type, false_c_var, false_expr)
             prologue_stmts.append(decl)
 
             var_type = genc.TypeMap.convert(getType(exp))
-            sel_c_var = genc.CVariable(var_type, genc.CNameGen.get_temp_var_name())
+            sel_c_var = genc.CVariable(var_type, new_temp())
             decl = genc.CDeclaration(var_type, sel_c_var,
                                      genc.CSelect(c_cond, true_c_var, false_c_var))
             prologue_stmts.append(decl)
@@ -175,7 +464,7 @@ def create_loop_variables(group, variables):
     # Create iterator variables and bind them to DSL variables
     for i in range(0, len(variables)):
         var_type = genc.TypeMap.convert(variables[i].typ)
-        var = genc.CVariable(var_type, genc.CNameGen.get_iterator_name())
+        var = genc.CVariable(var_type, new_iter())
         # Bind variables to C iterators
         cvar_map[variables[i]] = var
 
@@ -367,7 +656,7 @@ def generate_code_for_group(pipeline, g, body, options, \
                 # FIXME Creating both a cVariable (for C declaration) and a
                 # Variable (to append to dims) with same namestring.
                 # Link both these properly.
-                dim_var_name = genc.CNameGen.get_temp_var_name()
+                dim_var_name = new_temp()
 
                 dim_var = Variable(Int, dim_var_name)
                 dim_c_var = genc.CVariable(genc.c_int, dim_var_name)
@@ -411,7 +700,8 @@ def generate_code_for_group(pipeline, g, body, options, \
     # 2. generate code for built isl ast
     if g.polyRep.polyast != []:
         for ast in g.polyRep.polyast:
-            #generateCNaiveFromIslAst(ast, body, cfuncMap, cparamMap)
+            generate_c_naive_from_isl_ast(ast, body,\
+                                          cparam_map, cfunc_map)
             pass
 
     return group_freelist
