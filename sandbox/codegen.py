@@ -19,9 +19,8 @@ LOG = codegen_logger.log
 new_temp = genc.CNameGen.get_temp_var_name
 new_iter = genc.CNameGen.get_iterator_name
 
+# TESTME
 def isl_expr_to_cgen(expr, prologue_stmts = None):
-
-    print(expr)
 
     # short hand
     exp_arg = expr.get_op_arg  #method
@@ -109,6 +108,7 @@ def isl_expr_to_cgen(expr, prologue_stmts = None):
     if expr.get_type() == isl._isl.ast_expr_type.id:
         return genc.CVariable(genc.CInt, expr.get_id().get_name())
 
+# TESTME
 def isl_cond_to_cgen(cond, prologue_stmts = None):
     comp_dict = { isl._isl.ast_op_type.eq: '==',
                   isl._isl.ast_op_type.ge: '>=',
@@ -132,6 +132,7 @@ def isl_cond_to_cgen(cond, prologue_stmts = None):
 
     return genc.CCond(left, comp, right)
 
+# TESTME
 def is_inner_most_parallel(node):
     # Check if there are no parallel loops within the node
     no_inner_parallel = True
@@ -160,6 +161,7 @@ def is_inner_most_parallel(node):
             assert False
     return no_inner_parallel
 
+# TESTME
 def get_user_nodes_in_body(body):
     user_nodes = []
     if body.get_type() == isl._isl.ast_node_type.block:
@@ -180,6 +182,7 @@ def get_user_nodes_in_body(body):
             assert False
     return user_nodes
 
+# TESTME
 def is_sched_dim_parallel(user_nodes, sched_dim_name):
     is_parallel = True
     for node in user_nodes:
@@ -188,6 +191,7 @@ def is_sched_dim_parallel(user_nodes, sched_dim_name):
             is_parallel = False
     return is_parallel
 
+# TESTME
 def is_sched_dim_vector(user_nodes, sched_dim_name):
     is_vector = True
     for node in user_nodes:
@@ -196,6 +200,7 @@ def is_sched_dim_vector(user_nodes, sched_dim_name):
             is_vector = False
     return is_vector
 
+# TESTME
 def get_arrays_for_user_nodes(user_nodes, cfunc_map):
     arrays = []
     for node in user_nodes:
@@ -205,6 +210,119 @@ def get_arrays_for_user_nodes(user_nodes, cfunc_map):
             arrays.append(array)
     return arrays
 
+# TESTME
+def cvariables_from_variables_and_sched(node, variables, sched):
+    cvar_map = {}
+    for i in xrange(0, len(variables)):
+        var_name = variables[i].name
+        dim = sched.find_dim_by_name(opt.isl._isl.dim_type.in_,
+                                     var_name)
+        cvar_map[variables[i]] = \
+            isl_expr_to_cgen(node.user_get_expr().get_op_arg(dim+1))
+    return cvar_map
+
+# TESTME
+def generate_c_naive_from_accumlate_node(node, body, cfunc_map, cparam_map):
+    poly_part = node.user_get_expr().get_op_arg(0).get_id().get_user()
+    dom_len = len(poly_part.comp.reductionVariables)
+    # FIXME: this has to be changed similar to Expression Node
+    cvar_map = cvariables_from_variables_and_sched(node,
+                 poly_part.comp.reductionVariables, poly_part.sched)
+    expr = generate_c_expr(poly_part.expr.expression, \
+                           cparam_map, cvar_map, cfunc_map)
+    prologue = []
+    array_ref = generate_c_expr(poly_part.expr.accumulateRef, \
+                                cparam_map, cvar_map, cfunc_map, \
+                                prologue_stmts = prologue)
+    assign = genc.CAssign(array_ref, array_ref + expr)
+
+    if prologue is not None:
+        for s in prologue:
+            body.add(s)
+
+    if poly_part.pred:
+        ccond = generate_c_cond(poly_part.pred, \
+                                cparam_map, cvar_map, cfunc_map)
+        cif = genc.CIfThen(ccond)
+        with cif.if_block as ifblock:
+            ifblock.add(assign)
+        body.add(cif)
+    else:
+        body.add(assign)
+
+# TESTME
+def generate_c_naive_from_expression_node(node, body, cfunc_map, cparam_map):
+    poly_part = node.user_get_expr().get_op_arg(0).get_id().get_user()
+    dom_len = len(poly_part.comp.variables)
+    # Get the mapping to the array
+    array, scratch = cfunc_map[poly_part.comp]
+
+    acc_scratch = [ False for i in xrange(0, dom_len) ]
+    for i in xrange(0, dom_len):
+        if i in poly_part.dimTileInfo:  # ADDME
+            if (poly_part.dimTileInfo[i][0] != 'none'):
+                acc_scratch[i] = True
+
+    cvar_map = \
+        cvariables_from_variables_and_sched(node, poly_part.comp.variables,
+                                            poly_part.sched)
+    arglist = []
+    scratch_map = {}
+    for i in xrange(0, dom_len):
+        acc_expr = poly_part.comp.variables[i] - \
+                  poly_part.comp.domain[i].lowerBound
+        if acc_scratch[i]:
+            var_name = poly_part.comp.variables[i].name
+            #dim = \
+            #    poly_part.sched.find_dim_by_name(opt.isl._isl.dim_type.in_,
+            #                                     '_Acc_' + var_name)
+            #dim_rem = \
+            #    poly_part.sched.find_dim_by_name(opt.isl._isl.dim_type.in_,
+            #                                     '_Rem_' + var_name)
+            mul_rem = \
+                poly_part.sched.find_dim_by_name(opt.isl._isl.dim_type.in_,
+                                                 '_Mul_' + var_name)
+            #org_var = Variable(Int, '_Acc_' + var_name)
+            #rem_var = Variable(Int, '_Rem_' + var_name)
+            #cvar_map[org_var] = \
+            #    isl_expr_to_cgen(node.user_get_expr().get_op_arg(dim+1))
+            #cvar_map[rem_var] = \
+            #   isl_expr_to_cgen(node.user_get_expr().get_op_arg(dim_rem+1))
+            mul_var = Variable(Int, '_Mul_' + var_name)
+            cvar_map[mul_var] = \
+                isl_expr_to_cgen(node.user_get_expr().get_op_arg(mul_rem+1))
+            scratch_map[poly_part.comp.variables[i]] = (mul_var)
+            if scratch[i]:
+                acc_expr = (mul_var)
+        arglist.append(generate_c_expr(acc_expr, \
+                                       cparam_map, cvar_map, cfunc_map, \
+                                       scratch_map))
+    prologue = []
+    expr = generate_c_expr(poly_part.expr, cparam_map, cvar_map, cfunc_map,
+                           scratch_map, prologue_stmts = prologue)
+    assign = genc.CAssign(array(*arglist), expr)
+
+    if prologue is not None:
+        for s in prologue:
+            body.add(s)
+
+    if poly_part.pred:
+        ccond = generate_c_cond(poly_part.pred, \
+                                cparam_map, cvar_map, cfunc_map, scratch_map)
+        cif = genc.CIfThen(ccond)
+        with cif.if_block as ifblock:
+            ifblock.add(assign)
+        body.add(cif)
+        #var = genc.CVariable(genc.CInt, "_c_" + poly_part.comp.name)
+        #incr = genc.CAssign(var, var + 1)
+        #body.add(incr)
+    else:
+        body.add(assign)
+        #var = genc.CVariable(genc.CInt, "_c_" + poly_part.comp.name)
+        #incr = genc.CAssign(var, var + 1)
+        #body.add(inc)
+
+# TESTME
 def generate_c_naive_from_isl_ast(node, body, cparam_map, cfunc_map):
     if node.get_type() == isl._isl.ast_node_type.block:
         num_nodes = (node.block_get_children().n_ast_node())
@@ -303,6 +421,7 @@ def generate_c_naive_from_isl_ast(node, body, cparam_map, cfunc_map):
             else:
                 assert False
 
+# TESTME
 def generate_c_cond(cond,
                     cparam_map, cvar_map, cfunc_map, 
                     scratch_map = {}, prologue_stmts = None):
@@ -324,6 +443,7 @@ def generate_c_cond(cond,
         return genc.CCond(left_cond, cond.conditional, right_cond)
     assert False
 
+# TESTME
 def generate_c_expr(exp, cparam_map, cvar_map, cfunc_map,
                     scratch_map = {}, prologue_stmts = None):
     if isinstance(exp, AbstractBinaryOpNode):
@@ -386,7 +506,9 @@ def generate_c_expr(exp, cparam_map, cvar_map, cfunc_map,
             var_type = genc.TypeMap.convert(getType(exp))
             sel_c_var = genc.CVariable(var_type, new_temp())
             decl = genc.CDeclaration(var_type, sel_c_var,
-                                     genc.CSelect(c_cond, true_c_var, false_c_var))
+                                     genc.CSelect(c_cond, \
+                                                  true_c_var, \
+                                                  false_c_var))
             prologue_stmts.append(decl)
 
             return sel_c_var
@@ -706,7 +828,9 @@ def generate_code_for_group(pipeline, g, body, options, \
 
     return group_freelist
 
-def generate_code_for_pipeline(pipeline, outsExternAlloc=True, is_io_void_ptr=True):
+def generate_code_for_pipeline(pipeline, \
+                               outsExternAlloc=True, \
+                               is_io_void_ptr=True):
     sorted_groups = pipeline.getOrderedGroups()
     # Discard the level order information
     sorted_groups = [ g[0] for g in sorted_groups ]
