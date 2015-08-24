@@ -47,11 +47,11 @@ def base_schedule(group):
         part.levelNo = time[part]
         dimIn = part.schedMap.dim(isl._isl.dim_type.in_)
         dimOut = part.schedMap.dim(isl._isl.dim_type.out)
-        [ineqs, eqs] = formatScheduleConstraints(dimIn, dimOut, 
-                                                 part.align, 
-                                                 part.scale,
-                                                 part.levelNo)
-        part.sched = addConstraints(part.schedMap.copy(), ineqs, eqs)
+        [ineqs, eqs] = format_schedule_constraints(dimIn, dimOut,
+                                                   part.align,
+                                                   part.scale,
+                                                   part.levelNo)
+        part.sched = add_constraints(part.schedMap.copy(), ineqs, eqs)
 
 
 def align_and_scale_parts(pipeline, group):

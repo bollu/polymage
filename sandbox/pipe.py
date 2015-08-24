@@ -82,17 +82,12 @@ class Group:
         self._inputs = list(set([ref.objectRef for ref in refs \
                             if isinstance(ref.objectRef, Image)]))
 
-        # Create a polyhedral representation if possible
-        polyhedral = True
-
+        # Create a polyhedral representation if possible.
         # Currently doing extraction only when all the computeObjs
-        # domains are affine. This can be revisited later. 
-        for comp in self._compObjs:
-            if (not comp.hasBoundedIntegerDomain()):
-                polyhedral = False
-        if polyhedral:
-            self._polyrep = PolyRep(_ctx, self, _paramConstraints) 
-        
+        # domains are affine. This can be revisited later.
+        if self.isPolyhedral():
+            self._polyrep = PolyRep(_ctx, self, _paramConstraints)
+
     @property
     def computeObjs(self):
         return self._compObjs
