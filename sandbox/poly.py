@@ -11,75 +11,82 @@ def lcm(a, b):
     return a*b/(gcd(a, b))
 
 def optimizeSchedule(partScheds, dependencies):
-    # The pluto optimizer can be used to optimize the schedule for comparision.
+    # The pluto optimizer can be used to optimize the schedule for
+    # comparision.
     pass
 
-def addConstraintsFromList(obj, localSpace, constraintList, constraintAlloc):
-    for const in constraintList:
-        c = constraintAlloc(localSpace)
+def add_constraints_from_list(obj, local_space, constraint_list,
+                              constraint_alloc):
+    for constr in constraint_list:
+        c = constraint_alloc(local_space)
+
+        # find the normalization factor
         m = 1
-        for coeff in const:
-            if isinstance(const[coeff], Fraction):
-                den = int(gcd(abs(const[coeff].denominator), m))
-                m = (abs(const[coeff].denominator) * m)//den
+        for coeff in constr:
+            if isinstance(constr[coeff], Fraction):
+                den = int(gcd(abs(constr[coeff].denominator), m))
+                m = (abs(constr[coeff].denominator) * m)//den
         assert m.denominator == 1
         m = m.numerator
-        for coeff in const:
-            if isinstance(const[coeff], Fraction):
-               const[coeff] = m*const[coeff]
-               assert const[coeff].denominator == 1
-               const[coeff] = const[coeff].numerator
+
+        # normalize
+        for coeff in constr:
+            if isinstance(constr[coeff], Fraction):
+               constr[coeff] = m * constr[coeff]
+               assert constr[coeff].denominator == 1
+               constr[coeff] = constr[coeff].numerator
             else:
-               const[coeff] = m * const[coeff]
-        for coeff in const:
+               constr[coeff] = m * constr[coeff]
+
+        for coeff in constr:
             dim = coeff[1]
             if coeff[0] == 'param':
                 if (type(dim) == str):
                     dim = obj.find_dim_by_name(isl._isl.dim_type.param, dim)
-                c = c.set_coefficient_val(isl._isl.dim_type.param, dim, const[coeff])
+                c = c.set_coefficient_val(isl._isl.dim_type.param,
+                                          dim, constr[coeff])
             elif coeff[0] == 'in':
                 if (type(dim) == str):
                     dim = obj.find_dim_by_name(isl._isl.dim_type.in_, dim)
-                c = c.set_coefficient_val(isl._isl.dim_type.in_, dim, const[coeff])
+                c = c.set_coefficient_val(isl._isl.dim_type.in_,
+                                          dim, constr[coeff])
             elif coeff[0] == 'out':
                 if (type(dim) == str):
                     dim = obj.find_dim_by_name(isl._isl.dim_type.out, dim)
-                c = c.set_coefficient_val(isl._isl.dim_type.out, dim, const[coeff])
+                c = c.set_coefficient_val(isl._isl.dim_type.out,
+                                          dim, constr[coeff])
             elif coeff[0] == 'constant':
-                c = c.set_constant_val(const[coeff])
+                c = c.set_constant_val(constr[coeff])
             else:
                assert False
         obj = obj.add_constraint(c)
     return obj
 
 def add_constraints(obj, ineqs, eqs):
+
+    def add_constraints_for_element(obj, local_space, ineqs, eqs):
+        obj = add_constraints_from_list(obj, local_space, ineqs,
+                                        isl.Constraint.inequality_alloc)
+        obj = add_constraints_from_list(obj, local_space, eqs,
+                                        isl.Constraint.equality_alloc)
+        return obj
+
     space = obj.get_space()
     if (isinstance(obj, isl.Map)):
         for bmap in obj.get_basic_maps():
-            localSpace = bmap.get_local_space()
-
-            obj = addConstraintsFromList(obj, localSpace, ineqs, 
-                                 isl.Constraint.inequality_alloc) 
-            obj = addConstraintsFromList(obj, localSpace, eqs, 
-                                 isl.Constraint.equality_alloc) 
+            local_space = bmap.get_local_space()
+            obj = add_constraints_for_element(obj, local_space, ineqs, eqs)
     elif (isinstance(obj, isl.Set)):
         for bset in obj.get_basic_sets():
-            localSpace = bset.get_local_space()
-
-            obj = addConstraintsFromList(obj, localSpace, ineqs, 
-                                 isl.Constraint.inequality_alloc) 
-            obj = addConstraintsFromList(obj, localSpace, eqs, 
-                                 isl.Constraint.equality_alloc)
-    elif (isinstance(obj, isl.BasicSet) or 
+            local_space = bset.get_local_space()
+            obj = add_constraints_for_element(obj, local_space, ineqs, eqs)
+    elif (isinstance(obj, isl.BasicSet) or
           isinstance(obj, isl.BasicMap)):
-        localSpace = obj.get_local_space()
-        obj = addConstraintsFromList(obj, localSpace, ineqs, 
-                            isl.Constraint.inequality_alloc) 
-        obj = addConstraintsFromList(obj, localSpace, eqs, 
-                            isl.Constraint.equality_alloc)
+        local_space = obj.get_local_space()
+        obj = add_constraints_for_element(obj, local_space, ineqs, eqs)
     else:
         assert False
-        
+
     return obj
 
 def extractValueDependence(part, ref, refPolyDom):
@@ -102,7 +109,7 @@ def extractValueDependence(part, ref, refPolyDom):
         # the computation may depend on any value of the referenced object
         if (isAffine(arg)):
             coeff = get_affine_var_and_param_coeff(arg)
-            coeff = mapCoeffToDim(coeff)
+            coeff = map_coeff_to_dim(coeff)
 
             coeff[('constant', 0)] = get_constant_from_expr(arg, affine = True)
             coeff[sourceDims[i]] = -1
@@ -205,6 +212,8 @@ class PolyRep(object):
         self._varCount = 0
         self._funcCount = 0
 
+        # TODO: move the following outside __init__()
+
         self.extract_polyrep_from_group(_paramConstraints)
 
         #self.fusedSchedule(_paramEstimates)
@@ -239,7 +248,7 @@ class PolyRep(object):
         # to the group.
         context_conds = \
             self.format_param_constraints(param_constraints, grp_params)
-                    
+
         # The [t] is for the stage dimension
         schedule_names = ['_t'] + \
                          [ self.getVarName()  for i in range(0, dim) ]
@@ -260,14 +269,13 @@ class PolyRep(object):
 
     def format_param_constraints(self, param_constraints, grp_params):
         context_conds = []
+        grp_params_set = set(grp_params)
         for param_constr in param_constraints:
             # Only consider parameter constraints of parameters
             # given in params.
             params_in_constr = param_constr.collect(Parameter)
-            context_add = True
-            for p in params_in_constr:
-                if p not in grp_params:
-                    context_add = False
+            context_add = set(params_in_constr).issubset(grp_params_set)
+
             # Only add the constraint if it is affine and has no conjunctions.
             # Handling conjunctions can be done but will require more care.
             if context_add and isAffine(param_constr):
@@ -323,7 +331,7 @@ class PolyRep(object):
     def create_sched_space(self, variables, domains,
                            schedule_names, param_names, context_conds):
         # Variable names for referring to dimensions
-        var_names = [ variables[i].name for i in range(0, len(variables)) ]
+        var_names = [ var.name for var in variables ]
         space = isl.Space.create_from_names(self.ctx, in_ = var_names,
                                                       out = schedule_names,
                                                       params = param_names)
@@ -466,7 +474,7 @@ class PolyRep(object):
                     break_select = True
                 if break_select:
                     left_coeff = get_affine_var_and_param_coeff(left_expr.left)
-                    left_coeff = mapCoeffToDim(left_coeff)
+                    left_coeff = map_coeff_to_dim(left_coeff)
                     left_const = get_constant_from_expr(left_expr.left, affine = True)
                     right_const = get_constant_from_expr(right_expr, affine = True)
                     mod_const = get_constant_from_expr(left_expr.right, affine = True)
@@ -1005,7 +1013,7 @@ class PolyRep(object):
             if offset[i] == '-':
                 offset[i] = 0
         return (scale, offset)
-    
+
     def createGroupScaleMap(self, group):
         groupScaleMap = {}
         for part in group:
@@ -1073,7 +1081,7 @@ class PolyRep(object):
                 polystr = polystr + '\n' + aststr
         return polystr
 
-def mapCoeffToDim(coeff):
+def map_coeff_to_dim(coeff):
     variables = list(coeff.keys())
     for var in variables:
         coeffval = coeff[var]
@@ -1122,18 +1130,18 @@ def format_domain_constraints(domain, var_names):
 
         lb_coeff = get_affine_var_and_param_coeff(interval.lowerBound)
         # Mapping from variable names to the corresponding dimension
-        lb_coeff = mapCoeffToDim(lb_coeff)
+        lb_coeff = map_coeff_to_dim(lb_coeff)
         lb_const = get_constant_from_expr(interval.lowerBound, affine = True)
 
         # Normalizing into >= format
-        coeff = dict( (n, -lb_coeff.get(n)) for n in  lb_coeff)
+        coeff = dict( (n, -lb_coeff.get(n)) for n in lb_coeff )
         coeff[('constant', 0)] = -lb_const
         coeff[('in', var_names[i])] = 1
         ineq_coeff.append(coeff)
 
         ub_coeff = get_affine_var_and_param_coeff(interval.upperBound)
-        # M_apping from variable names to the corresponding dimension 
-        ub_coeff = mapCoeffToDim(ub_coeff)
+        # Mapping from variable names to the corresponding dimension
+        ub_coeff = map_coeff_to_dim(ub_coeff)
         ub_const = get_constant_from_expr(interval.upperBound, affine = True)
 
         # Normalizing into >= format
@@ -1146,6 +1154,7 @@ def format_domain_constraints(domain, var_names):
 
 def format_conjunct_constraints(conjunct):
     # TODO check if the condition is a conjunction
+    # print([ cond.__str__() for cond in conjunct ])
     ineq_coeff = []
     eq_coeff = []
     for cond in conjunct:
@@ -1156,8 +1165,8 @@ def format_conjunct_constraints(conjunct):
         right_const = get_constant_from_expr(cond.rhs, affine = True)
 
         # Mapping from variable names to the corresponding dimension
-        left_coeff = mapCoeffToDim(left_coeff)
-        right_coeff = mapCoeffToDim(right_coeff)
+        left_coeff = map_coeff_to_dim(left_coeff)
+        right_coeff = map_coeff_to_dim(right_coeff)
         
         def constant_div_factor(const):
             m = 1

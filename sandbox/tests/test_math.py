@@ -9,7 +9,7 @@ sys.path.insert(0, '../')
 from compiler import *
 from constructs import *
 
-def test_math():
+def _test_math():
 
     R = Parameter(Int, "R")
     C = Parameter(Int, "C")
