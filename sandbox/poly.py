@@ -214,6 +214,7 @@ class PolyRep(object):
         self._func_count = 0
 
         # TODO: move the following outside __init__()
+        # For now, let this be. Compilation optimizations can come later.
 
         self.extract_polyrep_from_group(_paramConstraints)
 
@@ -382,21 +383,27 @@ class PolyRep(object):
                         parts = self.make_poly_parts(sched_m, case.expression,
                                                      None, comp,
                                                      align, scale, level_no)
+                        # FIXME: Is a loop required here? make_poly_part
+                        # seems to return a list of one part
                         for part in parts:
                             self.poly_parts[comp].append(part)
                     else:
                         parts = self.make_poly_parts(sched_m, case.expression,
-                                                   case.condition, comp,
-                                                   align, scale, level_no)
+                                                     case.condition, comp,
+                                                     align, scale, level_no)
 
+                        # FIXME: Is a loop required here? make_poly_part
+                        # seems to return a list of one part
                         for part in parts:
                             self.poly_parts[comp].append(part)
             else:
                 assert(isinstance(case, AbstractExpression) or
                        isinstance(case, Accumulate))
                 parts = self.make_poly_parts(sched_m, case,
-                                           None, comp,
-                                           align, scale, level_no)
+                                             None, comp,
+                                             align, scale, level_no)
+                # FIXME: Is a loop required here? make_poly_part
+                # seems to return a list of one part
                 for part in parts:
                     self.poly_parts[comp].append(part)
 
@@ -557,12 +564,12 @@ class PolyRep(object):
             poly_parts.append(poly_part)
         else:
             for bsched_map, bexpr in broken_parts:
-                poly_part = PolyPart(bsched_map, bexpr, pred, comp, list(align),
-                                    list(scale), level_no)
+                poly_part = PolyPart(bsched_map, bexpr, pred, comp,
+                                     list(align), list(scale), level_no)
                 # Create a user pointer, tuple name and add it to the map
                 id_ = isl.Id.alloc(self.ctx, comp.name, poly_part)
-                poly_part.sched_map = poly_part.sched_map.set_tuple_id(
-                                          isl._isl.dim_type.in_, id_)
+                poly_part.sched_map = poly_part.sched_map.set_tuple_id( \
+                                        isl._isl.dim_type.in_, id_)
                 poly_parts.append(poly_part)
         return poly_parts
 
@@ -1096,6 +1103,7 @@ class PolyRep(object):
                 polystr = polystr + '\n' + aststr
         return polystr
 
+
 def map_coeff_to_dim(coeff):
     variables = list(coeff.keys())
     for var in variables:
@@ -1220,6 +1228,7 @@ def format_conjunct_constraints(conjunct):
 
     return [ineq_coeff, eq_coeff]
 
+# NOTE: Dead code?
 def getParamsInvolved(sched, dim):
     numParams = sched.domain().n_param()
     paramNames = [ ]
