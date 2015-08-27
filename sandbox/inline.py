@@ -25,8 +25,8 @@ def inline(childStage, parentStage, noSplit = False):
 
             deps = []
             for ref in childRefs:
-                deps += extractValueDependence(childPart, ref, 
-                            parentStage.polyRep.polyDoms[parentFunc])
+                deps += extract_value_dependence(childPart, ref,
+                            parentStage.polyRep.poly_doms[parentFunc])
             
             # Check if all the values come from the same parent part
             depToPartMap = {}

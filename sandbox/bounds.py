@@ -10,8 +10,8 @@ def checkRefs(childStage, parentStage):
 
     # Only verifying if both child and  parent stage have a polyhedral 
     # representation
-    if childStage.polyRep.polyParts and parentStage.polyRep.polyDoms:
-        for childPart in childStage.polyRep.polyParts[childObj]:
+    if childStage.polyRep.poly_parts and parentStage.polyRep.poly_doms:
+        for childPart in childStage.polyRep.poly_parts[childObj]:
             # Compute dependence relations between child and parent
             childRefs = childPart.getPartRefs()
             if childPart.pred:
@@ -29,11 +29,11 @@ def checkRefs(childStage, parentStage):
 
             deps = []
             for ref in childRefs:
-                deps += extractValueDependence(childPart, ref, 
-                             parentStage.polyRep.polyDoms[parentFunc])
+                deps += extract_value_dependence(childPart, ref,
+                             parentStage.polyRep.poly_doms[parentFunc])
             for dep in deps:
                 diff = dep.rel.range().subtract(
-                        parentStage.polyRep.polyDoms[parentFunc].domSet)
+                        parentStage.polyRep.poly_doms[parentFunc].domSet)
                 if(not diff.is_empty()):
                     raise TypeError("Reference out of domain", childStage, 
                                      parentStage, diff)

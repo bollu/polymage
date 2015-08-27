@@ -711,23 +711,23 @@ def generate_code_for_group(pipeline, g, body, options, \
 
     g.polyRep.generateCode()
 
-    # NOTE uses the levelNo of the first polypart of each compute object of
+    # NOTE uses the level_no of the first polypart of each compute object of
     # the group as the key for sorting compare operator. *Idea is that all
-    # parts of a compute object bears the same levelNo*, thus repeated calling
+    # parts of a compute object bears the same level_no*, thus repeated calling
     # of 'orderComputeObjs' can be avoided.
-    group_parts = g.polyRep.polyParts
+    group_parts = g.polyRep.poly_parts
     sorted_comp_objs = sorted(g._compObjs, \
                               key = lambda \
-                              comp : group_parts[comp][0].levelNo)
+                              comp : group_parts[comp][0].level_no)
 
     # NOTE the last comp obj in the sorted list has the max level number
     # that is shared by all the liveouts of the group
     last_comp = sorted_comp_objs[len(sorted_comp_objs)-1]
-    max_level = group_parts[last_comp][0].levelNo
+    max_level = group_parts[last_comp][0].level_no
     is_comp_liveout = {}
     is_comp_output = {}
     for comp in sorted_comp_objs:
-        is_comp_liveout[comp] = (group_parts[comp][0].levelNo == max_level)
+        is_comp_liveout[comp] = (group_parts[comp][0].level_no == max_level)
         is_comp_output[comp] = comp in outputs
 
     # ***

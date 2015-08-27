@@ -89,13 +89,13 @@ def add_constraints(obj, ineqs, eqs):
 
     return obj
 
-def extractValueDependence(part, ref, refPolyDom):
+def extract_value_dependence(part, ref, refPolyDom):
     # Dependencies are calculated between values. There is no storage
     # mapping done yet.
     assert(part.sched)
     deps = []
-    accessRegion = isl.BasicSet.universe(refPolyDom.domSet.get_space())
-    partDom = part.sched.domain().align_params(refPolyDom.domSet.get_space())    
+    accessRegion = isl.BasicSet.universe(refPolyDom.dom_set.get_space())
+    partDom = part.sched.domain().align_params(refPolyDom.dom_set.get_space())
     accessRegion = accessRegion.align_params(partDom.get_space())
     
     rel = isl.BasicMap.from_domain_and_range(partDom, accessRegion)
@@ -119,9 +119,9 @@ def extractValueDependence(part, ref, refPolyDom):
     return deps 
 
 class PolyPart(object):
-    def __init__(self, _schedMap, _expr, _pred, _comp, 
-                 _align, _scale, _levelNo):
-        self.schedMap = _schedMap
+    def __init__(self, _sched_map, _expr, _pred, _comp,
+                 _align, _scale, _level_no):
+        self.sched_map = _sched_map
         self.expr = _expr
         self.pred = _pred
         self.comp = _comp
@@ -141,7 +141,7 @@ class PolyPart(object):
         # constructing the polypart. These are changed by the
         # alignment and loop scaling passes. Both these passer
         # attempt to improve locality and uniformize dependencies.
-        self.levelNo = _levelNo
+        self.level_no = _level_no
 
         # maps tiled dimensions to their respective scratchpad sizes
         self.dim_scratch_size = {}
@@ -180,19 +180,20 @@ class PolyPart(object):
         return partStr + depstr
 
 class PolyDomain(object):
-    def __init__(self, _domSet, _comp):
-        self.domSet = _domSet
+    def __init__(self, _dom_set, _comp):
+        self.dom_set = _dom_set
         self.comp = _comp
-        
-    def __str__(self):
-        return "Domain: " + self.domSet.__str__()
 
+    def __str__(self):
+        return "Domain: " + self.dom_set.__str__()
+
+# NOTE: Dead Code?
 class PolyDep(object):
-    def __init__(self, _producerObj, _consumerObj, _rel):
-        self.producerObj = _producerObj
-        self.consumerObj = _consumerObj
+    def __init__(self, _producer_obj, _consumer_obj, _rel):
+        self.producer_obj = _producer_obj
+        self.consumer_obj = _consumer_obj
         self.rel         = _rel
-    
+
     def __str__(self):
         return self.rel.__str__()
 
@@ -205,12 +206,12 @@ class PolyRep(object):
     def __init__(self, _ctx, _group, _paramConstraints):
         self.group = _group
         self.ctx = _ctx
-        self.polyParts = {}
-        self.polyDoms = {}
+        self.poly_parts = {}
+        self.poly_doms = {}
         self.polyast = []
 
-        self._varCount = 0
-        self._funcCount = 0
+        self._var_count = 0
+        self._func_count = 0
 
         # TODO: move the following outside __init__()
 
@@ -295,8 +296,8 @@ class PolyRep(object):
 
         poly_dom = PolyDomain(sched_map.domain(), comp)
         id_ = isl.Id.alloc(self.ctx, comp.name, poly_dom)
-        poly_dom.domSet = poly_dom.domSet.set_tuple_id(id_)
-        self.polyDoms[comp] = poly_dom
+        poly_dom.dom_set = poly_dom.dom_set.set_tuple_id(id_)
+        self.poly_doms[comp] = poly_dom
 
         self.create_poly_parts_from_definition(comp, sched_map, level_no, 
                                                schedule_names, comp.domain)
@@ -313,8 +314,8 @@ class PolyRep(object):
 
         poly_dom = PolyDomain(sched_map.domain(), comp)
         id_ = isl.Id.alloc(self.ctx, comp.name, poly_dom)
-        poly_dom.domSet = poly_dom.domSet.set_tuple_id(id_)
-        self.polyDoms[comp] = poly_dom
+        poly_dom.dom_set = poly_dom.dom_set.set_tuple_id(id_)
+        self.poly_doms[comp] = poly_dom
 
         self.create_poly_parts_from_definition(comp, sched_map, level_no,
                                                schedule_names,
@@ -350,7 +351,7 @@ class PolyRep(object):
     def create_poly_parts_from_definition(self, comp,
                                           sched_map, level_no,
                                           schedule_names, domain):
-        self.polyParts[comp] = []
+        self.poly_parts[comp] = []
         for case in comp.defn:
             sched_m = sched_map.copy()
 
@@ -379,17 +380,17 @@ class PolyRep(object):
                                                   conjunct_ineqs,
                                                   conjunct_eqs)
                         parts = self.make_poly_parts(sched_m, case.expression,
-                                                   None, comp,
-                                                   align, scale, level_no)
+                                                     None, comp,
+                                                     align, scale, level_no)
                         for part in parts:
-                            self.polyParts[comp].append(part)
+                            self.poly_parts[comp].append(part)
                     else:
                         parts = self.make_poly_parts(sched_m, case.expression,
                                                    case.condition, comp,
                                                    align, scale, level_no)
 
                         for part in parts:
-                            self.polyParts[comp].append(part)
+                            self.poly_parts[comp].append(part)
             else:
                 assert(isinstance(case, AbstractExpression) or
                        isinstance(case, Accumulate))
@@ -397,7 +398,7 @@ class PolyRep(object):
                                            None, comp,
                                            align, scale, level_no)
                 for part in parts:
-                    self.polyParts[comp].append(part)
+                    self.poly_parts[comp].append(part)
 
         # TODO adding a boundary padding and default to the function 
         # will help DSL usability. 
@@ -414,8 +415,8 @@ class PolyRep(object):
         #sched_m = add_constraints(sched_m, [], [level_coeff])
         #sched_m = add_constraints(sched_m, param_ineqs, param_eqs)
 
-        #for part in self.polyParts[comp]:
-        #    sched_m = sched_m.subtract_range(part.schedMap.range())
+        #for part in self.poly_parts[comp]:
+        #    sched_m = sched_m.subtract_range(part.sched_map.range())
         #    if (sched_m.is_empty()):
         #        break
         #if(not sched_m.fast_is_empty()):
@@ -427,9 +428,9 @@ class PolyRep(object):
         #    for bmap in bmap_list:
         #        poly_part = PolyPart(bmap, comp.default, None, comp)
         #        id_ = isl.Id.alloc(self.ctx, comp.name, poly_part)
-        #        poly_part.schedMap = poly_part.schedMap.set_tuple_id(
+        #        poly_part.sched_map = poly_part.sched_map.set_tuple_id(
         #                                   isl._isl.dim_type.in_, id_)
-        #        self.polyParts[comp].append(poly_part)
+        #        self.poly_parts[comp].append(poly_part)
 
     def create_poly_parts_from_default(self, comp, sched_map,
                                        level_no, schedule_names):
@@ -442,12 +443,12 @@ class PolyRep(object):
                              align, scale, level_no)
 
         id_ = isl.Id.alloc(self.ctx, comp.name, poly_part)
-        poly_part.schedMap = \
-                poly_part.schedMap.set_tuple_id(isl._isl.dim_type.in_, id_)
-        self.polyParts[comp].append(poly_part)
+        poly_part.sched_map = \
+                poly_part.sched_map.set_tuple_id(isl._isl.dim_type.in_, id_)
+        self.poly_parts[comp].append(poly_part)
 
     def make_poly_parts(self, sched_map, expr, pred, comp,
-                      align, scale, level_no):
+                        align, scale, level_no):
         # Detect selects with modulo constraints and split into 
         # multiple parts. This technique can also be applied to the
         # predicate but for now we focus on selects.
@@ -458,14 +459,16 @@ class PolyRep(object):
         broken_parts = []
         if isinstance(expr, Select):
             conjuncts = expr.condition.splitToConjuncts()
+            print("conjuncts =", conjuncts)
             if len(conjuncts) == 1 and len(conjuncts[0]) == 1:
                 cond = conjuncts[0][0]
                 left_expr = cond.lhs
                 right_expr = cond.rhs
-                is_left_modulo = isAffine(left_expr, includeModulo = True) and \
-                               not isAffine(left_expr)
+                is_left_modulo = isAffine(left_expr, includeModulo=True) and \
+                                 not isAffine(left_expr)
                 is_right_constant = is_constant_expr(right_expr)
                 break_select = False
+                # check for 'affine % constant == constant'
                 if is_left_modulo and is_right_constant and \
                     cond.conditional == '==' and \
                     isinstance(left_expr, AbstractBinaryOpNode)\
@@ -473,20 +476,28 @@ class PolyRep(object):
                     and is_constant_expr(left_expr.right):
                     break_select = True
                 if break_select:
+                    left_const = get_constant_from_expr(left_expr.left,
+                                                        affine = True)
+                    right_const = get_constant_from_expr(right_expr,
+                                                         affine = True)
+                    mod_const = get_constant_from_expr(left_expr.right,
+                                                       affine = True)
+
                     left_coeff = get_affine_var_and_param_coeff(left_expr.left)
                     left_coeff = map_coeff_to_dim(left_coeff)
-                    left_const = get_constant_from_expr(left_expr.left, affine = True)
-                    right_const = get_constant_from_expr(right_expr, affine = True)
-                    mod_const = get_constant_from_expr(left_expr.right, affine = True)
 
                     mul_name = '_Mul_'
                     rem_name = '_Rem_'
+
+                    # true branch schedule
                     true_sched = sched_map.copy()
                     dim_in = true_sched.dim(isl._isl.dim_type.in_)
-                    true_sched = true_sched.insert_dims(isl._isl.dim_type.in_, 
-                                                      dim_in, 1)
-                    true_sched = true_sched.set_dim_name(isl._isl.dim_type.in_, 
-                                                       dim_in, mul_name)
+                    true_sched = \
+                        true_sched.insert_dims(isl._isl.dim_type.in_,
+                                               dim_in, 1)
+                    true_sched = \
+                        true_sched.set_dim_name(isl._isl.dim_type.in_,
+                                                dim_in, mul_name)
 
                     eqs = []
                     left_coeff[('constant', 0)] = left_const - right_const
@@ -494,21 +505,25 @@ class PolyRep(object):
                     eqs.append(left_coeff)
 
                     true_sched = add_constraints(true_sched, [], eqs)
-                    true_sched = true_sched.project_out(isl._isl.dim_type.in_, 
-                                                      dim_in, 1)
+                    true_sched = true_sched.project_out(isl._isl.dim_type.in_,
+                                                        dim_in, 1)
                     broken_parts.append((true_sched, expr.trueExpression))
 
+                    # false branch schedule
                     false_sched = sched_map.copy()
                     dim_in = false_sched.dim(isl._isl.dim_type.in_)
-                    false_sched = false_sched.insert_dims(isl._isl.dim_type.in_, 
-                                                        dim_in, 2)
-                    false_sched = false_sched.set_dim_name(isl._isl.dim_type.in_,
-                                                         dim_in, mul_name)
-                    false_sched = false_sched.set_dim_name(isl._isl.dim_type.in_, 
-                                                         dim_in + 1, rem_name)
+                    false_sched = \
+                        false_sched.insert_dims(isl._isl.dim_type.in_,
+                                                dim_in, 2)
+                    false_sched = \
+                        false_sched.set_dim_name(isl._isl.dim_type.in_,
+                                                 dim_in, mul_name)
+                    false_sched = \
+                        false_sched.set_dim_name(isl._isl.dim_type.in_,
+                                                 dim_in+1, rem_name)
 
                     eqs = []
-                    left_coeff[('constant', 0)] = left_const - right_const 
+                    left_coeff[('constant', 0)] = left_const - right_const
                     left_coeff[('in', dim_in)] = -mod_const
                     left_coeff[('in', dim_in+1)] = -1
                     eqs.append(left_coeff)
@@ -518,25 +533,26 @@ class PolyRep(object):
                     coeff[('in', dim_in+1)] = 1
                     coeff[('constant', 0)] = -1
                     ineqs.append(coeff)
-                
+
                     coeff = {}
                     coeff[('in', dim_in+1)] = -1
-                    coeff[('constant', 0)] = mod_const - 1
+                    coeff[('constant', 0)] = mod_const-1
                     ineqs.append(coeff)
 
                     false_sched = add_constraints(false_sched, ineqs, eqs)
-                    false_sched = false_sched.project_out(isl._isl.dim_type.in_,
-                                                        dim_in, 2)
+                    false_sched = \
+                        false_sched.project_out(isl._isl.dim_type.in_,
+                                                dim_in, 2)
                     broken_parts.append((false_sched, expr.falseExpression))
 
-        # Note the align and scale lists are cloned otherwise all the
-        # parts will be sharing the same alignment and scaling
+        # Note the align and scale lists are cloned otherwise all the parts
+        # will be sharing the same alignment and scaling
         if not broken_parts:
-            poly_part = PolyPart(sched_map, expr, pred, comp, list(align),
-                                list(scale), level_no)
+            poly_part = PolyPart(sched_map, expr, pred, comp,
+                                 list(align), list(scale), level_no)
             # Create a user pointer, tuple name and add it to the map
             id_ = isl.Id.alloc(self.ctx, comp.name, poly_part)
-            poly_part.schedMap = poly_part.schedMap.set_tuple_id(
+            poly_part.sched_map = poly_part.sched_map.set_tuple_id(
                                           isl._isl.dim_type.in_, id_)
             poly_parts.append(poly_part)
         else:
@@ -545,13 +561,12 @@ class PolyRep(object):
                                     list(scale), level_no)
                 # Create a user pointer, tuple name and add it to the map
                 id_ = isl.Id.alloc(self.ctx, comp.name, poly_part)
-                poly_part.schedMap = poly_part.schedMap.set_tuple_id(
+                poly_part.sched_map = poly_part.sched_map.set_tuple_id(
                                           isl._isl.dim_type.in_, id_)
                 poly_parts.append(poly_part)
         return poly_parts
 
     def default_align_and_scale(self, sched):
-        dim_out = sched.dim(isl._isl.dim_type.out)
         dim_in = sched.dim(isl._isl.dim_type.in_)
         align = {}
         # align[i] = j means input dimension i is mapped to output 
@@ -566,13 +581,13 @@ class PolyRep(object):
 
     def generateCode(self):
         self.polyast = []
-        if self.polyParts:
+        if self.poly_parts:
             self.buildAst()
 
     def buildAst(self):
         #astbld =  isl.AstBuild.from_context(isl.BasicSet("[C, R]->{: R>=1 and C>=1}", self.ctx))
         parts = []
-        for plist in self.polyParts.values():
+        for plist in self.poly_parts.values():
             parts.extend(plist)
        
         # TODO figure out a way to create the correct parameter context
@@ -580,14 +595,14 @@ class PolyRep(object):
         astbld =  isl.AstBuild.from_context(parts[0].sched.params())
         #astbld =  astbld.set_options(isl.UnionMap("{ }"))
 
-        schedMap = None
+        sched_map = None
         optMap = None
         for part in parts:
-            if schedMap is None:
-                schedMap = isl.UnionMap.from_map(part.sched)
+            if sched_map is None:
+                sched_map = isl.UnionMap.from_map(part.sched)
             else:
                 partMap = isl.UnionMap.from_map(part.sched)
-                schedMap = schedMap.union(partMap)
+                sched_map = sched_map.union(partMap)
             if optMap is None:
                 #unrollUnionSet = isl.UnionSet.from_set(isl.Set("{unroll[x] : x = 0 or x = 2}", self.ctx))
                 unrollUnionSet = isl.UnionSet.from_set(isl.Set("{:}", self.ctx))
@@ -613,23 +628,23 @@ class PolyRep(object):
             #print(arg)
             pass
 
-        schedMap.foreach_map(printer)
-        self.polyast.append(astbld.ast_from_schedule(schedMap))
+        sched_map.foreach_map(printer)
+        self.polyast.append(astbld.ast_from_schedule(sched_map))
 
     def computeDependencies(self):
         # Extract dependencies. In case the dependencies cannot be exactly 
         # represented they are approximated.
-        for comp in self.polyParts:
-            for part in self.polyParts[comp]:
+        for comp in self.poly_parts:
+            for part in self.poly_parts[comp]:
                 refs = part.getPartRefs()
                 # There could be multiple references to the same value. So the 
                 # dependencies might be redundant this has to be eliminated 
                 # later.
                 for ref in refs:
                     # Considering only dependencies within the same stage
-                    if ref.objectRef in self.polyParts:
-                        part.deps += extractValueDependence(part, ref, 
-                                                self.polyDoms[ref.objectRef])
+                    if ref.objectRef in self.poly_parts:
+                        part.deps += extract_value_dependence(part, ref,
+                                                self.poly_doms[ref.objectRef])
 
     def getDependenceVector(self, parentPart, childPart, ref, scaleMap = None):
         def getScale(sMap, p, i):
@@ -644,8 +659,8 @@ class PolyRep(object):
         if isinstance(parentPart.comp, Accumulator):
             for i in range(1, dimOut):
                 depVec[i] = '*'
-            depVec[0] = childPart.levelNo - parentPart.levelNo
-            return (depVec, parentPart.levelNo)
+            depVec[0] = childPart.level_no - parentPart.level_no
+            return (depVec, parentPart.level_no)
 
         for i in range(0, numArgs):
             arg = ref.arguments[i]
@@ -752,7 +767,7 @@ class PolyRep(object):
                 depVec[parentVarSchedDim] = '*'
 
         assert depVec[0] == '-'
-        depVec[0] = childPart.levelNo - parentPart.levelNo
+        depVec[0] = childPart.level_no - parentPart.level_no
         for i in range(0, dimOut):
             if (depVec[i] == '-'):
                 depVec[i] = 0
@@ -775,7 +790,7 @@ class PolyRep(object):
         #                aff = (dimDiff.get_pieces())[0][1]
         #                val = aff.get_constant_val()
         #                depVec[i] = (val.get_num_si())/(val.get_den_si())
-        return (depVec, parentPart.levelNo)
+        return (depVec, parentPart.level_no)
 
     def alignParts(self):
         """ Embeds parts whose dimension is smaller than the schedule space."""
@@ -791,7 +806,7 @@ class PolyRep(object):
         # Find all parts which do not have self dependencies
         noDepParts = []
         for comp in [item[0] for item in sortedCompObjs]:
-            for p in self.polyParts[comp]:
+            for p in self.poly_parts[comp]:
                 if not self.isPartSelfDependent(p):
                     noDepParts.append(p)
 
@@ -873,7 +888,7 @@ class PolyRep(object):
 
 
     def isCompSelfDependent(self, comp):
-        parts = self.polyParts[comp]        
+        parts = self.poly_parts[comp]
         for p in parts:
             if self.isPartSelfDependent(p):
                 return True
@@ -1056,19 +1071,19 @@ class PolyRep(object):
 
        
     def getVarName(self):
-        name = "_i" + str(self._varCount)
-        self._varCount+=1
+        name = "_i" + str(self._var_count)
+        self._var_count+=1
         return name
 
     def getFuncName(cls):
-        name = "_f" + str(self._funcCount)
-        self._funcCount+=1
+        name = "_f" + str(self._func_count)
+        self._func_count+=1
         return name
 
     def __str__(self):
         polystr = ""
-        for comp in self.polyParts:
-            for part in self.polyParts[comp]:
+        for comp in self.poly_parts:
+            for part in self.poly_parts[comp]:
                 polystr = polystr + part.__str__() + '\n'
 
         if (self.polyast != []):

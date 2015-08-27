@@ -1,7 +1,7 @@
 from __future__ import absolute_import, division, print_function
 
 def isCompSelfDependent(self, comp):
-    parts = self.polyParts[comp]        
+    parts = self.poly_parts[comp]
     for p in parts:
         if self.isPartSelfDependent(p):
             return True
@@ -52,8 +52,8 @@ def getGroupDependenceVectors(self, group, scaleMap = None):
     for part in group:
         refs = part.getPartRefs()
         for ref in refs:
-            if ref.objectRef in self.polyParts:
-                for pp in self.polyParts[ref.objectRef]:
+            if ref.objectRef in self.poly_parts:
+                for pp in self.poly_parts[ref.objectRef]:
                     if pp not in group:
                         continue
                     depVec = self.getDependenceVector(pp, part, ref, 
@@ -78,10 +78,10 @@ def alignWithGroup(self, part, group):
     refs       = part.getPartRefs()
     # Avoiding Input references this should be revisited at some point
     parentRefs = [ ref for ref in refs \
-                   if ref.objectRef in self.polyParts ]
+                   if ref.objectRef in self.poly_parts ]
     dimAlignMap = {}           
     for ref in parentRefs:
-        parentParts = self.polyParts[ref.objectRef]
+        parentParts = self.poly_parts[ref.objectRef]
         # Filter out self references
         groupParentParts = [ pp for pp in parentParts \
                              if pp in group and pp != part]
@@ -132,8 +132,8 @@ def estimateReuse(self, part1, part2):
 
 def findParentGroups(self, part, groups):
     parentParts = []
-    for comp in self.polyParts:
-        for p in self.polyParts[comp]:
+    for comp in self.poly_parts:
+        for p in self.poly_parts[comp]:
             if self.isParent(p, part):
                 parentParts.append(p)
     parentGroups = []        
@@ -171,7 +171,7 @@ def groupStages(self, paramEstimates):
     # Create a reuse matrix among the poly parts
     parts = []
     for comp in [item[0] for item in sortedCompObjs]:
-        parts = parts + self.polyParts[comp]
+        parts = parts + self.poly_parts[comp]
     reuse = {}
     relScaleFactors = {}
     for i in xrange(0, len(parts)):
@@ -189,11 +189,11 @@ def groupStages(self, paramEstimates):
         refs       = part.getPartRefs()
         # Avoiding Input references this should be revisited at some point
         parentRefs = [ ref for ref in refs \
-                       if ref.objectRef in self.polyParts ]
+                       if ref.objectRef in self.poly_parts ]
         dimIn = part.sched.dim(isl._isl.dim_type.in_)
         newScale = [ '-' for i in xrange(0, dimIn)]
         for ref in parentRefs:
-            parentParts = self.polyParts[ref.objectRef]
+            parentParts = self.poly_parts[ref.objectRef]
             groupParentParts = [ pp for pp in parentParts \
                                  if pp in group ]
             if not groupParentParts:

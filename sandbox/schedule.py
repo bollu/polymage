@@ -8,14 +8,14 @@ schedule_logger = logging.getLogger("schedule.py")
 schedule_logger.setLevel(logging.INFO)
 LOG = schedule_logger.log
 
-def getParentParts(part, group):
+def get_parent_parts(part, group):
      refs = part.getPartRefs()
-     parentParts = []
+     parent_parts = []
      for ref in refs:
          if ref.objectRef != part.comp:
-             if ref.objectRef in group.polyRep.polyParts:
-                 parentParts.extend(group.polyRep.polyParts[ref.objectRef])
-     return list(set(parentParts))
+             if ref.objectRef in group.polyRep.poly_parts:
+                 parent_parts.extend(group.polyRep.poly_parts[ref.objectRef])
+     return list(set(parent_parts))
 
 def base_schedule(group):
     """
@@ -27,7 +27,7 @@ def base_schedule(group):
     time = {}
 
     parts = []
-    for sublist in group.polyRep.polyParts.values():
+    for sublist in group.polyRep.poly_parts.values():
         parts.extend(sublist)
     
     for part in parts:
@@ -37,21 +37,21 @@ def base_schedule(group):
     while change:
         change = False
         for part in parts:
-            parentParts = getParentParts(part, group)
-            for p in parentParts:
+            parent_parts = get_parent_parts(part, group)
+            for p in parent_parts:
                 if time[part] <= time[p]:
                     time[part] = time[p] + 1
                     change = True
 
     for part in parts:
-        part.levelNo = time[part]
-        dimIn = part.schedMap.dim(isl._isl.dim_type.in_)
-        dimOut = part.schedMap.dim(isl._isl.dim_type.out)
-        [ineqs, eqs] = format_schedule_constraints(dimIn, dimOut,
+        part.level_no = time[part]
+        dim_in = part.sched_map.dim(isl._isl.dim_type.in_)
+        dim_out = part.sched_map.dim(isl._isl.dim_type.out)
+        [ineqs, eqs] = format_schedule_constraints(dim_in, dim_out,
                                                    part.align,
                                                    part.scale,
-                                                   part.levelNo)
-        part.sched = add_constraints(part.schedMap.copy(), ineqs, eqs)
+                                                   part.level_no)
+        part.sched = add_constraints(part.sched_map.copy(), ineqs, eqs)
 
 
 def align_and_scale_parts(pipeline, group):
@@ -251,7 +251,7 @@ def align_and_scale_parts(pipeline, group):
         LOG(log_level, log_str)
         # ***
 
-        ref_poly_parts = group.polyRep.polyParts[ref_comp]
+        ref_poly_parts = group.polyRep.poly_parts[ref_comp]
         for ref_part in ref_poly_parts:
             part_align = part.align
             part_scale = part.scale
@@ -336,7 +336,7 @@ def align_and_scale_parts(pipeline, group):
     max_dim = 0
     no_self_dep_parts = []
     for comp in comp_objs:
-        for p in group.polyRep.polyParts[comp]:
+        for p in group.polyRep.poly_parts[comp]:
             p_align = p.align
             if not group.polyRep.isPartSelfDependent(p):
                 no_self_dep_parts.append(p)
@@ -346,12 +346,12 @@ def align_and_scale_parts(pipeline, group):
                     max_dim = len(p_align)
 
     sorted_parts = sorted(no_self_dep_parts, \
-                          key = lambda part:part.levelNo)
+                          key = lambda part:part.level_no)
 
     # begin from the topologically earliest part as the base for
     # alignment reference
     base_parts = [part for part in sorted_parts \
-                       if part.levelNo == sorted_parts[0].levelNo]
+                       if part.level_no == sorted_parts[0].level_no]
 
     # the alignment positions and scaling factors for variables follows
     # domain order of base parts
@@ -364,7 +364,7 @@ def align_and_scale_parts(pipeline, group):
         log_level = logging.DEBUG-1
         LOG(log_level, "____")
         LOG(log_level, str(part.comp.name)+\
-                       " (level : "+str(part.levelNo)+")")
+                       " (level : "+str(part.level_no)+")")
         # ***
 
         part.set_align(base_align)
@@ -377,7 +377,7 @@ def align_and_scale_parts(pipeline, group):
         log_level = logging.DEBUG-1
         LOG(log_level, "____")
         LOG(log_level, str(part.comp.name)+\
-                       " (level : "+str(part.levelNo)+")")
+                       " (level : "+str(part.level_no)+")")
         # ***
 
         old_align = []
@@ -682,7 +682,7 @@ def fusedSchedule(self, paramEstimates):
                         p.vectorSchedDim.append(vDimName)
 
         # Find the stages which are not liveout
-        maxStage = max([ p.levelNo for p in stageGroups[i] ])
+        maxStage = max([ p.level_no for p in stageGroups[i] ])
         for p in stageGroups[i]:
             isLiveOut = not isStencil
             #isLiveOut = True
@@ -690,14 +690,14 @@ def fusedSchedule(self, paramEstimates):
                 if gn != i:
                     isLiveOut = isLiveOut or self.isGroupDependentOnPart(
                                                         stageGroups[gn], p)                        
-            if p.levelNo == maxStage:        
+            if p.level_no == maxStage:
                 p.liveout = True
             p.liveout = p.liveout or isLiveOut     
                 
     for gi in stencilGroups:
         assert(len(stageGroups[gi]) > 1)
-        hmax = max( [ s.levelNo for s in stageGroups[gi] ] )
-        hmin = min( [ s.levelNo for s in stageGroups[gi] ] )
+        hmax = max( [ s.level_no for s in stageGroups[gi] ] )
+        hmin = min( [ s.level_no for s in stageGroups[gi] ] )
         slopeMin, slopeMax = self.computeTileSlope(stageDeps[gi], hmax)
         #print(slopeMin, slopeMax, hmax - hmin)
         
@@ -723,7 +723,7 @@ def fusedSchedule(self, paramEstimates):
                         R = p.dimTileInfo[dom][5]
                         h = p.dimTileInfo[dom][6]
                         extent += abs(L * h) + abs(R * h)
-                        baseWidth = h - p.levelNo
+                        baseWidth = h - p.level_no
                         #extent += abs(L * h) + abs(R * baseWidth) 
                     p.dimScratchSize[dom] = \
                         int(math.ceil(Fraction(extent, p.scale[dom])))
@@ -910,8 +910,8 @@ def moveIndependentDim(self, dim, group, stageDim):
                                 stageDim, noDepName)
 
 def getGroupHeight(self, group):
-    minHeight = min( [ part.levelNo for part in group ] )
-    maxHeight = max( [ part.levelNo for part in group ] )
+    minHeight = min( [ part.level_no for part in group ] )
+    maxHeight = max( [ part.level_no for part in group ] )
     return maxHeight - minHeight
 
 def overlapTile(self, group, slopeMin, slopeMax):
@@ -1141,7 +1141,7 @@ def alignParts(self):
     # Find all parts which do not have self dependencies
     noDepParts = []
     for comp in [item[0] for item in sortedCompObjs]:
-        for p in self.polyParts[comp]:
+        for p in self.poly_parts[comp]:
             if not self.isPartSelfDependent(p):
                 noDepParts.append(p)
 
