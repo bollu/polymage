@@ -41,7 +41,7 @@ def isl_expr_to_cgen(expr, prologue_stmts = None):
             num_args = exp_n_args
             cmin = genc.CMin(isl_expr_to_cgen(exp_arg(0), prolog),\
                              isl_expr_to_cgen(exp_arg(1), prolog))
-            for i in xrange(2, num_args):
+            for i in range(2, num_args):
                 cmin = genc.CMin(cmin, isl_expr_to_cgen(exp_arg(i), prolog))
             if prolog is not None:
                 var_type = genc.TypeMap.convert(Int)
@@ -54,7 +54,7 @@ def isl_expr_to_cgen(expr, prologue_stmts = None):
             num_args = exp_n_args
             cmax = genc.CMax(isl_expr_to_cgen(exp_arg(0), prolog),
                              isl_expr_to_cgen(exp_arg(1), prolog))
-            for i in xrange(2, numArgs):
+            for i in range(2, numArgs):
                 cmax = genc.CMax(cmax, \
                                  isl_expr_to_cgen(exp_arg(i), prolog))
             if prolog is not None:
@@ -138,7 +138,7 @@ def is_inner_most_parallel(node):
     no_inner_parallel = True
     if node.get_type() == isl._isl.ast_node_type.block:
         num_nodes = (node.block_get_children().n_ast_node())
-        for i in xrange(0, num_nodes):
+        for i in range(0, num_nodes):
             child =  node.block_get_children().get_ast_node(i)
             no_inner_parallel = no_inner_parallel and \
                                 is_inner_most_parallel(child)
@@ -213,7 +213,7 @@ def get_arrays_for_user_nodes(user_nodes, cfunc_map):
 # TESTME
 def cvariables_from_variables_and_sched(node, variables, sched):
     cvar_map = {}
-    for i in xrange(0, len(variables)):
+    for i in range(0, len(variables)):
         var_name = variables[i].name
         dim = sched.find_dim_by_name(opt.isl._isl.dim_type.in_,
                                      var_name)
@@ -257,8 +257,8 @@ def generate_c_naive_from_expression_node(node, body, cfunc_map, cparam_map):
     # Get the mapping to the array
     array, scratch = cfunc_map[poly_part.comp]
 
-    acc_scratch = [ False for i in xrange(0, dom_len) ]
-    for i in xrange(0, dom_len):
+    acc_scratch = [ False for i in range(0, dom_len) ]
+    for i in range(0, dom_len):
         if i in poly_part.dimTileInfo:  # ADDME
             if (poly_part.dimTileInfo[i][0] != 'none'):
                 acc_scratch[i] = True
@@ -268,7 +268,7 @@ def generate_c_naive_from_expression_node(node, body, cfunc_map, cparam_map):
                                             poly_part.sched)
     arglist = []
     scratch_map = {}
-    for i in xrange(0, dom_len):
+    for i in range(0, dom_len):
         acc_expr = poly_part.comp.variables[i] - \
                   poly_part.comp.domain[i].lowerBound
         if acc_scratch[i]:
@@ -326,7 +326,7 @@ def generate_c_naive_from_expression_node(node, body, cfunc_map, cparam_map):
 def generate_c_naive_from_isl_ast(node, body, cparam_map, cfunc_map):
     if node.get_type() == isl._isl.ast_node_type.block:
         num_nodes = (node.block_get_children().n_ast_node())
-        for i in xrange(0, num_nodes):
+        for i in range(0, num_nodes):
             child = node.block_get_children().get_ast_node(i)
             generate_c_naive_from_isl_ast(child, body, cparam_map, cfunc_map)
     else:
