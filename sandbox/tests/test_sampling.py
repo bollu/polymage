@@ -100,9 +100,12 @@ def test_sampling():
 
     groups = [group1, group2, group3, group4]
 
+    p_est = [ (R, 1024), (C, 1024) ]
+
     # build the pipeline
-    pipeline = buildPipeline(live_outs, \
-                             #grouping = groups, \
+    pipeline = buildPipeline(live_outs,
+                             #grouping = groups,
+                             param_estimates = p_est,
                              pipe_name="up")
 
     #'''

@@ -203,7 +203,7 @@ class PolyRep(object):
         object in the group. Polyhedral transformations modify the 
         piece-wise domains as well as the schedules.
     """
-    def __init__(self, _ctx, _group, _paramConstraints):
+    def __init__(self, _ctx, _group, _param_constraints):
         self.group = _group
         self.ctx = _ctx
         self.poly_parts = {}
@@ -216,10 +216,10 @@ class PolyRep(object):
         # TODO: move the following outside __init__()
         # For now, let this be. Compilation optimizations can come later.
 
-        self.extract_polyrep_from_group(_paramConstraints)
+        self.extract_polyrep_from_group(_param_constraints)
 
-        #self.fusedSchedule(_paramEstimates)
-        #self.simpleSchedule(_paramEstimates)
+        #self.fusedSchedule(_param_estimates)
+        #self.simpleSchedule(_param_estimates)
 
     def extract_polyrep_from_group(self, param_constraints):
         comp_objs = self.group.orderComputeObjs()
@@ -638,6 +638,7 @@ class PolyRep(object):
         sched_map.foreach_map(printer)
         self.polyast.append(astbld.ast_from_schedule(sched_map))
 
+    # NOTE: Dead code?
     def computeDependencies(self):
         # Extract dependencies. In case the dependencies cannot be exactly 
         # represented they are approximated.
@@ -1049,13 +1050,13 @@ class PolyRep(object):
                 return False
         return True    
 
-    def getPartSize(self, part, paramEstimates):
+    def getPartSize(self, part, param_estimates):
         size = None
         domain = part.comp.domain
         if isinstance(part.comp, Accumulator):
             domain = part.comp.reductionDomain
         for interval in domain:
-            subsSize = self.getDimSize(interval, paramEstimates)
+            subsSize = self.getDimSize(interval, param_estimates)
             if isConstantExpr(subsSize):
                 if size is None:
                     size = get_constant_from_expr(subsSize)
@@ -1067,9 +1068,9 @@ class PolyRep(object):
         assert size is not None
         return size
     
-    def getDimSize(self, interval, paramEstimates):
+    def getDimSize(self, interval, param_estimates):
         paramValMap = {}
-        for est in paramEstimates:
+        for est in param_estimates:
             assert isinstance(est[0], Parameter)
             paramValMap[est[0]] = Value.numericToValue(est[1])
 

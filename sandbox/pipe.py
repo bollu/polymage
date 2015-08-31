@@ -65,7 +65,7 @@ class Group:
         computation objects when possible.
     """
     # Construct a group from a set of language functions / reductions
-    def __init__(self, _ctx, _compObjs, _paramConstraints):
+    def __init__(self, _ctx, _compObjs, _param_constraints):
         # All the computation constructs in the language derive from the
         # Function class. Input images cannot be part of a group.
         for comp in _compObjs:
@@ -86,7 +86,7 @@ class Group:
         # Currently doing extraction only when all the computeObjs
         # domains are affine. This can be revisited later.
         if self.isPolyhedral():
-            self._polyrep = PolyRep(_ctx, self, _paramConstraints)
+            self._polyrep = PolyRep(_ctx, self, _param_constraints)
 
     @property
     def computeObjs(self):
@@ -137,9 +137,9 @@ class Group:
         return comp_str + '\n' + self._polyrep.__str__()
 
 class Pipeline:
-    def __init__(self, _ctx, _outputs, \
-                 _paramConstraints, _grouping, \
-                 _options, _name = None):
+    def __init__(self, _ctx, _outputs,
+                 _param_estimates, _param_constraints,
+                 _grouping, _options, _name = None):
         # Name of the pipleline is a concatenation of the names of the 
         # pipeline outputs, unless it is explicitly named.
         if _name is None:
@@ -149,7 +149,8 @@ class Pipeline:
 
         self._ctx = _ctx
         self._orgOutputs = _outputs
-        self._paramConstraints = _paramConstraints
+        self._param_estimates = _param_estimates
+        self._param_constraints = _param_constraints
         self._grouping = _grouping
         self._options = _options
 
@@ -205,6 +206,7 @@ class Pipeline:
         ''' GROUPING '''
         # TODO check grouping validity
         if self._grouping:
+            print("here")
             # for each group
             for g in self._grouping:
                 # get clones of all functions
@@ -215,8 +217,8 @@ class Pipeline:
                      for i in range(1, len(merge_group_list)):
                         merged = \
                             self.merge_groups(merged, merge_group_list[i])
-                        # to be done after each merging, to know if the
-                        # merging was valid
+                        # to be done after each merge, to know if the
+                        # merging was valid.
                         align_and_scale_parts(self, merged)
         else:
             # Run the grouping algorithm
@@ -225,6 +227,7 @@ class Pipeline:
         ''' BASE SCHEDULE AND CODEGEN '''
         for g in list(set(self._groups.values())):
             base_schedule(g)
+            #fused_schedule(g)  # (g, param_estimates)
             #g.polyRep.generateCode()
 
     @property
@@ -258,7 +261,7 @@ class Pipeline:
         groupParents = {}
         groupChildren = {}
         for comp in compObjs:
-            groupMap[comp] = Group(self._ctx, [comp], self._paramConstraints)
+            groupMap[comp] = Group(self._ctx, [comp], self._param_constraints)
 
         for comp in groupMap:
             groupParents[groupMap[comp]] = [ groupMap[p] for p in \
@@ -302,7 +305,7 @@ class Pipeline:
         # Get comp objects from both groups 
         comp_objs = g1.computeObjs + g2.computeObjs
         # Create a new group 
-        merged = Group(self._ctx, comp_objs, self._paramConstraints)
+        merged = Group(self._ctx, comp_objs, self._param_constraints)
         # Update the group map
         for comp in comp_objs:
             self._groups.pop(comp)
@@ -385,8 +388,8 @@ class Pipeline:
                 # is meaningless. Ideally it should be done in a clean way
                 # currently abusing group for construction of a polyhedral
                 # representation
-                inpGroup = Group([inp], self._ctx, self._paramConstraints,
-                                 self._paramEstimates, self._tileSizes,
+                inpGroup = Group([inp], self._ctx, self._param_constraints,
+                                 self._param_estimates, self._tileSizes,
                                  self._sizeThreshold, self._groupSize,
                                  self._outputs)
                 checkRefs(group, inpGroup)

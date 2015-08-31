@@ -84,9 +84,13 @@ def test_harris_corner():
               [Sxx, Sxy, Syy], \
               [det, trace, harris]]
 
-    pipeline = buildPipeline([harris], \
-                             #grouping = groups, \
-                             pipe_name="harris")
+    p_est = [ (R, 1024), (C, 1024) ]
+
+    # build the pipeline
+    pipeline = buildPipeline([harris],
+                             #grouping = groups,
+                             param_estimates = p_est,
+                             pipe_name = "harris")
 
     #'''
     filename = 'harris_graph.dot'

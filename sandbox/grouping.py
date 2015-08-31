@@ -20,13 +20,13 @@ def isStencilGroup(self, group):
             return False
     return True    
 
-def getPartSize(self, part, paramEstimates):
+def getPartSize(self, part, param_estimates):
     size = None
     domain = part.comp.domain
     if isinstance(part.comp, Accumulator):
         domain = part.comp.reductionDomain
     for interval in domain:
-        subsSize = self.getDimSize(interval, paramEstimates)
+        subsSize = self.getDimSize(interval, param_estimates)
         if isConstantExpr(subsSize):
             if size is None:
                 size = getConstantFromExpr(subsSize)
@@ -38,9 +38,9 @@ def getPartSize(self, part, paramEstimates):
     assert size is not None
     return size
 
-def getDimSize(self, interval, paramEstimates):
+def getDimSize(self, interval, param_estimates):
     paramValMap = {}
-    for est in paramEstimates:
+    for est in param_estimates:
         assert isinstance(est[0], Parameter)
         paramValMap[est[0]] = Value.numericToValue(est[1])
 
@@ -165,7 +165,7 @@ def findLeafGroups(self, groups):
             leafGroups.append(groups[i])
     return leafGroups
 
-def groupStages(self, paramEstimates):
+def groupStages(self, param_estimates):
     compObjs = self.stage.orderComputeObjs()
     sortedCompObjs = sorted(compObjs.items(), key=lambda s: (s[1], s[0].name))
     # Create a reuse matrix among the poly parts
@@ -332,12 +332,12 @@ def groupStages(self, paramEstimates):
         
         return smallParts, partSizeMap 
 
-    smallParts, partSizeMap = getSmallComputations(parts, paramEstimates)
+    smallParts, partSizeMap = getSmallComputations(parts, param_estimates)
 
     # All the parts of a computation which has self dependencies should be
     # in the same group. Bundle such parts together.
     smallGroups = []
-    optGroups = self.simpleGroup(paramEstimates, single=False)
+    optGroups = self.simpleGroup(param_estimates, single=False)
     #print("intial groups begin")
     #for g in optGroups:
     #    for p in g:
