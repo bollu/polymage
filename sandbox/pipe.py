@@ -15,47 +15,47 @@ from codegen import *
 from schedule import *
 from poly import *
 
-def getParentsFromCompObj(comp):
+def get_parents_from_comp_obj(comp):
     refs = comp.getObjects(Reference)
     # Filter out self and image references 
     refs = [ ref for ref in refs if not ref.objectRef == comp and \
                                  not isinstance(ref.objectRef, Image) ]
     return list(set([ref.objectRef for ref in refs]))
 
-def getCompObjsAndDependenceMaps(outputs):
+def get_comp_objs_and_dep_maps(outputs):
     """
     Find all the compute objects required for the outputs and
     also builds parent and children maps for the compute objects
     """
-    compObjs = []
-    compObjsParents = {}
-    compObjsChildren = {}
+    comp_objs = []
+    comp_objs_parents = {}
+    comp_objs_children = {}
     q = queue.Queue()
-    for compObj in outputs:
-        q.put(compObj)
+    for comp_obj in outputs:
+        q.put(comp_obj)
     while not q.empty():
         obj = q.get()
-        parentObjs = getParentsFromCompObj(obj)
-        if obj not in compObjs:
-            compObjs.append(obj)
-            compObjsParents[obj] = parentObjs
-            for parobj in parentObjs:
-                if parobj in compObjsChildren:
-                    if obj not in compObjsChildren[parobj]:
-                        compObjsChildren[parobj].append(obj)
+        parent_objs = get_parents_from_comp_obj(obj)
+        if obj not in comp_objs:
+            comp_objs.append(obj)
+            comp_objs_parents[obj] = parent_objs
+            for parobj in parent_objs:
+                if parobj in comp_objs_children:
+                    if obj not in comp_objs_children[parobj]:
+                        comp_objs_children[parobj].append(obj)
                 else:
-                    compObjsChildren[parobj] = [obj]                        
-            if len(parentObjs) != 0:
-                for r in parentObjs:
+                    comp_objs_children[parobj] = [obj]
+            if len(parent_objs) != 0:
+                for r in parent_objs:
                     q.put(r)
 
-    for comp in compObjs:
-        if comp not in compObjsParents:
-            compObjsParents[comp] = []
-        if comp not in compObjsChildren:
-            compObjsChildren[comp] = []
+    for comp in comp_objs:
+        if comp not in comp_objs_parents:
+            comp_objs_parents[comp] = []
+        if comp not in comp_objs_children:
+            comp_objs_children[comp] = []
 
-    return compObjs, compObjsParents, compObjsChildren
+    return comp_objs, comp_objs_parents, comp_objs_children
 
 class Group:
     """ 
@@ -65,32 +65,32 @@ class Group:
         computation objects when possible.
     """
     # Construct a group from a set of language functions / reductions
-    def __init__(self, _ctx, _compObjs, _param_constraints):
+    def __init__(self, _ctx, _comp_objs, _param_constraints):
         # All the computation constructs in the language derive from the
         # Function class. Input images cannot be part of a group.
-        for comp in _compObjs:
+        for comp in _comp_objs:
             assert(isinstance(comp, Function))
             assert(not isinstance(comp, Image))
 
-        self._compObjs  = _compObjs
+        self._comp_objs  = _comp_objs
         self._polyrep = None
         refs = []
 
-        for comp in self._compObjs:
+        for comp in self._comp_objs:
             refs += comp.getObjects(Reference)
 
         self._inputs = list(set([ref.objectRef for ref in refs \
                             if isinstance(ref.objectRef, Image)]))
 
         # Create a polyhedral representation if possible.
-        # Currently doing extraction only when all the computeObjs
+        # Currently doing extraction only when all the compute_objs
         # domains are affine. This can be revisited later.
         if self.isPolyhedral():
-            self._polyrep = PolyRep(_ctx, self, _param_constraints)
+            self._polyrep = PolyRep(_ctx, self, [], _param_constraints)
 
     @property
     def computeObjs(self):
-        return self._compObjs
+        return self._comp_objs
     @property
     def polyRep(self):
         return self._polyrep
@@ -100,13 +100,13 @@ class Group:
 
     def getParameters(self):
         params = []
-        for comp in self._compObjs:
+        for comp in self._comp_objs:
             params = params + comp.getObjects(Parameter)
         return list(set(params))
 
     def isPolyhedral(self):
         polyhedral = True
-        for comp in self._compObjs:
+        for comp in self._comp_objs:
             if (not comp.hasBoundedIntegerDomain()):
                 polyhedral = False
         return polyhedral
@@ -117,14 +117,14 @@ class Group:
         order = {}
         # Initialize all the initial numbering to zero for
         # all compute objects in the group
-        for comp in self._compObjs:
+        for comp in self._comp_objs:
             order[comp] = 0
         # Doing a topological sort in an iterative fashion
         change = True
         while(change):
             change = False
-            for comp in self._compObjs:
-                parentObjs = getParentsFromCompObj(comp)
+            for comp in self._comp_objs:
+                parentObjs = get_parents_from_comp_obj(comp)
                 for pobj in parentObjs:
                     if (pobj in order  and (order[pobj] >= order[comp])):
                         order[comp] = order[pobj] + 1
@@ -133,7 +133,7 @@ class Group:
 
     def __str__(self):
         comp_str  = "\n\n".join([comp.__str__() \
-                    for comp in self._compObjs]) + '\n'
+                    for comp in self._comp_objs]) + '\n'
         return comp_str + '\n' + self._polyrep.__str__()
 
 class Pipeline:
@@ -148,7 +148,7 @@ class Pipeline:
         self._name = _name
 
         self._ctx = _ctx
-        self._orgOutputs = _outputs
+        self._org_outputs = _outputs
         self._param_estimates = _param_estimates
         self._param_constraints = _param_constraints
         self._grouping = _grouping
@@ -159,29 +159,31 @@ class Pipeline:
         # backtracing starting from given live-out functions.
         # TODO: see if there is a cyclic dependency between the compute
         # objects. Self references are not treated as cycles.
-        self._orgCompObjs, \
+        self._org_comp_objs, \
          _, \
           _ = \
-            getCompObjsAndDependenceMaps(self._orgOutputs)
+            get_comp_objs_and_dep_maps(self._org_outputs)
 
         ''' CLONING '''
         # Clone the computation objects i.e. functions and reductions
-        self._cloneMap = {}
-        for comp in self._orgCompObjs:
-            self._cloneMap[comp] = comp.clone()
-        self._outputs = [self._cloneMap[obj] for obj in self._orgOutputs]
-        # Modify the references in the cloned objects (which refer to 
-        # the original objects)  
-        for comp in self._orgCompObjs:
-            cln = self._cloneMap[comp]
+        self._clone_map = {}
+        for comp in self._org_comp_objs:
+            self._clone_map[comp] = comp.clone()
+        self._outputs = [self._clone_map[obj] for obj in self._org_outputs]
+        # Modify the references in the cloned objects (which refer to
+        # the original objects)
+        for comp in self._org_comp_objs:
+            cln = self._clone_map[comp]
             refs = cln.getObjects(Reference)
             for ref in refs:
-                if not isinstance(ref.objectRef, Image): 
-                    ref._replaceRefObject(self._cloneMap[ref.objectRef])
+                if not isinstance(ref.objectRef, Image):
+                    ref._replaceRefObject(self._clone_map[ref.objectRef])
 
         ''' DAG OF CLONES '''
-        self._compObjs, self._compObjsParents, self._compObjsChildren = \
-                                getCompObjsAndDependenceMaps(self._outputs)
+        self._comp_objs, \
+         self._comp_objs_parents, \
+          self._comp_objs_children = \
+            get_comp_objs_and_dep_maps(self._outputs)
 
         ''' INITIAL GROUPING '''
         # Create a group for each pipeline function / reduction and compute
@@ -189,9 +191,9 @@ class Pipeline:
         self._groups, \
          self._groupParents, \
           self._groupChildren = \
-                              self.buildInitialGroups(self._compObjs,
-                                                      self._compObjsParents,
-                                                      self._compObjsChildren)
+            self.buildInitialGroups(self._comp_objs,
+                                    self._comp_objs_parents,
+                                    self._comp_objs_children)
 
         # Store the initial pipeline graph. The compiler can modify 
         # the pipeline by inlining functions.
@@ -206,12 +208,11 @@ class Pipeline:
         ''' GROUPING '''
         # TODO check grouping validity
         if self._grouping:
-            print("here")
             # for each group
             for g in self._grouping:
                 # get clones of all functions
                 merge_group_list = \
-                    [self._groups[self._cloneMap[f]] for f in g]
+                    [self._groups[self._clone_map[f]] for f in g]
                 if len(merge_group_list) > 1:
                      merged = merge_group_list[0]
                      for i in range(1, len(merge_group_list)):
@@ -284,15 +285,15 @@ class Pipeline:
         # TODO add input nodes to the graph
         for i in range(0, len(groupList)):
             subGraphNodes = []
-            for obj in self._compObjs:
+            for obj in self._comp_objs:
                 if self._groups[obj] == groupList[i]:
                     subGraphNodes.append(obj.name)
             G.add_nodes_from(subGraphNodes)
             G.add_subgraph(nbunch = subGraphNodes, 
                            name = "cluster_" + str(i))
 
-        for obj in self._compObjs:
-            for pobj in self._compObjsParents[obj]:
+        for obj in self._comp_objs:
+            for pobj in self._comp_objs_parents[obj]:
                 G.add_edge(pobj.name, obj.name)
 
         G.layout(prog='dot')

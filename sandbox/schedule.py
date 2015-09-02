@@ -330,7 +330,7 @@ def align_and_scale_parts(pipeline, group):
         return True, True
 
     # BEGIN
-    comp_objs = group._compObjs
+    comp_objs = group._comp_objs
 
     # list all parts with no self references and find the max dim
     max_dim = 0
@@ -545,21 +545,21 @@ def computeTileSlope(self, stageDeps, hmax):
         return ([], [])
 
     vecLen = len(stageDeps[0][0])
-    slopeMin = [ (0, 1) for i in xrange(0, vecLen - 1) ]
-    slopeMax = [ (0, 1) for i in xrange(0, vecLen - 1) ]
+    slopeMin = [ (0, 1) for i in range(0, vecLen - 1) ]
+    slopeMax = [ (0, 1) for i in range(0, vecLen - 1) ]
     # Find max and min widths of dependencies at the base
     widths = []
     hmin = min([ dep[1] for dep in stageDeps ])
-    minWidth = [ 0 for i in xrange(0, vecLen - 1)]
-    maxWidth = [ 0 for i in xrange(0, vecLen - 1)]
-    depUnknown = [ False for i in xrange(0, vecLen - 1) ] 
-    for currh in xrange(hmax - 1, hmin - 1, -1):
-        maxW = [ 0 for i in xrange(0, vecLen - 1)]
-        minW = [ 0 for i in xrange(0, vecLen - 1)]
+    minWidth = [ 0 for i in range(0, vecLen - 1)]
+    maxWidth = [ 0 for i in range(0, vecLen - 1)]
+    depUnknown = [ False for i in range(0, vecLen - 1) ]
+    for currh in range(hmax - 1, hmin - 1, -1):
+        maxW = [ 0 for i in range(0, vecLen - 1)]
+        minW = [ 0 for i in range(0, vecLen - 1)]
         hDepVecs = [ depVec for depVec in stageDeps if \
                      depVec[1] == currh]
         for depVec, h in hDepVecs:             
-            for i in xrange(0, len(depVec)-1):
+            for i in range(0, len(depVec)-1):
                 if depVec[i+1] == '*':
                     depUnknown[i] = True
                     continue
@@ -567,15 +567,15 @@ def computeTileSlope(self, stageDeps, hmax):
                     maxW[i] = max(maxW[i], depVec[i+1])
                 if depVec[i+1] < 0:
                     minW[i] = min(minW[i], depVec[i+1])
-        for i in xrange(0, len(depVec)-1):
+        for i in range(0, len(depVec)-1):
             minWidth[i] = minWidth[i] + minW[i]
             maxWidth[i] = maxWidth[i] + maxW[i]
         widths.append((list(minWidth), currh))
         widths.append((list(maxWidth), currh))
-                
+
     for width, h in widths:
         scale = hmax - h 
-        for i in xrange(0, vecLen-1):  
+        for i in range(0, vecLen-1):
             if ((Fraction(width[i], scale) < 
                  Fraction(slopeMin[i][0], slopeMin[i][1])) and width[i] < 0):
                 slopeMin[i] = (width[i], scale)
@@ -583,18 +583,18 @@ def computeTileSlope(self, stageDeps, hmax):
                  Fraction(slopeMax[i][0], slopeMax[i][1])) and width[i] > 0):
                 slopeMax[i] = (width[i], scale)
 
-    for i in xrange(0, vecLen-1):             
+    for i in range(0, vecLen-1):
         if depUnknown[i]:
             slopeMin[i] = '*'
             slopeMax[i] = '*'
 
-    return (slopeMin, slopeMax)           
+    return (slopeMin, slopeMax)
 
 def fusedSchedule(self, paramEstimates):
     """Generate an optimized schedule for the stage."""
     # Overall Approach
     # -- Partition the stages into groups
-    #    -- Group together stages which have uniform dependencies across 
+    #    -- Group together stages which have uniform dependencies across
     #       or dependencies that can be uniformized.
     #    -- Try to group stages which only have inter-stage dependencies.
     #    -- Intra-stage dependencies are dealt separately. Since they 
@@ -617,7 +617,7 @@ def fusedSchedule(self, paramEstimates):
     #       This might be a better approach than trying to finding the vectors
     #       in an independent step.
     stageDeps = {}
-    for i in xrange(0, len(stageGroups)):            
+    for i in range(0, len(stageGroups)):
         stageDeps[i] = self.getGroupDependenceVectors(stageGroups[i])
         #for g in stageGroups[i]:
         #    print(g.sched)
@@ -636,7 +636,7 @@ def fusedSchedule(self, paramEstimates):
     #    -- For general affine dependencies the pluto algorithm should be used.
     #       We currently do not focus on general affine dependencies.
     stencilGroups = []
-    for i in xrange(0, len(stageGroups)):
+    for i in range(0, len(stageGroups)):
         # No point in tiling a group that has no dependencies
         isStencil = len(stageDeps[i]) > 0 and len(stageGroups[i]) > 1
         for dep, h in stageDeps[i]:
@@ -654,7 +654,7 @@ def fusedSchedule(self, paramEstimates):
                     # the inner most dim and mark it as vector
                     parallelDim = None
                     vecDim = None
-                    for dom in xrange(0, len(p.align)):
+                    for dom in range(0, len(p.align)):
                         interval = p.comp.domain[dom]
                         if isinstance(p.comp, Accumulator):
                             interval = p.comp.reductionDomain[dom]
@@ -686,7 +686,7 @@ def fusedSchedule(self, paramEstimates):
         for p in stageGroups[i]:
             isLiveOut = not isStencil
             #isLiveOut = True
-            for gn in xrange(0, len(stageGroups)):
+            for gn in range(0, len(stageGroups)):
                 if gn != i:
                     isLiveOut = isLiveOut or self.isGroupDependentOnPart(
                                                         stageGroups[gn], p)                        
@@ -920,7 +920,7 @@ def overlapTile(self, group, slopeMin, slopeMax):
     noTileDims = 0
     h = self.getGroupHeight(group)
     numTileDims = 0
-    for i in xrange(1, len(slopeMin) + 1):                    
+    for i in range(1, len(slopeMin) + 1):
         # Check if every stage in the group has enough iteration 
         # points in the dimension to benefit from tiling.
         tile = False
@@ -961,7 +961,7 @@ def overlapTile(self, group, slopeMin, slopeMax):
                 # Compute the overlap shift
                 #print(slopeMax, slopeMin, h, L, R, i-1)
                 overlapShift = abs(L * (h)) + abs(R * (h))
-                for j in xrange(0, len(part.align)):
+                for j in range(0, len(part.align)):
                     if i == part.align[j]:
                         assert j not in part.dimTileInfo
                         if tileSize%part.scale[j] != 0:
@@ -1012,7 +1012,7 @@ def overlapTile(self, group, slopeMin, slopeMax):
             #self.moveIndependentDim(i, group, stageDim)
             name = part.sched.get_dim_name(isl._isl.dim_type.out, stageDim) 
             for part in group:                        
-                for j in xrange(0, len(part.align)):
+                for j in range(0, len(part.align)):
                     if i == part.align[j]:
                         assert j not in part.dimTileInfo
                         part.dimTileInfo[j] = ('none', name)
@@ -1022,7 +1022,7 @@ def splitTile(self, group, slopeMin, slopeMax):
     stageDim = 0
     dtileDims = 0
     numTileDims = 0
-    for i in xrange(1, len(slopeMin) + 1):                    
+    for i in range(1, len(slopeMin) + 1):
         if ((slopeMin[i-1][0] != 0 or slopeMax[i-1][0] !=0)):
             # Altering the schedule by constructing split tiles.
             for part in group:
@@ -1123,7 +1123,7 @@ def splitTile(self, group, slopeMin, slopeMax):
 def simpleSchedule(self, paramEstimates):
     """Generate a simple schedule for the stage."""
     stageGroups = self.baseSchedule(paramEstimates)
-    for i in xrange(0, len(stageGroups)):
+    for i in range(0, len(stageGroups)):
         for p in stageGroups[i]:
             p.liveout = True
 

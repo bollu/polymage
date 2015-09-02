@@ -88,7 +88,7 @@ def alignWithGroup(self, part, group):
         if not groupParentParts:
             continue
         numArgs = len(ref.arguments)
-        for i in xrange(0, numArgs):
+        for i in range(0, numArgs):
             arg = ref.arguments[i]
             domDims = getDomainDimsInvolved(part.sched, arg)
             # This can get tricky with multiple parts have to revisit
@@ -99,8 +99,8 @@ def alignWithGroup(self, part, group):
                     if repParentPart.align[i] not in dimAlignMap[dim]:
                         dimAlignMap[dim].append(repParentPart.align[i])
 
-    newAlign = [ '-' for i in xrange(0, part.sched.dim(isl._isl.dim_type.in_))]
-    for i in xrange(0, dimIn):
+    newAlign = [ '-' for i in range(0, part.sched.dim(isl._isl.dim_type.in_))]
+    for i in range(0, dimIn):
         alignDim = None
         # Check if the dimension is uniquely mapped
         if i in dimAlignMap and len(dimAlignMap[i]) == 1:
@@ -155,10 +155,10 @@ def findChildGroups(self, parentGroup, groups):
 
 def findLeafGroups(self, groups):
     leafGroups = []
-    for i in xrange(0, len(groups)):
+    for i in range(0, len(groups)):
         isLeaf = True
         for p in groups[i]:
-            for j in xrange(0, len(groups)):
+            for j in range(0, len(groups)):
                 if j!=i and self.isGroupDependentOnPart(groups[j], p):
                     isLeaf = False
         if isLeaf:
@@ -174,8 +174,8 @@ def groupStages(self, param_estimates):
         parts = parts + self.poly_parts[comp]
     reuse = {}
     relScaleFactors = {}
-    for i in xrange(0, len(parts)):
-        for j in xrange(0, len(parts)):
+    for i in range(0, len(parts)):
+        for j in range(0, len(parts)):
             reuse[(parts[i], parts[j])] = self.estimateReuse(parts[i], parts[j])
             # Skip scaling factor computation for reductions
             isReduction = isinstance(parts[i].comp, Accumulator) or \
@@ -191,7 +191,7 @@ def groupStages(self, param_estimates):
         parentRefs = [ ref for ref in refs \
                        if ref.objectRef in self.poly_parts ]
         dimIn = part.sched.dim(isl._isl.dim_type.in_)
-        newScale = [ '-' for i in xrange(0, dimIn)]
+        newScale = [ '-' for i in range(0, dimIn)]
         for ref in parentRefs:
             parentParts = self.poly_parts[ref.objectRef]
             groupParentParts = [ pp for pp in parentParts \
@@ -200,7 +200,7 @@ def groupStages(self, param_estimates):
                 continue
             for gpp in groupParentParts:
                 relScale, offset = relScaleFactors[(gpp, part)]
-                for i in xrange(0, dimIn):
+                for i in range(0, dimIn):
                     # Check if the dimension can be scaled
                     if relScale[i] == '*':
                         newScale[i] = '*'
@@ -208,7 +208,7 @@ def groupStages(self, param_estimates):
                         # Get the current scaling of the dimension
                         # aligned to.
                         alignDim = None
-                        for j in xrange(0, len(gpp.align)):
+                        for j in range(0, len(gpp.align)):
                             if gpp.align[j] == part.align[i]:
                                 if alignDim is None:
                                     alignDim = j
@@ -223,7 +223,7 @@ def groupStages(self, param_estimates):
                                 newScale[i] = relScale[i] * currScale
                             elif newScale[i] != currScale * relScale[i]:
                                 newScale[i] = '*'
-        for i in xrange(0, dimIn):
+        for i in range(0, dimIn):
             if newScale[i] == '-':
                 newScale[i] = 1
         return newScale                
@@ -257,10 +257,10 @@ def groupStages(self, param_estimates):
     def scaleGroupToPart(group, part, scale, scaleMap = None):
         for g in group:
             dimIn = g.sched.dim(isl._isl.dim_type.in_)
-            for j in xrange(0, len(scale)):
+            for j in range(0, len(scale)):
                 if scale[j] != '*':
                     scaled = False
-                    for i in xrange(0, dimIn):
+                    for i in range(0, dimIn):
                         if g.align[i] == part.align[j]:
                             assert not scaled
                             scaled = True
@@ -270,12 +270,12 @@ def groupStages(self, param_estimates):
     
     def normalizeGroupScaling(group, scaleMap = None):
         dimOut = group[0].sched.dim(isl._isl.dim_type.out)
-        norm = [ 1 for i in xrange(0, dimOut)]
+        norm = [ 1 for i in range(0, dimOut)]
         for g in group:
             dimIn = g.sched.dim(isl._isl.dim_type.in_)
-            for j in xrange(0, dimOut):
+            for j in range(0, dimOut):
                 scaled = False
-                for i in xrange(0, dimIn):
+                for i in range(0, dimIn):
                     if g.align[i] == j:
                         assert not scaled
                         scaled = True
@@ -285,8 +285,8 @@ def groupStages(self, param_estimates):
         for g in group:
             dimIn = g.sched.dim(isl._isl.dim_type.in_)
             dimOut = g.sched.dim(isl._isl.dim_type.out)
-            for j in xrange(0, len(norm)):
-                for i in xrange(0, dimIn):
+            for j in range(0, len(norm)):
+                for i in range(0, dimIn):
                     if g.align[i] == j:
                         s = getScale(scaleMap, g, i)
                         setScale(scaleMap, g, i, s * norm[j])
@@ -316,11 +316,11 @@ def groupStages(self, param_estimates):
         for p in pts:
             partSizeMap[p] = self.getPartSize(p, estimates)
 
-        for i in xrange(0, len(pts)):
+        for i in range(0, len(pts)):
             smallPart = False
             if partSizeMap[pts[i]] != '*':
                 smallPart = partSizeMap[pts[i]] <= self.sizeThreshold
-            for j in xrange(i+1, len(pts)):
+            for j in range(i+1, len(pts)):
                 if self.isParent(pts[j], pts[i]):
                     if partSizeMap[pts[j]] != '*':
                         smallPart = smallPart and \
@@ -358,7 +358,7 @@ def groupStages(self, param_estimates):
     while opt:
         children = {}
         opt = False
-        for gi in xrange(0, len(optGroups)):
+        for gi in range(0, len(optGroups)):
             children[gi] = self.findChildGroups(optGroups[gi], optGroups)
         newGroups = [ group for group in optGroups ]
         for gi in children:
@@ -456,7 +456,7 @@ def groupStages(self, param_estimates):
                         if g not in parentGroups ]
         scales = {}
 
-        for i in xrange(0, len(parentGroups)):
+        for i in range(0, len(parentGroups)):
             scaleList = []
             for p in b:
                 scaleList.append(scaleToParentGroup(p, parentGroups[i]))
@@ -480,7 +480,7 @@ def groupStages(self, param_estimates):
             return True
 
         candGroups = []
-        for i in xrange(0, len(parentGroups)):
+        for i in range(0, len(parentGroups)):
             currCost = getGroupCost(parentGroups[i])
             newCost = estimateGroupCostWithBundle(parentGroups[i], b,
                                                   scales[i], partSizeMap)
@@ -489,7 +489,7 @@ def groupStages(self, param_estimates):
         
         mergedGroup = []
         for i in candGroups:
-            for j in xrange(0, len(b)):
+            for j in range(0, len(b)):
                 scaleGroupToPart(parentGroups[i], b[j], scales[i][j])
             mergedGroup = mergedGroup + parentGroups[i]
         parentGroups = [i for j, i in enumerate(parentGroups)\

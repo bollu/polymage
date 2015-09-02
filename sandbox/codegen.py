@@ -324,6 +324,7 @@ def generate_c_naive_from_expression_node(node, body, cfunc_map, cparam_map):
 
 # TESTME
 def generate_c_naive_from_isl_ast(node, body, cparam_map, cfunc_map):
+    #print("node type =", node.get_type())
     if node.get_type() == isl._isl.ast_node_type.block:
         num_nodes = (node.block_get_children().n_ast_node())
         for i in range(0, num_nodes):
@@ -716,7 +717,7 @@ def generate_code_for_group(pipeline, g, body, options, \
     # parts of a compute object bears the same level_no*, thus repeated calling
     # of 'orderComputeObjs' can be avoided.
     group_parts = g.polyRep.poly_parts
-    sorted_comp_objs = sorted(g._compObjs, \
+    sorted_comp_objs = sorted(g._comp_objs, \
                               key = lambda \
                               comp : group_parts[comp][0].level_no)
 

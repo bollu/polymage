@@ -203,9 +203,14 @@ class PolyRep(object):
         object in the group. Polyhedral transformations modify the 
         piece-wise domains as well as the schedules.
     """
-    def __init__(self, _ctx, _group, _param_constraints):
+    def __init__(self, _ctx, _group, _outputs,
+                 _param_constraints):
+
         self.group = _group
+        self.outputs = _outputs
+        self.param_constraints = _param_constraints
         self.ctx = _ctx
+
         self.poly_parts = {}
         self.poly_doms = {}
         self.polyast = []
