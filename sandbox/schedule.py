@@ -5,7 +5,7 @@ import logging
 
 # LOG CONFIG #
 schedule_logger = logging.getLogger("schedule.py")
-schedule_logger.setLevel(logging.INFO)
+schedule_logger.setLevel(logging.DEBUG-2)
 LOG = schedule_logger.log
 
 def get_parent_parts(part, group):
@@ -45,13 +45,13 @@ def base_schedule(group):
 
     for part in parts:
         part.level_no = time[part]
-        dim_in = part.sched_map.dim(isl._isl.dim_type.in_)
-        dim_out = part.sched_map.dim(isl._isl.dim_type.out)
+        dim_in = part.sched.dim(isl._isl.dim_type.in_)
+        dim_out = part.sched.dim(isl._isl.dim_type.out)
         [ineqs, eqs] = format_schedule_constraints(dim_in, dim_out,
                                                    part.align,
                                                    part.scale,
                                                    part.level_no)
-        part.sched = add_constraints(part.sched_map.copy(), ineqs, eqs)
+        part.sched = add_constraints(part.sched.copy(), ineqs, eqs)
 
 
 def align_and_scale_parts(pipeline, group):
@@ -127,39 +127,74 @@ def align_and_scale_parts(pipeline, group):
         ref_arg_coeffs = {}
         for i in range(0, len(ref_args)):
             arg = ref_args[i]
-            arg_vars = arg.collect(Variable)
-            nvars = len(arg_vars)
-            if nvars == 1:
-                ref_arg_vars.append(arg_vars[0])
-                arg_coeff = get_affine_var_and_param_coeff(arg)
-                ref_arg_coeffs.update(arg_coeff)
-            elif nvars == 0:
-                ref_arg_vars.append('-')
-            # assert that the expr was not simplified
-            # (which is highly unlikely)
-            else:
-                assert(arg_vars[0] == arg_vars[i] \
-                       for i in range(1, len(arg_vars)))
-                ref_arg_vars.append(arg_vars[0])
-                arg_coeff = get_affine_var_and_param_coeff(arg)
-                ref_arg_coeffs.update(arg_coeff)
+            if isAffine(arg):
+                arg_vars = arg.collect(Variable)
+                nvars = len(arg_vars)
+                if nvars == 0:
+                    # example: dim 0 in (2, x+1, y-1)
+                    pass
+                elif nvars == 1:
+                    # example: dims 0, 1 and 2 in (c, x+1, y-1)
+                    ref_arg_vars.append(arg_vars[0])
+                    arg_coeff = get_affine_var_and_param_coeff(arg)
+                    ref_arg_coeffs.update(arg_coeff)
+                # Restricting the arg expression to have only one variable
+                else:
+                    # example: a) dim 1 in (c, x+x, y-1)
+                    #          b) dim 2 in (c, x+1, x-y)
+                    # asserting the type to be not (b), a rare corner case,
+                    # which we dont want to handle now
+                    assert(arg_vars[0] == arg_vars[i] \
+                           for i in range(1, len(arg_vars)))
+                    ref_arg_vars.append(arg_vars[0])
+                    arg_coeff = get_affine_var_and_param_coeff(arg)
+                    ref_arg_coeffs.update(arg_coeff)
 
         return ref_arg_vars, ref_arg_coeffs
 
-    def align_scale_vars(part, ref_part, ref_arg_vars, ref_arg_coeffs):
+    def align_scale_vars(part, parent_part, ref_arg_vars, ref_arg_coeffs):
+        '''
+        Finds an alignment and scaling factor for each dimension associated
+        with the reference argument variable
+        '''
 
-        ref_part_align = ref_part.align
-        ref_part_scale = ref_part.scale
-        max_dim = len(ref_part_align)
+        def get_domain_dims(sched, var_list):
+            '''
+            Gets the dimension associated with each of the varibale in the
+            var_list, assuming that it is present in the schedule
+            '''
+            # dict: var -> dim
+            domain_dims = {}
+            for var in var_list:
+                dim = sched.find_dim_by_name(isl._isl.dim_type.in_, var.name)
+                domain_dims[var] = dim
+
+            return domain_dims
+
+        # parent info
+        parent_align = parent_part.align
+        parent_scale = parent_part.scale
+        max_dim = len(parent_align)
 
         # relative alignment and scaling
+        # dict: dim -> dim
         rel_align = {}
         rel_scale = {}
 
+        # start from null alignment
         part_align = ['-' for i in range(0, max_dim)]
         part_scale = ['-' for i in range(0, max_dim)]
 
-        part_dom_vars = part.comp.variableDomain[0]
+        # dimensionality of the part
+        part_dim_in = part.sched.dim(isl._isl.dim_type.in_)
+
+        # dimensions of the part's variable domain, and those involved in
+        # referencing the parent part
+        part_dims = get_domain_dims(part.sched, part.comp.variableDomain[0])
+
+        # dimensions of the parent part's variable domain
+        parent_dims = get_domain_dims(parent_part.sched,
+                                      parent_part.comp.variableDomain[0])
 
         # ***
         log_level = logging.DEBUG-2
@@ -168,64 +203,55 @@ def align_and_scale_parts(pipeline, group):
         LOG(log_level, log_str)
         # ***
 
-        var_pos = 0
-        for var in part_dom_vars:
-            LOG(logging.DEBUG-2, var)
+        # for each variable in the reference argument, get the alignment of
+        # the part relative to the parent
+        for var in ref_arg_vars:
+            part_dim = part_dims[var]
+            rel_align[part_dim] = parent_dims[var]
 
-            # if this variable's dimension is not used (in reference)
-            if var not in ref_arg_vars:
-                for i in range(0, len(ref_arg_vars)):
-                    if ref_arg_vars[i] == '-':
-                        rel_align[var] = i  # use
-                        ref_arg_vars[i] = '+'  # mark as used
+        # dims of the part which didn't get an alignment
+        rem_part_dims = [dim for dim in part_dims.values() \
+                                 if dim not in rel_align]
+        # dims of the parent part to which no part dim was aligned
+        rem_parent_dims = [dim for dim in parent_dims.values() \
+                                   if dim not in rel_align.values()]
 
-            # find the relative alignent and scaling b/w the part and its ref
-            for arg_pos in range(0, len(ref_arg_vars)):
-                if ref_arg_vars[arg_pos] == var:
-                    rel_align[var] = arg_pos
-                    rel_scale[arg_pos] = ref_arg_coeffs[var]
-                    break
-
-            # normalize to the base alignment using the relative alignent
-            base_pos = rel_align[var]
-            if ref_part_align[base_pos] != '-':
-                part_align[var_pos] = ref_part_align[base_pos]
-                part_scale[var_pos] = ref_part_scale[base_pos] * \
-                                      rel_scale[base_pos]
+        # align each of the remaining part dims to any remaining dim of
+        # the parent part
+        for dim in rem_part_dims:
+            if rem_parent_dims:
+                rel_align[dim] = rem_parent_dims.pop()
             else:
-                # can align with any dimension (that is not aligned) later
-                part_align[var_pos] = '*'
-                # defer scaling to later visit
-            var_pos += 1
+                rel_align[dim] = '*'
 
-        # align the dimensions of part, which could not be aligned to any
-        # of the dimensions of ref_part; and set default scaling = 1.
-        # absolute alignments of all assigned variables:
-        pure_ref_align = [val for val in ref_part_align \
-                              if val != '-']
-        # remaining alignments available to use:
-        residual_align = [i for i in range(0, len(ref_part_align)) \
-                            if i not in pure_ref_align]
-        for dim in range(0, len(part_align)):
-            if part_align[dim] == '*':
-                part_align[dim] = residual_align.pop()
-                part_scale[dim] = 1
+        aligned_dims = [dim for dim in part_dims.values()
+                                if rel_align[dim] != '*']
+        dangling_dims = [dim for dim in part_dims.values()
+                                 if dim not in aligned_dims]
 
-        # ***
-        log_level = logging.DEBUG-2
-        log_str = "rel_align = "+ \
-                  str([str(key)+":"+str(rel_align[key]) \
-                       for key in rel_align])
-        LOG(log_level, log_str)
-        # ***
+        # normalize to the base alignment using the relative alignment
+        for dim in aligned_dims:
+            part_align[dim] = parent_align[rel_align[dim]]
 
-        # extend the alignment to the maximum number of dimensions
-        # and set the default scaling = '-'
-        for dim in range(len(part_align), max_dim):
-            for i in range(0, max_dim):
-                if i not in part_align:
-                    part_align[dim] = '-'
-                    part_scale[dim] = '-'
+        avail_dims = []
+        for dim in range(0, max_dim):
+            if dim not in part_align:
+                avail_dims.append(dim)
+
+        # dangling_dims are assigned any available dim of the base alignment
+        for dim in dangling_dims:
+            part_align[dim] = avail_dims.pop()
+
+        # test for unique alignment
+        assert (len(part_align) == len(set(part_align)))
+
+        print("part_align = ", part_align)
+
+        # test for alignment boundary
+        out_of_bound = all(max_dim > dim for dim in part_align if dim != '-') \
+                       and \
+                       all(0 <= dim for dim in part_align if dim != '-')
+        assert (out_of_bound)
 
         return part_align, part_scale
 
@@ -285,8 +311,6 @@ def align_and_scale_parts(pipeline, group):
             # process the argument list
             ref_args = ref.arguments
             ref_arg_vars, ref_arg_coeffs = extract_arg_vars_coefs(ref_args)
-            for i in range(len(ref_arg_vars), len(ref_part_align)):
-                ref_arg_vars.append('-')
 
             # ***
             log_level = logging.DEBUG-2

@@ -97,7 +97,7 @@ def extract_value_dependence(part, ref, refPolyDom):
     accessRegion = isl.BasicSet.universe(refPolyDom.dom_set.get_space())
     partDom = part.sched.domain().align_params(refPolyDom.dom_set.get_space())
     accessRegion = accessRegion.align_params(partDom.get_space())
-    
+
     rel = isl.BasicMap.from_domain_and_range(partDom, accessRegion)
     dimOut = rel.dim(isl._isl.dim_type.out)
     sourceDims = [ ('out', i) for i in range(0, dimOut)]
@@ -119,13 +119,12 @@ def extract_value_dependence(part, ref, refPolyDom):
     return deps 
 
 class PolyPart(object):
-    def __init__(self, _sched_map, _expr, _pred, _comp,
+    def __init__(self, _sched, _expr, _pred, _comp,
                  _align, _scale, _level_no):
-        self.sched_map = _sched_map
+        self.sched = _sched
         self.expr = _expr
         self.pred = _pred
         self.comp = _comp
-        self.sched = None
         # Dependencies between values of computation objects
         self.deps = []
         # Mapping between the input variables to the corresponding 
@@ -428,7 +427,7 @@ class PolyRep(object):
         #sched_m = add_constraints(sched_m, param_ineqs, param_eqs)
 
         #for part in self.poly_parts[comp]:
-        #    sched_m = sched_m.subtract_range(part.sched_map.range())
+        #    sched_m = sched_m.subtract_range(part.sched.range())
         #    if (sched_m.is_empty()):
         #        break
         #if(not sched_m.fast_is_empty()):
@@ -440,7 +439,7 @@ class PolyRep(object):
         #    for bmap in bmap_list:
         #        poly_part = PolyPart(bmap, comp.default, None, comp)
         #        id_ = isl.Id.alloc(self.ctx, comp.name, poly_part)
-        #        poly_part.sched_map = poly_part.sched_map.set_tuple_id(
+        #        poly_part.sched = poly_part.sched.set_tuple_id(
         #                                   isl._isl.dim_type.in_, id_)
         #        self.poly_parts[comp].append(poly_part)
 
@@ -455,8 +454,8 @@ class PolyRep(object):
                              align, scale, level_no)
 
         id_ = isl.Id.alloc(self.ctx, comp.name, poly_part)
-        poly_part.sched_map = \
-                poly_part.sched_map.set_tuple_id(isl._isl.dim_type.in_, id_)
+        poly_part.sched = \
+                poly_part.sched.set_tuple_id(isl._isl.dim_type.in_, id_)
         self.poly_parts[comp].append(poly_part)
 
     def make_poly_parts(self, sched_map, expr, pred, comp,
@@ -564,7 +563,7 @@ class PolyRep(object):
                                  list(align), list(scale), level_no)
             # Create a user pointer, tuple name and add it to the map
             id_ = isl.Id.alloc(self.ctx, comp.name, poly_part)
-            poly_part.sched_map = poly_part.sched_map.set_tuple_id(
+            poly_part.sched = poly_part.sched.set_tuple_id(
                                           isl._isl.dim_type.in_, id_)
             poly_parts.append(poly_part)
         else:
@@ -573,7 +572,7 @@ class PolyRep(object):
                                      list(align), list(scale), level_no)
                 # Create a user pointer, tuple name and add it to the map
                 id_ = isl.Id.alloc(self.ctx, comp.name, poly_part)
-                poly_part.sched_map = poly_part.sched_map.set_tuple_id( \
+                poly_part.sched = poly_part.sched.set_tuple_id( \
                                         isl._isl.dim_type.in_, id_)
                 poly_parts.append(poly_part)
         return poly_parts

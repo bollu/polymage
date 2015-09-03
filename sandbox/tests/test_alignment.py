@@ -41,12 +41,12 @@ def test_gray():
     img = Image(Float, "img", [R+2, C+2, 3])
 
     gray = Function(([x, y], [row, col]), Float, "gray")
-    gray.defn = [ img(x, y, 0) * 0.299 \
-                + img(x, y, 1) * 0.587 \
-                + img(x, y, 2) * 0.114 ]
+    gray.defn = [ Case(cond, img(x, y, 0) * 0.299 \
+                           + img(x, y, 1) * 0.587 \
+                           + img(x, y, 2) * 0.114) ]
 
     vector = Function(([x], [row]), Float, "vector")
-    vector.defn = [ gray(x, 0) ]
+    vector.defn = [ Case(cond, gray(x, 0)) ]
 
     pipeline = buildPipeline([vector], grouping = [[gray, vector]])
 
@@ -56,10 +56,10 @@ def test_flip():
     img = Image(Int, "img", [R+2, C+2])
 
     flip1 = Function(([y, x], [col, row]), Int, "flip1")
-    flip1.defn = [ img(x+1, y) + img(x, y+1) ]
+    flip1.defn = [ Case(cond, img(x+1, y) + img(x, y+1)) ]
 
     flip2 = Function(([x, y], [row, col]), Int, "flip2")
-    flip2.defn = [ flip1(y-1, x) + flip1(y, x-1) ]
+    flip2.defn = [ Case(cond, flip1(y-1, x) + flip1(y, x-1)) ]
 
     pipeline = buildPipeline([flip2], grouping = [[flip1, flip2]])
 
@@ -69,16 +69,16 @@ def test_robin():
     img = Image(Short, "img", [R+2, C+2, 3])
 
     robin1 = Function(([c, x, y], [cr, row, col]), Short, "robin1")
-    robin1.defn = [ img(x, y, c) + 1 ]
+    robin1.defn = [ Case(cond, img(x, y, c) + 1) ]
 
     robin2 = Function(([y, c, x], [col, cr, row]), Short, "robin2")
-    robin2.defn = [ robin1(c, x, y) - 1 ]
+    robin2.defn = [ Case(cond, robin1(c, x, y) - 1) ]
 
     robin3 = Function(([x, y, c], [row, col, cr]), Short, "robin3")
-    robin3.defn = [ robin2(y, c, x) + 1 ]
+    robin3.defn = [ Case(cond, robin2(y, c, x) + 1) ]
 
-    pipeline = buildPipeline([robin3], grouping = [\
-                [robin1, robin2, robin3]])
+    pipeline = buildPipeline([robin3], \
+                             grouping = [[robin1, robin2, robin3]])
 
     return
 
