@@ -5,7 +5,7 @@ import logging
 
 # LOG CONFIG #
 schedule_logger = logging.getLogger("schedule.py")
-schedule_logger.setLevel(logging.DEBUG-2)
+schedule_logger.setLevel(logging.INFO)
 LOG = schedule_logger.log
 
 def get_parent_parts(part, group):
@@ -57,19 +57,32 @@ def base_schedule(group):
 def align_and_scale_parts(pipeline, group):
 
     """
-        Aligns parts in a given group. This functions returns a boolean
-        False as soon as it figures out that any one of the parts
-        introduces an incompatible in alignment in the group. Assumes a
-        list structure of alignment member in PolyPart object. Each
-        member 'm', at index 'i', of part.align list refers to a position
-        in the base-alignment (default static alignment of parts at level
-        zero of the topologically sorted group) for i'th variable in the
-        domain order of the part. A mapping to '-' indicates no alignment.
+    Alignment structure:
+    [alignment]
 
-        Correspondingly the same as above for scaling.
+    [alignment] of a dimension 'i', of a polypart is given by the i'th member
+    of the list part.align. This value is a dimension in the root part or the
+    part that is at the first level of the topologically sorted group. In case
+    there are multiple parent parts, the same alignment should hold for all
+    those parts. A mapping to '-' instead of an integer dimension indicates
+    alignment to none.
 
-        * The part.align does not contain topological level information
-        in its first dimension.
+    Scaling and offset factors structure:
+    [(scale factors, offsets)]
+
+    [scale factors] determine the amount by which the dimension has to be
+    scaled to uniformize the dependencies. Each reference to the parent is
+    considered while determing the scaling factors. All the references
+    should have the same scaling factor in a particular dimension otherwise
+    the scaling factor for the dimension cannot be determined uniquely.
+
+    [offsets] specify the shift in each dimension that is require to
+    uniformize dependencies. Simliar to dimension scale factors all
+    offsets for a dimension should agree otherwise the offset for the
+    dimension cannot be determied uniquely.
+
+    * The part.align does not contain topological level information in it,
+    i.e, the dimensions handled here are spatial.
     """
 
     # ***
@@ -183,7 +196,7 @@ def align_and_scale_parts(pipeline, group):
 
         # start from null alignment
         part_align = ['-' for i in range(0, max_dim)]
-        part_scale = ['-' for i in range(0, max_dim)]
+        part_scale = [('-', '-') for i in range(0, max_dim)]
 
         # dimensionality of the part
         part_dim_in = part.sched.dim(isl._isl.dim_type.in_)
@@ -245,12 +258,10 @@ def align_and_scale_parts(pipeline, group):
         # test for unique alignment
         assert (len(part_align) == len(set(part_align)))
 
-        print("part_align = ", part_align)
-
         # test for alignment boundary
-        out_of_bound = all(max_dim > dim for dim in part_align if dim != '-') \
+        out_of_bound = all(max_dim >= dim for dim in part_align if dim != '-') \
                        and \
-                       all(0 <= dim for dim in part_align if dim != '-')
+                       all(0 < dim for dim in part_align if dim != '-')
         assert (out_of_bound)
 
         return part_align, part_scale
@@ -365,7 +376,7 @@ def align_and_scale_parts(pipeline, group):
             if not group.polyRep.isPartSelfDependent(p):
                 no_self_dep_parts.append(p)
                 # update size of align vector to max dim
-                # assumes that 'align' has only spatial dims
+                # assuming that 'align' has only spatial dims
                 if max_dim < len(p_align):
                     max_dim = len(p_align)
 
@@ -379,8 +390,8 @@ def align_and_scale_parts(pipeline, group):
 
     # the alignment positions and scaling factors for variables follows
     # domain order of base parts
-    base_align = [i for i in range(0, max_dim)]
-    base_scale = [1 for i in range(0, max_dim)]
+    base_align = [i+1 for i in range(0, max_dim)]
+    base_scale = [(1, 0) for i in range(0, max_dim)]
 
     # initial alignment and scaling for all the base parts
     for part in base_parts:
@@ -419,38 +430,7 @@ def align_and_scale_parts(pipeline, group):
         # ***
 
         refs = part.getPartRefs()
-        if len(refs) > 0:
-            for ref in refs:
-                no_conflict = compatible_align(part_align, old_align)
-                if old_align and not no_conflict:
-                    LOG(logging.ERROR, "Conflict in alignment across refs")
-                    return False
-
-                no_conflict = compatible_scale(part_scale, old_scale)
-                if old_scale and not no_conflict:
-                    LOG(logging.ERROR, "Conflict in scaling across refs")
-                    return False
-
-                old_align = part.align
-                old_scale = part.scale
-
-                # Alignment and scaling with references
-                no_align_conflict, \
-                  no_scale_conflict = \
-                    align_scale_with_ref(part, ref, max_dim)
-
-                if old_align and not no_align_conflict:
-                    LOG(logging.ERROR, \
-                        "Conflict in alignment across ref parts")
-                    return False
-                if old_scale and not no_scale_conflict:
-                    LOG(logging.ERROR, \
-                        "Conflict in scaling across ref parts")
-                    return False
-
-                part_align = part.align
-                part_scale = part.scale
-
+        for ref in refs:
             no_conflict = compatible_align(part_align, old_align)
             if old_align and not no_conflict:
                 LOG(logging.ERROR, "Conflict in alignment across refs")
@@ -460,16 +440,36 @@ def align_and_scale_parts(pipeline, group):
             if old_scale and not no_conflict:
                 LOG(logging.ERROR, "Conflict in scaling across refs")
                 return False
-        else:
-            part_scale = [1 for i in range(0, max_dim)]
-            part_align = ['-' for i in range(0, max_dim)]
 
-            nvars = len(part.comp.variableDomain[0])
-            for i in range(0, nvars):
-                part_align[i] = base_align[i]
+            old_align = part.align
+            old_scale = part.scale
 
-            part.set_align(part_align)
-            part.set_scale(part_scale)
+            # Alignment and scaling with references
+            no_align_conflict, \
+              no_scale_conflict = \
+                align_scale_with_ref(part, ref, max_dim)
+
+            if old_align and not no_align_conflict:
+                LOG(logging.ERROR, \
+                    "Conflict in alignment across ref parts")
+                return False
+            if old_scale and not no_scale_conflict:
+                LOG(logging.ERROR, \
+                    "Conflict in scaling across ref parts")
+                return False
+
+            part_align = part.align
+            part_scale = part.scale
+
+        no_conflict = compatible_align(part_align, old_align)
+        if old_align and not no_conflict:
+            LOG(logging.ERROR, "Conflict in alignment across refs")
+            return False
+
+        no_conflict = compatible_scale(part_scale, old_scale)
+        if old_scale and not no_conflict:
+            LOG(logging.ERROR, "Conflict in scaling across refs")
+            return False
 
     # normalize the scaling factors, so that none of them is lesser than 1
     norm = [1 for i in range(0, max_dim)]
