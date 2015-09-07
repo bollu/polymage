@@ -123,8 +123,9 @@ def align_and_scale_parts(pipeline, group):
             return not compatible
         elif len(scale1) == len(scale2):
             for i in range(0, len(scale1)):
-                if not ((scale1[i] == '-' or scale2[i] == '-')
-                        or (scale1[i] == scale2[i])):
+                # fix this for scale[1]
+                if not ((scale1[i][0] == '-' or scale2[i][0] == '-')
+                        or (scale1[i][0] == scale2[i][0])):
                     compatible = False
                     break
         else:
@@ -479,8 +480,8 @@ def align_and_scale_parts(pipeline, group):
     for part in other_parts:
         scale = part.scale
         for dim in range(0, max_dim):
-            if scale[dim] != '-':
-                d = Fraction(scale[dim].denominator)
+            if scale[dim][0] != '-':
+                d = Fraction(scale[dim][0].denominator)
                 norm[dim] = lcm(d, norm[dim])
 
     LOG(logging.DEBUG, "")
@@ -488,12 +489,13 @@ def align_and_scale_parts(pipeline, group):
 
     for part in sorted_parts:
         scale = part.scale
-        new_scale = [1 for i in range(0, max_dim)]
+        new_scale = [(1, 0) for i in range(0, max_dim)]
         for dim in range(0, max_dim):
-            if scale[dim] != '-':
-                new_scale[dim] = norm[dim] * part.scale[dim]
+            if scale[dim][0] != '-':
+                new_scale[dim] = (norm[dim] * part.scale[dim][0],
+                                  part_scale[dim][1])
             else:
-                new_scale[dim] = '-'
+                new_scale[dim] = ('-', '-')
         part.set_scale(new_scale)
 
         # ***

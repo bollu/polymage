@@ -1128,7 +1128,8 @@ def format_schedule_constraints(dim_in, dim_out, align, scale, level_no):
     for i in range(0, dim_in):
         coeff = {}
         coeff[('out', align[i])] = 1
-        assert scale[i] >= 1
+        if scale[i][0] != '-':
+            assert scale[i][0] >= 1
         coeff[('in', i)] = -1 * scale[i]
         eq_coeff.append(coeff)
         dim_set[align[i]] = True
