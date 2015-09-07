@@ -40,25 +40,37 @@ def add_constraints_from_list(obj, local_space, constraint_list,
 
         for coeff in constr:
             dim = coeff[1]
-            if coeff[0] == 'param':
-                if (type(dim) == str):
-                    dim = obj.find_dim_by_name(isl._isl.dim_type.param, dim)
-                c = c.set_coefficient_val(isl._isl.dim_type.param,
-                                          dim, constr[coeff])
-            elif coeff[0] == 'in':
-                if (type(dim) == str):
-                    dim = obj.find_dim_by_name(isl._isl.dim_type.in_, dim)
-                c = c.set_coefficient_val(isl._isl.dim_type.in_,
-                                          dim, constr[coeff])
-            elif coeff[0] == 'out':
-                if (type(dim) == str):
-                    dim = obj.find_dim_by_name(isl._isl.dim_type.out, dim)
-                c = c.set_coefficient_val(isl._isl.dim_type.out,
-                                          dim, constr[coeff])
-            elif coeff[0] == 'constant':
-                c = c.set_constant_val(constr[coeff])
-            else:
-               assert False
+            try:
+                if coeff[0] == 'param':
+                    if (type(dim) == str):
+                        dim = \
+                            obj.find_dim_by_name(isl._isl.dim_type.param, dim)
+                    c = c.set_coefficient_val(isl._isl.dim_type.param,
+                                              dim, constr[coeff])
+                elif coeff[0] == 'in':
+                    if (type(dim) == str):
+                        dim = obj.find_dim_by_name(isl._isl.dim_type.in_, dim)
+                    c = c.set_coefficient_val(isl._isl.dim_type.in_,
+                                              dim, constr[coeff])
+                elif coeff[0] == 'out':
+                    if (type(dim) == str):
+                        dim = obj.find_dim_by_name(isl._isl.dim_type.out, dim)
+                    c = c.set_coefficient_val(isl._isl.dim_type.out,
+                                              dim, constr[coeff])
+                elif coeff[0] == 'constant':
+                    c = c.set_constant_val(constr[coeff])
+                else:
+                   assert False
+            except isl.Error:
+                # Ignore this constraint conjunct since the referred dimension
+                # is not scheduled in the obj. This happens when we try to add
+                # constraint for a dimension that is not at all used by a part.
+                # FIXME: isl's find_dim_by_name throws exception on not finding
+                # any scheduled dimension. It's better to replace the exception
+                # handling with an isl function, if any, to test for the
+                # existence of a dimension in that part.
+                pass
+
         obj = obj.add_constraint(c)
     return obj
 
