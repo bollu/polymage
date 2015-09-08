@@ -12,7 +12,7 @@ import logging
 
 # LOG CONFIG #
 codegen_logger = logging.getLogger("codegen.py")
-codegen_logger.setLevel(logging.DEBUG)
+codegen_logger.setLevel(logging.INFO)
 LOG = codegen_logger.log
 
 # short hands for methods
@@ -719,16 +719,16 @@ def generate_code_for_group(pipeline, g, body, options, \
     group_parts = g.polyRep.poly_parts
     sorted_comp_objs = sorted(g._comp_objs, \
                               key = lambda \
-                              comp : group_parts[comp][0].level_no)
+                              comp : group_parts[comp][0]._level_no)
 
     # NOTE the last comp obj in the sorted list has the max level number
     # that is shared by all the liveouts of the group
     last_comp = sorted_comp_objs[len(sorted_comp_objs)-1]
-    max_level = group_parts[last_comp][0].level_no
+    max_level = group_parts[last_comp][0]._level_no
     is_comp_liveout = {}
     is_comp_output = {}
     for comp in sorted_comp_objs:
-        is_comp_liveout[comp] = (group_parts[comp][0].level_no == max_level)
+        is_comp_liveout[comp] = (group_parts[comp][0]._level_no == max_level)
         is_comp_output[comp] = comp in outputs
 
     # ***

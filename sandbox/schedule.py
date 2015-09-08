@@ -5,7 +5,7 @@ import logging
 
 # LOG CONFIG #
 schedule_logger = logging.getLogger("schedule.py")
-schedule_logger.setLevel(logging.DEBUG-2)
+schedule_logger.setLevel(logging.INFO)
 LOG = schedule_logger.log
 
 def get_parent_parts(part, group):
@@ -24,33 +24,17 @@ def base_schedule(group):
 
     assert(group.isPolyhedral)
 
-    time = {}
-
     parts = []
     for sublist in group.polyRep.poly_parts.values():
         parts.extend(sublist)
-    
-    for part in parts:
-        time[part] = 0
-
-    change = True
-    while change:
-        change = False
-        for part in parts:
-            parent_parts = get_parent_parts(part, group)
-            for p in parent_parts:
-                if time[part] <= time[p]:
-                    time[part] = time[p] + 1
-                    change = True
 
     for part in parts:
-        part.level_no = time[part]
         dim_in = part.sched.dim(isl._isl.dim_type.in_)
         dim_out = part.sched.dim(isl._isl.dim_type.out)
         [ineqs, eqs] = format_schedule_constraints(dim_in, dim_out,
                                                    part.align,
                                                    part.scale,
-                                                   part.level_no)
+                                                   part._level_no)
         part.sched = add_constraints(part.sched.copy(), ineqs, eqs)
 
 
@@ -396,12 +380,12 @@ def align_and_scale_parts(pipeline, group):
                     max_dim = len(p_align)
 
     sorted_parts = sorted(no_self_dep_parts, \
-                          key = lambda part:part.level_no)
+                          key = lambda part:part._level_no)
 
     # begin from the topologically earliest part as the base for
     # alignment reference
     base_parts = [part for part in sorted_parts \
-                       if part.level_no == sorted_parts[0].level_no]
+                       if part._level_no == sorted_parts[0]._level_no]
 
     # the alignment positions and scaling factors for variables follows
     # domain order of base parts
@@ -414,7 +398,7 @@ def align_and_scale_parts(pipeline, group):
         log_level = logging.DEBUG-1
         LOG(log_level, "____")
         LOG(log_level, str(part.comp.name)+\
-                       " (level : "+str(part.level_no)+")")
+                       " (level : "+str(part._level_no)+")")
         # ***
 
         part.set_align(base_align)
@@ -427,7 +411,7 @@ def align_and_scale_parts(pipeline, group):
         log_level = logging.DEBUG-1
         LOG(log_level, "____")
         LOG(log_level, str(part.comp.name)+\
-                       " (level : "+str(part.level_no)+")")
+                       " (level : "+str(part._level_no)+")")
         # ***
 
         old_align = []
@@ -721,7 +705,7 @@ def fusedSchedule(self, paramEstimates):
                         p.vectorSchedDim.append(vDimName)
 
         # Find the stages which are not liveout
-        maxStage = max([ p.level_no for p in stageGroups[i] ])
+        maxStage = max([ p._level_no for p in stageGroups[i] ])
         for p in stageGroups[i]:
             isLiveOut = not isStencil
             #isLiveOut = True
@@ -729,14 +713,14 @@ def fusedSchedule(self, paramEstimates):
                 if gn != i:
                     isLiveOut = isLiveOut or self.isGroupDependentOnPart(
                                                         stageGroups[gn], p)                        
-            if p.level_no == maxStage:
+            if p._level_no == maxStage:
                 p.liveout = True
             p.liveout = p.liveout or isLiveOut     
                 
     for gi in stencilGroups:
         assert(len(stageGroups[gi]) > 1)
-        hmax = max( [ s.level_no for s in stageGroups[gi] ] )
-        hmin = min( [ s.level_no for s in stageGroups[gi] ] )
+        hmax = max( [ s._level_no for s in stageGroups[gi] ] )
+        hmin = min( [ s._level_no for s in stageGroups[gi] ] )
         slopeMin, slopeMax = self.computeTileSlope(stageDeps[gi], hmax)
         #print(slopeMin, slopeMax, hmax - hmin)
         
@@ -762,7 +746,7 @@ def fusedSchedule(self, paramEstimates):
                         R = p.dimTileInfo[dom][5]
                         h = p.dimTileInfo[dom][6]
                         extent += abs(L * h) + abs(R * h)
-                        baseWidth = h - p.level_no
+                        baseWidth = h - p._level_no
                         #extent += abs(L * h) + abs(R * baseWidth) 
                     p.dimScratchSize[dom] = \
                         int(math.ceil(Fraction(extent, p.scale[dom])))
@@ -949,8 +933,8 @@ def moveIndependentDim(self, dim, group, stageDim):
                                 stageDim, noDepName)
 
 def getGroupHeight(self, group):
-    minHeight = min( [ part.level_no for part in group ] )
-    maxHeight = max( [ part.level_no for part in group ] )
+    minHeight = min( [ part._level_no for part in group ] )
+    maxHeight = max( [ part._level_no for part in group ] )
     return maxHeight - minHeight
 
 def overlapTile(self, group, slopeMin, slopeMax):

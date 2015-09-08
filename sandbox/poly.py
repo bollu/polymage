@@ -152,7 +152,7 @@ class PolyPart(object):
         # constructing the polypart. These are changed by the
         # alignment and loop scaling passes. Both these passer
         # attempt to improve locality and uniformize dependencies.
-        self.level_no = _level_no
+        self._level_no = _level_no
 
         # maps tiled dimensions to their respective scratchpad sizes
         self.dim_scratch_size = {}
@@ -238,6 +238,7 @@ class PolyRep(object):
         #self.simpleSchedule(_param_estimates)
 
     def extract_polyrep_from_group(self, param_constraints):
+        # dict: comp_obj -> level_no
         comp_objs = self.group.orderComputeObjs()
         num_objs = len(comp_objs.items())
 
