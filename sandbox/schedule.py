@@ -146,6 +146,7 @@ def align_and_scale_parts(pipeline, group):
                 nvars = len(arg_vars)
                 if nvars == 0:
                     # example: dim 0 in (2, x+1, y-1)
+                    ref_arg_vars.append('-')
                     pass
                 elif nvars == 1:
                     # example: dims 0, 1 and 2 in (c, x+1, y-1)
@@ -182,8 +183,22 @@ def align_and_scale_parts(pipeline, group):
             for var in var_list:
                 dim = sched.find_dim_by_name(isl._isl.dim_type.in_, var.name)
                 domain_dims[var] = dim
-
             return domain_dims
+
+        def get_argvar_order(var_list):
+            '''
+            Assumes that the var_list was built in the reference order of the
+            argument. Each var relatively aligns to the dimension of the
+            parent, that is same as its occurence position in the argument.
+            '''
+            dim_map = {}
+            dim = 0
+            for var in var_list:
+                if var != '-':
+                    dim_map[var] = dim
+                dim += 1
+            assert(dim <= max_dim)
+            return dim_map
 
         # parent info
         parent_align = parent_part.align
@@ -204,8 +219,7 @@ def align_and_scale_parts(pipeline, group):
 
         # dimensions of variable domain of the part and its parent
         part_dims = get_domain_dims(part.sched, part.comp.variableDomain[0])
-        parent_dims = get_domain_dims(parent_part.sched,
-                                      parent_part.comp.variableDomain[0])
+        parent_dims = get_argvar_order(ref_arg_vars)
 
         # ***
         log_level = logging.DEBUG-2
@@ -217,8 +231,9 @@ def align_and_scale_parts(pipeline, group):
         # for each variable in the reference argument, get the alignment of
         # the part relative to the parent
         for var in ref_arg_vars:
-            rel_align[part_dims[var]] = parent_dims[var]
-            rel_scale[part_dims[var]] = ref_arg_coeffs[var]
+            if var != '-':
+                rel_align[part_dims[var]] = parent_dims[var]
+                rel_scale[part_dims[var]] = ref_arg_coeffs[var]
 
         # dims of the part which didn't get an alignment
         rem_part_dims = [dim for dim in part_dims.values() \
