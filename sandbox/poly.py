@@ -599,7 +599,7 @@ class PolyRep(object):
         # the default scaling in each dimension is set to 1 i.e., the
         # schedule dimension correspoinding to input dimension will be 
         # scaled by 1
-        scale = [(1, 0) for i in range(0, dim_in)]
+        scale = [1 for i in range(0, dim_in)]
         return (align, scale)
 
     def generateCode(self):
@@ -1140,8 +1140,8 @@ def format_schedule_constraints(dim_in, dim_out, align, scale, level_no):
     for i in range(0, dim_in):
         coeff = {}
         coeff[('out', align[i])] = 1
-        if scale[i][0] != '-':
-            assert scale[i][0] >= 1
+        if scale[i] != '-':
+            assert scale[i] >= 1
         coeff[('in', i)] = -1 * scale[i]
         eq_coeff.append(coeff)
         dim_set[align[i]] = True
