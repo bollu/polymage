@@ -217,8 +217,8 @@ def align_and_scale_parts(pipeline, group):
         # for each variable in the reference argument, get the alignment of
         # the part relative to the parent
         for var in ref_arg_vars:
-            part_dim = part_dims[var]
-            rel_align[part_dim] = parent_dims[var]
+            rel_align[part_dims[var]] = parent_dims[var]
+            rel_scale[part_dims[var]] = ref_arg_coeffs[var]
 
         # dims of the part which didn't get an alignment
         rem_part_dims = [dim for dim in part_dims.values() \
@@ -230,6 +230,7 @@ def align_and_scale_parts(pipeline, group):
         # align each of the remaining part dims to any remaining dim of
         # the parent part
         for dim in rem_part_dims:
+            rel_scale[dim] = 1
             if rem_parent_dims:
                 rel_align[dim] = rem_parent_dims.pop()
             else:
@@ -240,22 +241,18 @@ def align_and_scale_parts(pipeline, group):
         dangling_dims = [dim for dim in part_dims.values()
                                  if dim not in aligned_dims]
 
-        # normalize to the base alignment using the relative alignment
+        # normalize to the base alignment, scaling using the relative
+        # alignment, scaling
         for dim in aligned_dims:
-            part_align[dim] = parent_align[rel_align[dim]]
-
-        avail_dims = []
-        for dim in range(0, max_dim):
-            if dim not in part_align:
-                avail_dims.append(dim)
+            root_dim = rel_align[dim]
+            part_align[dim] = parent_align[root_dim]
+            part_scale[dim] = parent_scale[root_dim] * rel_scale[dim]
 
         # dangling_dims are assigned any available dim of the base alignment
+        avail_dims = [dim for dim in range(0, max_dim) \
+                            if dim not in part_align]
         for dim in dangling_dims:
             part_align[dim] = avail_dims.pop()
-
-        for dim in aligned_dims:
-            if part_scale[dim] == '-':
-                part_scale[dim] = 1
 
         # test for unique alignment
         assert (len(part_align) == len(set(part_align)))
@@ -330,7 +327,8 @@ def align_and_scale_parts(pipeline, group):
             log_str1 = "ref_arg_vars  = "+ \
                       str([i.__str__() for i in ref_arg_vars])
             log_str2 = "ref_arg_coeffs = "+ \
-                      str([i.__str__() for i in ref_arg_coeffs])
+                      str([(i.__str__(), ref_arg_coeffs[i]) \
+                            for i in ref_arg_coeffs])
             LOG(log_level, log_str1)
             LOG(log_level, log_str2)
             # ***
