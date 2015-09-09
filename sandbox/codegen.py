@@ -832,7 +832,7 @@ def generate_code_for_group(pipeline, g, body, options, \
 def generate_code_for_pipeline(pipeline, \
                                outsExternAlloc=True, \
                                is_io_void_ptr=True):
-    sorted_groups = pipeline.getOrderedGroups()
+    sorted_groups = pipeline.get_ordered_groups()
     # Discard the level order information
     sorted_groups = [ g[0] for g in sorted_groups ]
     # Create a top level module for the pipeline

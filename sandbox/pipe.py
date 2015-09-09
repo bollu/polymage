@@ -305,6 +305,7 @@ class Pipeline:
     def merge_groups(self, g1, g2):
         # Get comp objects from both groups 
         comp_objs = g1.computeObjs + g2.computeObjs
+        comp_objs = list(set(comp_objs))
         # Create a new group 
         merged = Group(self._ctx, comp_objs, self._param_constraints)
         # Update the group map
@@ -350,25 +351,24 @@ class Pipeline:
 
         return merged
 
-    def getOrderedGroups(self):
-        # Assign level numbers to each group and sort accourding to the 
-        # level
-        groupOrder = {}
+    def get_ordered_groups(self):
+        # Assign level numbers to each group and sort accourding to the level
+        group_order = {}
         groups = set(self._groups.values())
-        groupList = [ [g, len(self._groupParents[g])] for g in groups ]
+        group_list = [ [g, len(self._groupParents[g])] for g in groups ]
 
         level = 0
-        while groupList:
+        while group_list:
             # find all the groups whose parents have their levels assigned
-            levelAssigned = [ t for t in groupList if t[1] == 0 ]
-            for assgn in levelAssigned:
-                groupOrder[assgn[0]] = level
-                groupList.remove(assgn)
+            level_assigned = [ t for t in group_list if t[1] == 0 ]
+            for assgn in level_assigned:
+                group_order[assgn[0]] = level
+                group_list.remove(assgn)
                 # reduce the unassigned parent count for all the children
-                childGroups = self._groupChildren[assgn[0]]
-                for assgn in groupList:
-                    if assgn[0] in childGroups:
-                        assgn[1] = assgn[1] - 1
+                child_groups = self._groupChildren[assgn[0]]
+                for assgn in group_list:
+                    if assgn[0] in child_groups:
+                        assgn[1] -= 1
             level = level + 1
         
         return sorted(groupOrder.items(), key=lambda x: x[1])

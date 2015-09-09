@@ -270,9 +270,11 @@ class CLibraryFunction(CName):
         return call
 
 c_malloc = CLibraryFunction('malloc', 'stdlib.h')
+c_pool_malloc = CLibraryFunction('pool_allocate', 'simple_pool_allocator.h')
 c_memalign = CLibraryFunction('memalign', 'malloc.h')
 c_memset = CLibraryFunction('memset', 'string.h')
 c_free = CLibraryFunction('free', 'stdlib.h')
+c_pool_free = CLibraryFunction('pool_deallocate', 'simple_pool_allocator.h')
 c_printf = CLibraryFunction('printf', 'stdio.h')
 
 # TODO clean up this function. 
@@ -476,26 +478,53 @@ class CArray(CName):
                return False
         return True
 
-    def allocate_contiguous(self, block, pooled):
+    def allocate_contiguous(self, block, pooled=False):
         if self.layout == 'contiguous':
-            # Generate a code block which dynamically allocated memory 
-            # for the given array. Single chunk allocation.
-            size_expr = self.dims[0]
+            # Generate a code block which dynamically allocates memory for the
+            # given array. Single chunk allocation.
+            size_expr = 1
             cast_type = CPointer(self.typ, 1)
-            for i in range(1, len(self.dims)):
-                size_expr = size_expr * self.dims[i]
-            #expr = CCast(cast_type, c_memalign(64, CSizeof(self.typ) * size_expr))
-            expr = CCast(cast_type, c_malloc(CSizeof(self.typ) * size_expr))
+            for i in range(0, len(self.dims)):
+                size_expr *= self.dims[i]
+            #expr = CCast(cast_type, \
+            #             c_memalign(64, CSizeof(self.typ) * size_expr))
+            if not pooled:
+                expr = CCast(cast_type, \
+                             c_malloc(CSizeof(self.typ) * size_expr))
+            else:
+                expr = CCast(cast_type, \
+                             c_pool_malloc(CSizeof(self.typ) * size_expr))
             block.add(CAssign(self.name, expr))
-            # Counter which might come in handy
-            #var = CVariable(cInt, "_c_" + self.name)
-            #var_decl = CDeclaration(cInt, var, 0)
-            #block.add(var_decl)
 
-            #block.add(CStatement(c_memset(self.name, 0, CSizeof(self.typ) * size_expr)))
+            # block.add(CStatement(c_memset(self.name, 0, \
+            #                               CSizeof(self.typ) * size_expr)))
         elif self.layout == 'multidim':
-            # Generate a code block which dynamically allocated memory 
-            # for the given array. Multi chunk allocation.
+            # Generate a code block which dynamically allocates memory for the
+            # given array. Multi chunk allocation.
+            '''
+            Current:
+            ========
+
+            n = ndims-1;
+            bulk_type[n] = arr_type;
+            for(i = n-1; i >= 0; i--)
+              bulk_type[i] = (bulk_type[i+1] *);
+
+            arr = (bulk_type[0]) alloc(sizeof(bulk_type[1]) * |dim(0)|);
+            for (int i0 = 0; i0 < |dim(0)|; i0++) {
+              arr[i0] =
+                (bulk_type[0]) alloc(sizeof(bulk_type[1]) * |dim(k)|);
+
+                ...
+                for(int ik = 0; ik < |dim(k)|; ik++) {
+                  arr[i0][i1]...[ik] =
+                    (bulk_type[k]) alloc(sizeof(bulk_type[k+1]) * |dim(k)|);
+
+                    ...
+                }
+            } /* for k in [1, n) */
+            '''
+
             l = len(self.dims)
             assert(l > 0)
             cast_type = CPointer(self.typ, l)
@@ -519,6 +548,29 @@ class CArray(CName):
                 loop.body.add(CAssign(self(*arglist), expr), False)
                
                 block = loop.body
+
+            # TODO: support multidim access with single chunk allocation
+            '''
+            Todo:
+            =====
+
+            n = ndims-1;
+            offset[n] = |dim(n)|;
+            bulk_type[n] = arr_type;
+            for(i = n-1; i >= 0; i--) {
+              offset[i] = bulk_size[i+1] * |dim(i)|;
+              bulk_type[i] = (bulk_type[i+1] *);
+            }
+            dim_size[0] = |dim(0)|;
+            for(i = 1; i < n; i++)
+                dim_size[i] = dim_size[i-1] * |dim(i)|;
+
+            base = (arr_type *) alloc(sizeof(arr_type) * offset[0]);
+            arr = (bulk_type[0] *) alloc(sizeof(bulk_type[1]) * |dim_size(0)|);
+
+            ...
+
+            '''
 
     def deallocate(self, block, pooled):
         assert self.layout == 'contiguous'
