@@ -51,19 +51,14 @@ def align_and_scale_parts(pipeline, group):
     those parts. A mapping to '-' instead of an integer dimension indicates
     alignment to none.
 
-    Scaling and offset factors structure:
-    [(scale factors, offsets)]
+    Scaling factor structure:
+    [scale factors]
 
     [scale factors] determine the amount by which the dimension has to be
     scaled to uniformize the dependencies. Each reference to the parent is
     considered while determing the scaling factors. All the references
     should have the same scaling factor in a particular dimension otherwise
     the scaling factor for the dimension cannot be determined uniquely.
-
-    [offsets] specify the shift in each dimension that is require to
-    uniformize dependencies. Simliar to dimension scale factors all
-    offsets for a dimension should agree otherwise the offset for the
-    dimension cannot be determied uniquely.
 
     * The part.align does not contain topological level information in it,
     i.e, the dimensions handled here are spatial.

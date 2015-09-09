@@ -603,13 +603,14 @@ class PolyRep(object):
         scale = [1 for i in range(0, dim_in)]
         return (align, scale)
 
-    def generateCode(self):
+    def generate_code(self):
         self.polyast = []
         if self.poly_parts:
-            self.buildAst()
+            self.build_ast()
 
-    def buildAst(self):
-        #astbld =  isl.AstBuild.from_context(isl.BasicSet("[C, R]->{: R>=1 and C>=1}", self.ctx))
+    def build_ast(self):
+        #astbld =  isl.AstBuild.from_context( \
+        #               isl.BasicSet("[C, R]->{: R>=1 and C>=1}", self.ctx))
         parts = []
         for plist in self.poly_parts.values():
             parts.extend(plist)
@@ -620,32 +621,38 @@ class PolyRep(object):
         #astbld =  astbld.set_options(isl.UnionMap("{ }"))
 
         sched_map = None
-        optMap = None
+        opt_map = None
         for part in parts:
             if sched_map is None:
+                # initial map
                 sched_map = isl.UnionMap.from_map(part.sched)
             else:
-                partMap = isl.UnionMap.from_map(part.sched)
-                sched_map = sched_map.union(partMap)
-            if optMap is None:
-                #unrollUnionSet = isl.UnionSet.from_set(isl.Set("{unroll[x] : x = 0 or x = 2}", self.ctx))
-                unrollUnionSet = isl.UnionSet.from_set(isl.Set("{:}", self.ctx))
-                domUnionSet = isl.UnionSet.universe(isl.UnionSet.from_set(part.sched.range()))
-                optMap = isl.UnionMap.from_domain_and_range(domUnionSet, unrollUnionSet)
+                part_map = isl.UnionMap.from_map(part.sched)
+                sched_map = sched_map.union(part_map)
+
+            srange = part.sched.range()
+            unroll_union_set = \
+                isl.UnionSet.from_set(isl.Set("{:}", self.ctx))
+            if opt_map is None:
+                dom_union_set = \
+                    isl.UnionSet.universe(isl.UnionSet.from_set(srange))
+                opt_map = isl.UnionMap.from_domain_and_range(dom_union_set, \
+                                                             unroll_union_set)
             else:
-                #unrollUnionSet = isl.UnionSet.from_set(isl.Set("{unroll[x] : x = 0 or x = 2}", self.ctx))
-                unrollUnionSet = isl.UnionSet.from_set(isl.Set("{:}", self.ctx))
-                domUnionSet = isl.UnionSet.universe(isl.UnionSet.from_set(part.sched.range()))
-                optMap = optMap.union(isl.UnionMap.from_domain_and_range(domUnionSet, unrollUnionSet))
-        astbld = astbld.set_options(optMap)
+                dom_union_set = \
+                    isl.UnionSet.universe(isl.UnionSet.from_set(srange))
+                opt_map = opt_map.union( \
+                            isl.UnionMap.from_domain_and_range( \
+                                dom_union_set, unroll_union_set) )
+        astbld = astbld.set_options(opt_map)
 
         # All parts in the group will have the same schedule dimension
         # using the first part as the canonical one
-        numIds = parts[0].sched.dim(isl._isl.dim_type.out)
-        ids = isl.IdList.alloc(self.ctx, numIds)
-        for i in range(0, numIds):
-            schedName = parts[0].sched.get_dim_name(isl._isl.dim_type.out, i)
-            ids = ids.add(isl.Id.alloc(self.ctx, schedName, None))
+        num_ids = parts[0].sched.dim(isl._isl.dim_type.out)
+        ids = isl.IdList.alloc(self.ctx, num_ids)
+        for i in range(0, num_ids):
+            sched_name = parts[0].sched.get_dim_name(isl._isl.dim_type.out, i)
+            ids = ids.add(isl.Id.alloc(self.ctx, sched_name, None))
         astbld = astbld.set_iterators(ids)
 
         def printer(arg):
@@ -654,22 +661,6 @@ class PolyRep(object):
 
         sched_map.foreach_map(printer)
         self.polyast.append(astbld.ast_from_schedule(sched_map))
-
-    # NOTE: Dead code?
-    def computeDependencies(self):
-        # Extract dependencies. In case the dependencies cannot be exactly 
-        # represented they are approximated.
-        for comp in self.poly_parts:
-            for part in self.poly_parts[comp]:
-                refs = part.getPartRefs()
-                # There could be multiple references to the same value. So the 
-                # dependencies might be redundant this has to be eliminated 
-                # later.
-                for ref in refs:
-                    # Considering only dependencies within the same stage
-                    if ref.objectRef in self.poly_parts:
-                        part.deps += extract_value_dependence(part, ref,
-                                                self.poly_doms[ref.objectRef])
 
     def getDependenceVector(self, parentPart, childPart, ref, scaleMap = None):
         def getScale(sMap, p, i):
@@ -817,100 +808,6 @@ class PolyRep(object):
         #                depVec[i] = (val.get_num_si())/(val.get_den_si())
         return (depVec, parentPart.level_no)
 
-    def alignParts(self):
-        """ Embeds parts whose dimension is smaller than the schedule space."""
-        # Go through the parts in a sorted order and compute alignments
-        compObjs = self.stage.orderComputeObjs()
-        sortedCompObjs = sorted(compObjs.items(), key=lambda s: (s[1], s[0].name))
-        # Alignments in certain cases may result in changing the relative order of
-        # dimensions. This is valid only if there are no dependencies between the
-        # dimensions being reordered. Dependence vectors or polyhedra can be used
-        # to decide if the dimensions can be reordered.
-
-        # For now we only realign parts which do not have self dependencies
-        # Find all parts which do not have self dependencies
-        noDepParts = []
-        for comp in [item[0] for item in sortedCompObjs]:
-            for p in self.poly_parts[comp]:
-                if not self.isPartSelfDependent(p):
-                    noDepParts.append(p)
-
-        # Find an alignment map for parts which are not full dimensional
-        def completeMap(newAlign, currAlign):
-            for i in range(0, len(newAlign)):
-                if newAlign[i] in currAlign:
-                    currAlign.remove(newAlign[i])
-            for i in range(0, len(newAlign)):         
-                if newAlign[i] == '-':
-                    newAlign[i] = currAlign.pop(0)
-            return newAlign
-
-        def compatibleAlign(align1, align2):
-            compatible = True
-            if len(align1) == len(align2):
-                for i in range(0, len(align1)):
-                    if not ((align1[i] == '-' or align2[i] == '-')
-                            or (align1[i] == align2[i])):
-                        compatible = False
-            else:
-                compatible = False
-            return compatible
-
-        def alignGroupToPart(group, part, align):
-            for g in group:
-                dimIn = g.sched.dim(isl._isl.dim_type.in_)
-                dimOut = g.sched.dim(isl._isl.dim_type.out)
-                newAlign = [ '-' for i in range(0, dimIn)]
-                for i in range(0, dimIn):
-                    for j in range(0, len(align)):
-                        if g.align[i] == align[j]:
-                            assert newAlign[i] == '-'
-                            newAlign[i] = part.align[j]
-                g.align = completeMap(newAlign, g.align)
-
-        # Progressive alignment algorithm. Need to revisit when we encounter
-        # stranger things. alignedPartGroups consists of groups of parts whose
-        # alignments are linked. All the alignments in a group should be reordered 
-        # in the same way so as to not disturb the previous alignments.
-        alignedPartGroups = []
-        for p in noDepParts:
-            # Find if there is a unique alignment with the aligned parts
-            # i.e the current part can be aligned with already aligned 
-            # parts or all the aligned parts can be aligned to the current 
-            # part.
-            parentGroups = self.findParentGroups(p, alignedPartGroups)
-            otherGroups = [ g for g in alignedPartGroups \
-                            if g not in parentGroups ]
-            aligns = {}
-
-            for i in range(0, len(parentGroups)):
-                aligns[i] = self.alignWithGroup(p, parentGroups[i])
-            
-            mergeGroups = []
-            # If the alignment has alteast one valid reordering. Add the
-            # group to the list of groups to be aligned and merged.
-            for i in range(0, len(parentGroups)):
-                addGroup = False
-                for dim in aligns[i]:
-                    if dim != '-':
-                        addGroup = True
-                if addGroup:
-                    mergeGroups.append(i)
-
-            mergedGroup = []
-            for i in mergeGroups:
-                alignGroupToPart(parentGroups[i], p, aligns[i])
-                mergedGroup = mergedGroup + parentGroups[i]
-            parentGroups = [i for j, i in enumerate(parentGroups)\
-                            if j not in mergeGroups ]
-            
-            mergedGroup = mergedGroup + [p]
-            parentGroups.append(mergedGroup)
-            alignedPartGroups = parentGroups + otherGroups
-         
-        # The alignment procedure above can move the fast varying
-        # dimension outside. This has to be fixed.
-
 
     def isCompSelfDependent(self, comp):
         parts = self.poly_parts[comp]
@@ -957,116 +854,6 @@ class PolyRep(object):
                     paramCoeff[dim] == coeff[item]
         return paramCoeff
 
-    def computeRelativeScalingFactors(self, parentPart, childPart):
-        """Computes the relative scaling factor in each dimension necessary to 
-           uniformize dependencies between two parts. If the dependencies are 
-           already uniform the scaling factor for the dimension is set to 1. If
-           the dependencies cannot be uniformized along a particular dimension 
-           the scaling factor for that dimension is set to *."""
-        
-        assert self.isParent(parentPart, childPart)
-
-        # Scaling and offset factors structure.
-        # ([scale factors], [offsets])
-        #
-        # [scale factors] determine the amount by which the dimension has to be
-        # scaled to uniformize the dependencies. Each reference to the parent is
-        # considered while determing the scaling factors. All the references 
-        # should have the same scaling factor in a particular dimension otherwise
-        # the scaling factor for the dimension cannot be determined uniquely.
-        #
-        # [offsets] specify the shift in each dimension that is require to 
-        # uniformize dependencies. Simliar to dimension scale factors all 
-        # offsets for a dimension should agree otherwise the offset for the 
-        # dimension cannot be determied uniquely.
-        refs       = childPart.getPartRefs()
-        # Filtering out self references
-        parentRefs = [ ref for ref in refs \
-                       if ref.objectRef == parentPart.comp] 
-
-        dimIn = childPart.sched.dim(isl._isl.dim_type.in_)
-        scale = [ '-' for i in range(0, dimIn) ]
-        offset = [ '-' for i in range(0, dimIn) ]
-
-        def findDimScheduledTo(part, schedDim):
-            for i in range(0, len(part.align)):
-                if part.align[i] == schedDim:
-                    return i
-            return -1
-
-        for ref in parentRefs:
-            numArgs = len(ref.arguments)
-            for i in range(0, numArgs):
-                arg = ref.arguments[i]
-                parentVarSchedDim = parentPart.align[i]            
-                if (isAffine(arg)):
-                    domDimCoeff = self.getDomainDimCoeffs(childPart.sched, arg)
-                    paramCoeff = self.getParamCoeffs(childPart.sched, arg)
-                    # Parameter coefficents can also be considered to
-                    # generate parametric shifts. Yet to be seen.
-                    
-                    # Indexed with multiple variables.
-                    if (len(domDimCoeff) > 1 or 
-                        (len(domDimCoeff) == 1 and len(paramCoeff) >=1)):
-                        # Although there are multiple coefficients. If 
-                        # there is only one variable coefficient and other
-                        # parametric coefficients. Uniformization can be 
-                        # done with parametric shifts. Full affine scheduling 
-                        # might be able to find a way to uniformize 
-                        # dependencies. This has to be further explored.
-                        dim = findDimScheduledTo(childPart, parentVarSchedDim)
-                        if dim != -1:
-                            scale[dim] = '*'
-                    # Indexed with a single variable. This can either be an 
-                    # uniform access or can be uniformized with scaling when 
-                    # possible.
-                    elif len(domDimCoeff) == 1 and len(paramCoeff) == 0:
-                        dim = (domDimCoeff.keys())[0]
-                        childVarSchedDim = childPart.align[dim]
-                        # Checking if the schedule dimensions match only 
-                        # then can the dependence be uniformized.
-                        if childVarSchedDim != parentVarSchedDim:
-                            continue
-                        if scale[dim] == '-':
-                            scale[dim] = domDimCoeff[dim]
-                        elif scale[dim] != domDimCoeff[dim]:
-                            scale[dim] = '*'
-                    elif len(domDimCoeff) == 0 and len(paramCoeff) > 0:
-                        continue
-                    # Only parametric or Constant access. The schedule in this 
-                    # dimension can be shifted to this point to uniformize the 
-                    # dependence.
-                    # In case the dimension in the parent has a constant size
-                    # an upper and lower bound on the dependence vector can 
-                    # be computed.
-                    elif len(domDimCoeff) + len(paramCoeff) == 0:
-                        # offsets should be set here
-                        continue
-                else:
-                    dim = findDimScheduledTo(childPart, parentVarSchedDim)
-                    if dim != -1:
-                        scale[dim] = '*'
-
-        for i in range(0, dimIn):
-            if scale[i] == '-':
-                scale[i] = 1
-            if offset[i] == '-':
-                offset[i] = 0
-        return (scale, offset)
-
-    def createGroupScaleMap(self, group):
-        groupScaleMap = {}
-        for part in group:
-            groupScaleMap[part] = list(part.scale)
-        return groupScaleMap
-
-    def isStencilGroup(self, group):
-        depVecsGroup = self.getGroupDependenceVectors(group)
-        for depVec, h in depVecsGroup:
-            if '*' in depVec:
-                return False
-        return True    
-
     def getPartSize(self, part, param_estimates):
         size = None
         domain = part.comp.domain
@@ -1094,7 +881,6 @@ class PolyRep(object):
         dimSize = interval.upperBound - interval.lowerBound + 1
         return substituteVars(dimSize, paramValMap)
 
-       
     def getVarName(self):
         name = "_i" + str(self._var_count)
         self._var_count+=1
@@ -1246,21 +1032,3 @@ def format_conjunct_constraints(conjunct):
             eq_coeff.append(coeff)
 
     return [ineq_coeff, eq_coeff]
-
-# NOTE: Dead code?
-def getParamsInvolved(sched, dim):
-    numParams = sched.domain().n_param()
-    paramNames = [ ]
-    constraints = sched.domain().get_constraints()
-    dimName = sched.domain().get_dim_name(isl._isl.dim_type.set, dim)
-    for p in range(0, numParams): 
-        for const in constraints:
-           pname = sched.domain().get_dim_name(isl._isl.dim_type.param, p)
-           dimId  = const.get_space().find_dim_by_name(isl._isl.dim_type.set, dimName)
-           pId = const.get_space().find_dim_by_name(isl._isl.dim_type.param, pname)
-           dimInvolved = const.involves_dims(isl._isl.dim_type.set, dimId, 1)
-           paramInvolved = const.involves_dims(isl._isl.dim_type.param, pId, 1)
-           if (dimInvolved and paramInvolved):
-                   if pname not in paramNames:
-                       paramNames.append(pname)
-    return paramNameis

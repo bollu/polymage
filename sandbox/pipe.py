@@ -229,7 +229,7 @@ class Pipeline:
         for g in list(set(self._groups.values())):
             base_schedule(g)
             #fused_schedule(g)  # (g, param_estimates)
-            #g.polyRep.generateCode()
+            #g.polyRep.generate_code()
 
     @property
     def groups(self):

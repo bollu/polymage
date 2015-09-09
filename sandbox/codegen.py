@@ -710,7 +710,7 @@ def generate_code_for_group(pipeline, g, body, options, \
                             cfunc_map, cparam_map, \
                             outputs, outsExternAlloc):
 
-    g.polyRep.generateCode()
+    g.polyRep.generate_code()
 
     # NOTE uses the level_no of the first polypart of each compute object of
     # the group as the key for sorting compare operator. *Idea is that all
