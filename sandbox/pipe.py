@@ -371,7 +371,7 @@ class Pipeline:
                         assgn[1] -= 1
             level = level + 1
         
-        return sorted(groupOrder.items(), key=lambda x: x[1])
+        return sorted(group_order.items(), key=lambda x: x[1])
 
     def boundsCheckPass(self):
         """ 

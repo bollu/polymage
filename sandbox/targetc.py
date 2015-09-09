@@ -529,11 +529,13 @@ class CArray(CName):
             assert(l > 0)
             cast_type = CPointer(self.typ, l)
             size_type = CPointer(self.typ, l-1)
-            expr = CCast(cast_type, c_memalign(32, CSizeof(size_type) * self.dims[0]))
+            expr = CCast(cast_type,
+                         c_memalign(64, CSizeof(size_type) * self.dims[0]))
             block.add(CAssign(self.name, expr))
+
             arglist = []
             for i in range(1, l):
-                # allocate for current level
+                # loop
                 var = CVariable(cUInt, CNameGen.get_iterator_name())
                 arglist.append(var)
                 var_decl = CDeclaration(var.typ, var, 0)
@@ -541,13 +543,16 @@ class CArray(CName):
                 inc = CAssign(var, var+1)
                 loop = CFor(var_decl, cond, inc)
                 block.add(loop, False)
-               
+
+                # allocate for current level
                 cast_type = CPointer(self.typ, l-i)
                 size_type = CPointer(self.typ, l-i-1)
-                expr = CCast(cast_type, c_memalign(32, CSizeof(size_type) * self.dims[i]))
+                expr = CCast(cast_type,
+                             c_memalign(64, CSizeof(size_type) * self.dims[i]))
                 loop.body.add(CAssign(self(*arglist), expr), False)
-               
+
                 block = loop.body
+
 
             # TODO: support multidim access with single chunk allocation
             '''
@@ -555,26 +560,48 @@ class CArray(CName):
             =====
 
             n = ndims-1;
-            offset[n] = |dim(n)|;
             bulk_type[n] = arr_type;
             for(i = n-1; i >= 0; i--) {
-              offset[i] = bulk_size[i+1] * |dim(i)|;
               bulk_type[i] = (bulk_type[i+1] *);
             }
+
+            offset[0] = |dim(1)|;
             dim_size[0] = |dim(0)|;
-            for(i = 1; i < n; i++)
+            for(i = 1; i < n-1; i++)
+                offset[i] = offset[i-1] * |dim(i+1)|;
                 dim_size[i] = dim_size[i-1] * |dim(i)|;
+            dim_size[n-1] = dim_size[n-2] * |dim(n-1)|;
 
-            base = (arr_type *) alloc(sizeof(arr_type) * offset[0]);
-            arr = (bulk_type[0] *) alloc(sizeof(bulk_type[1]) * |dim_size(0)|);
+            arr = (bulk_type[0]) alloc(sizeof(bulk_type[1]) * dim_size[0]);
 
-            ...
+            arr[0] = (bulk_type[1]) alloc(sizeof(bulk_type[2]) * dim_size[1]);
+            for (int i0 = 0; i0 < dim_size[0]; i0++) {
+              arr[i0] = arr[0] + i0*offset[0];
+
+                ...
+                // k_1 : iter index of loop before loop k
+                arr[i0][i1]..[ik_1][0] =
+                  (bulk_type[k+1]) alloc(sizeof(bulk_type[k+2]) *
+                                         dim_size[k+1]);
+                for (int ik = 0; ik < dim_size[k]; ik++) {
+                  arr[i0][i1]...[ik_1][ik] = arr[i0][i1]..[ik_1][0] + 
+                                             i0 * offset[k] +
+                                             i1 * offset[k-1] +
+                                             ...
+                                             ik * offset[0];
+
+                    ...
+                }
+            } /* for k in [1, n-1) */
 
             '''
 
     def deallocate(self, block, pooled):
         assert self.layout == 'contiguous'
-        block.add(CStatement(c_free(self.name)))
+        if not pooled:
+            block.add(CStatement(c_free(self.name)))
+        else:
+            block.add(CStatement(c_pool_free(self.name)))
 
 class CArrayDecl(AbstractCgenObject):
     def __init__(self, _carray):
