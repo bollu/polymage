@@ -134,20 +134,20 @@ class CType(AbstractCgenObject):
         return cgen.POD(self.typ, '').inline(True)
 
 c_int = CType("int32")
-c_uInt = CType("uint32")
-c_uLong = CType("uint64")
+c_uint = CType("uint32")
+c_ulong = CType("uint64")
 c_long = CType("int64")
 c_short = CType("int16")
-c_uShort = CType("uint16")
-c_uChar = CType("uint8")
+c_ushort = CType("uint16")
+c_uchar = CType("uint8")
 c_char = CType("int8")
 c_float = CType("float32")
 c_double = CType("float64")
 c_void = CType("void")
 
 class TypeMap(object):
-    _type_map = { Void: c_void, ULong:c_uLong, Long: c_long, UInt:c_uInt, Int:c_int,
-                 UShort:c_uShort, Short:c_short, UChar:c_uChar, Char:c_char,
+    _type_map = { Void: c_void, ULong:c_ulong, Long: c_long, UInt:c_uint, Int:c_int,
+                 UShort:c_ushort, Short:c_short, UChar:c_uchar, Char:c_char,
                  Float:c_float, Double:c_double }
     @classmethod
     def convert(cls, typ):

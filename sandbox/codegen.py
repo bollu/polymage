@@ -183,19 +183,21 @@ def get_user_nodes_in_body(body):
     return user_nodes
 
 # TESTME
-def is_sched_dim_parallel(user_nodes, sched_dim_name):
+def is_sched_dim_parallel(polyrep, user_nodes, sched_dim_name):
     is_parallel = True
     for node in user_nodes:
-        part = node.user_get_expr().get_op_arg(0).get_id().get_user()
+        part_id = node.user_get_expr().get_op_arg(0).get_id()
+        part = polyrep.isl_id_user_map[part_id]
         if sched_dim_name not in part.parallelSchedDims:
             is_parallel = False
     return is_parallel
 
 # TESTME
-def is_sched_dim_vector(user_nodes, sched_dim_name):
+def is_sched_dim_vector(polyrep, user_nodes, sched_dim_name):
     is_vector = True
     for node in user_nodes:
-        part = node.user_get_expr().get_op_arg(0).get_id().get_user()
+        part_id = node.user_get_expr().get_op_arg(0).get_id()
+        part = polyrep.isl_id_user_map[part_id]
         if sched_dim_name not in part.vector_sched_dim:
             is_vector = False
     return is_vector
@@ -223,8 +225,9 @@ def cvariables_from_variables_and_sched(node, variables, sched):
     return cvar_map
 
 # TESTME
-def generate_c_naive_from_accumlate_node(node, body, cfunc_map, cparam_map):
-    poly_part = node.user_get_expr().get_op_arg(0).get_id().get_user()
+def generate_c_naive_from_accumlate_node(polyrep, node, body, cfunc_map, cparam_map):
+    part_id = node.user_get_expr().get_op_arg(0).get_id()
+    poly_part = polyrep.isl_id_user_map[part_id]
     dom_len = len(poly_part.comp.reductionVariables)
     # FIXME: this has to be changed similar to Expression Node
     cvar_map = cvariables_from_variables_and_sched(node,
@@ -252,8 +255,9 @@ def generate_c_naive_from_accumlate_node(node, body, cfunc_map, cparam_map):
         body.add(assign)
 
 # TESTME
-def generate_c_naive_from_expression_node(node, body, cfunc_map, cparam_map):
-    poly_part = node.user_get_expr().get_op_arg(0).get_id().get_user()
+def generate_c_naive_from_expression_node(polyrep, node, body, cfunc_map, cparam_map):
+    part_id = node.user_get_expr().get_op_arg(0).get_id()
+    poly_part = polyrep.isl_id_user_map[part_id]
     dom_len = len(poly_part.comp.variables)
     # Get the mapping to the array
     array, scratch = cfunc_map[poly_part.comp]
@@ -355,8 +359,8 @@ def generate_c_naive_from_isl_ast(polyrep, node, body, cparam_map, cfunc_map):
             # examining the loop body.
             user_nodes = get_user_nodes_in_body(node.for_get_body())
 
-            #dim_parallel = is_sched_dim_parallel(user_nodes, var.name)
-            #dim_vector = is_sched_dim_vector(user_nodes, var.name)
+            dim_parallel = is_sched_dim_parallel(polyrep, user_nodes, var.name)
+            dim_vector = is_sched_dim_vector(polyrep, user_nodes, var.name)
             arrays = get_arrays_for_user_nodes(polyrep, user_nodes, cfunc_map)
 
             if dim_parallel:
@@ -414,12 +418,13 @@ def generate_c_naive_from_isl_ast(polyrep, node, body, cparam_map, cfunc_map):
         if node.get_type() == isl._isl.ast_node_type.user:
             # The first argument is the computation object.
             # Retrieving the polyPart.
-            poly_part = node.user_get_expr().get_op_arg(0).get_id().get_user()
+            part_id = node.user_get_expr().get_op_arg(0).get_id()
+            poly_part = polyrep.isl_id_user_map[part_id]
             if isinstance(poly_part.expr, Reduction):
-                generate_c_naive_from_reduction_node(node, body, \
+                generate_c_naive_from_accumlate_node(polyrep, node, body,
                                                      cfunc_map, cparam_map)
             elif isinstance(poly_part.expr, AbstractExpression):
-                generate_c_naive_from_expression_node(node, body, \
+                generate_c_naive_from_expression_node(polyrep, node, body,
                                                       cparam_map, cfunc_map)
             else:
                 assert False
