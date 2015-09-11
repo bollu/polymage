@@ -49,18 +49,18 @@ def test_blur():
 
     # build the pipeline
     pipeline = buildPipeline([blury],
-                             grouping = groups,
+                             #grouping = groups,
                              param_estimates = p_est,
                              pipe_name = "blur")
 
-    #'''
+    '''
     filename = 'blur_graph.dot'
     pipeline.originalGraph.write(filename)
     
     filename = 'blur_graph_grouped.dot'
     g = pipeline.drawPipelineGraph()
     g.write(filename)
-    #'''
+    '''
 
     filename = 'blur_naive.cpp'
     c_file = open(filename, 'w')

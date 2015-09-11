@@ -229,6 +229,11 @@ class PolyRep(object):
         self._var_count = 0
         self._func_count = 0
 
+        # Static method 'alloc' for isl Id does not allow the user to be
+        # not None, as of now. We need an exclusive dictionary to map the
+        # users of an Id to that Id object.
+        self.isl_id_user_map = {}
+
         # TODO: move the following outside __init__()
         # For now, let this be. Compilation optimizations can come later.
 
@@ -313,8 +318,9 @@ class PolyRep(object):
                                             context_conds)
 
         poly_dom = PolyDomain(sched_map.domain(), comp)
-        id_ = isl.Id.alloc(self.ctx, comp.name, poly_dom)
+        id_ = isl.Id.alloc(self.ctx, comp.name, None)
         poly_dom.dom_set = poly_dom.dom_set.set_tuple_id(id_)
+        self.isl_id_user_map[id_] = poly_dom
         self.poly_doms[comp] = poly_dom
 
         self.create_poly_parts_from_definition(comp, sched_map, level_no, 
@@ -333,6 +339,7 @@ class PolyRep(object):
         poly_dom = PolyDomain(sched_map.domain(), comp)
         id_ = isl.Id.alloc(self.ctx, comp.name, poly_dom)
         poly_dom.dom_set = poly_dom.dom_set.set_tuple_id(id_)
+        self.isl_id_user_map[id_] = poly_dom
         self.poly_doms[comp] = poly_dom
 
         self.create_poly_parts_from_definition(comp, sched_map, level_no,
@@ -451,9 +458,10 @@ class PolyRep(object):
         #        sched_m.foreach_basic_map(bmap_list.append)
         #    for bmap in bmap_list:
         #        poly_part = PolyPart(bmap, comp.default, None, comp)
-        #        id_ = isl.Id.alloc(self.ctx, comp.name, poly_part)
+        #        id_ = isl.Id.alloc(self.ctx, comp.name, None)
         #        poly_part.sched = poly_part.sched.set_tuple_id(
         #                                   isl._isl.dim_type.in_, id_)
+        #        self.isl_id_user_map[id_] = poly_dom
         #        self.poly_parts[comp].append(poly_part)
 
     def create_poly_parts_from_default(self, comp, sched_map,
@@ -466,9 +474,10 @@ class PolyRep(object):
                              None, comp,
                              align, scale, level_no)
 
-        id_ = isl.Id.alloc(self.ctx, comp.name, poly_part)
+        id_ = isl.Id.alloc(self.ctx, comp.name, None)
         poly_part.sched = \
                 poly_part.sched.set_tuple_id(isl._isl.dim_type.in_, id_)
+        self.isl_id_user_map[id_] = poly_dom
         self.poly_parts[comp].append(poly_part)
 
     def make_poly_parts(self, sched_map, expr, pred, comp,
@@ -575,18 +584,20 @@ class PolyRep(object):
             poly_part = PolyPart(sched_map, expr, pred, comp,
                                  list(align), list(scale), level_no)
             # Create a user pointer, tuple name and add it to the map
-            id_ = isl.Id.alloc(self.ctx, comp.name, poly_part)
+            id_ = isl.Id.alloc(self.ctx, comp.name, None)
             poly_part.sched = poly_part.sched.set_tuple_id(
                                           isl._isl.dim_type.in_, id_)
+            self.isl_id_user_map[id_] = poly_part
             poly_parts.append(poly_part)
         else:
             for bsched_map, bexpr in broken_parts:
                 poly_part = PolyPart(bsched_map, bexpr, pred, comp,
                                      list(align), list(scale), level_no)
                 # Create a user pointer, tuple name and add it to the map
-                id_ = isl.Id.alloc(self.ctx, comp.name, poly_part)
+                id_ = isl.Id.alloc(self.ctx, comp.name, None)
                 poly_part.sched = poly_part.sched.set_tuple_id( \
                                         isl._isl.dim_type.in_, id_)
+                self.isl_id_user_map[id_] = poly_part
                 poly_parts.append(poly_part)
         return poly_parts
 
