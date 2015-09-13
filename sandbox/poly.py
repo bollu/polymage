@@ -132,7 +132,7 @@ def extract_value_dependence(part, ref, refPolyDom):
 
 class PolyPart(object):
     def __init__(self, _sched, _expr, _pred, _comp,
-                 _align, _scale, _level_no):
+                 _align, _scale, _level_no, _liveout = True):
         self.sched = _sched
         self.expr = _expr
         self.pred = _pred
@@ -154,8 +154,18 @@ class PolyPart(object):
         # attempt to improve locality and uniformize dependencies.
         self._level_no = _level_no
 
+        # tile shape, size, coordinate info
+        self.dim_tile_info = {}
+
         # maps tiled dimensions to their respective scratchpad sizes
         self.dim_scratch_size = {}
+
+        # dimensions marked as parallelizable/vectorizable
+        self.parallel_sched_dims = []
+        self.vector_sched_dim = []
+
+        # liveness in the group containing the part
+        self.is_liveout = _liveout
 
     @property
     def align(self):

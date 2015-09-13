@@ -49,7 +49,7 @@ def test_blur():
 
     # build the pipeline
     pipeline = buildPipeline([blury],
-                             #grouping = groups,
+                             grouping = groups,
                              param_estimates = p_est,
                              pipe_name = "blur")
 

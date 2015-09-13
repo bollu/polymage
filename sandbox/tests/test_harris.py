@@ -92,14 +92,14 @@ def test_harris_corner():
                              param_estimates = p_est,
                              pipe_name = "harris")
 
-    #'''
+    '''
     filename = 'harris_graph.dot'
     pipeline.originalGraph.write(filename)
     
     filename = 'harris_graph_grouped.dot'
     g = pipeline.drawPipelineGraph()
     g.write(filename)
-    #'''
+    '''
 
     filename = 'harris_naive.cpp'
     c_file = open(filename, 'w')
