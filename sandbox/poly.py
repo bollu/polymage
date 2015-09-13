@@ -502,7 +502,6 @@ class PolyRep(object):
         broken_parts = []
         if isinstance(expr, Select):
             conjuncts = expr.condition.splitToConjuncts()
-            print("conjuncts =", conjuncts)
             if len(conjuncts) == 1 and len(conjuncts[0]) == 1:
                 cond = conjuncts[0][0]
                 left_expr = cond.lhs

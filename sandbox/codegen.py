@@ -468,7 +468,7 @@ def generate_c_cond(cond,
                                     scratch_map, prologue_stmts)
         return genc.CCond(left_cond, cond.conditional, right_cond)
     assert (False and \
-            "Unsupported or invalid conditional"+str(cond.conditional))
+            "Unsupported or invalid conditional:"+str(cond.conditional))
 
 # TESTME
 def generate_c_expr(exp, cparam_map, cvar_map, cfunc_map,
@@ -734,7 +734,7 @@ def generate_reduction_scan_loops(group, comp_obj, pipe_body, \
             lbody.add(cif, False)
         else:
             assert (False and \
-                    "Invalid case instance"+str(case))
+                    "Invalid case instance:"+str(case))
 
 def generate_code_for_group(pipeline, g, body, options,
                             cparam_map, cfunc_map,
