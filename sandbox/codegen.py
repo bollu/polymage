@@ -19,7 +19,6 @@ LOG = codegen_logger.log
 new_temp = genc.CNameGen.get_temp_var_name
 new_iter = genc.CNameGen.get_iterator_name
 
-# TESTME
 def isl_expr_to_cgen(expr, prologue_stmts = None):
 
     prolog = prologue_stmts
@@ -118,7 +117,6 @@ def isl_expr_to_cgen(expr, prologue_stmts = None):
     if expr.get_type() == isl._isl.ast_expr_type.id:
         return genc.CVariable(genc.c_int, expr.get_id().get_name())
 
-# TESTME
 def isl_cond_to_cgen(cond, prologue_stmts = None):
     comp_dict = { isl._isl.ast_op_type.eq: '==',
                   isl._isl.ast_op_type.ge: '>=',
@@ -145,7 +143,6 @@ def isl_cond_to_cgen(cond, prologue_stmts = None):
 
     return genc.CCond(left, comp, right)
 
-# TESTME
 def is_inner_most_parallel(node):
     # Check if there are no parallel loops within the node
     no_inner_parallel = True
@@ -175,7 +172,6 @@ def is_inner_most_parallel(node):
                     "Unexpected isl ast node type:"+str(node.get_type()))
     return no_inner_parallel
 
-# TESTME
 def get_user_nodes_in_body(body):
     user_nodes = []
     if body.get_type() == isl._isl.ast_node_type.block:
@@ -197,38 +193,34 @@ def get_user_nodes_in_body(body):
                     "Unexpected isl node type:"+str(node.get_type()))
     return user_nodes
 
-# TESTME
 def is_sched_dim_parallel(polyrep, user_nodes, sched_dim_name):
     is_parallel = True
     for node in user_nodes:
         part_id = node.user_get_expr().get_op_arg(0).get_id()
-        part = polyrep.isl_id_user_map[part_id]
+        part = isl_get_id_user(part_id)
         if sched_dim_name not in part.parallel_sched_dims:
             is_parallel = False
     return is_parallel
 
-# TESTME
 def is_sched_dim_vector(polyrep, user_nodes, sched_dim_name):
     is_vector = True
     for node in user_nodes:
         part_id = node.user_get_expr().get_op_arg(0).get_id()
-        part = polyrep.isl_id_user_map[part_id]
+        part = isl_get_id_user(part_id)
         if sched_dim_name not in part.vector_sched_dim:
             is_vector = False
     return is_vector
 
-# TESTME
 def get_arrays_for_user_nodes(polyrep, user_nodes, cfunc_map):
     arrays = []
     for node in user_nodes:
         part_id = node.user_get_expr().get_op_arg(0).get_id()
-        part = polyrep.isl_id_user_map[part_id]
+        part = isl_get_id_user(part_id)
         array, scratch = cfunc_map[part.comp]
         if (array not in arrays) and (True in scratch):
             arrays.append(array)
     return arrays
 
-# TESTME
 def cvariables_from_variables_and_sched(node, variables, sched):
     cvar_map = {}
     for i in range(0, len(variables)):
@@ -243,16 +235,16 @@ def cvariables_from_variables_and_sched(node, variables, sched):
 def generate_c_naive_from_accumlate_node(polyrep, node, body,
                                          cparam_map, cfunc_map):
     part_id = node.user_get_expr().get_op_arg(0).get_id()
-    poly_part = polyrep.isl_id_user_map[part_id]
+    poly_part = isl_get_id_user(part_id)
     dom_len = len(poly_part.comp.reductionVariables)
     # FIXME: this has to be changed similar to Expression Node
     cvar_map = cvariables_from_variables_and_sched(node,
                  poly_part.comp.reductionVariables, poly_part.sched)
-    expr = generate_c_expr(poly_part.expr.expression, \
+    expr = generate_c_expr(poly_part.expr.expression,
                            cparam_map, cvar_map, cfunc_map)
     prologue = []
-    array_ref = generate_c_expr(poly_part.expr.accumulateRef, \
-                                cparam_map, cvar_map, cfunc_map, \
+    array_ref = generate_c_expr(poly_part.expr.accumulate_ref,
+                                cparam_map, cvar_map, cfunc_map,
                                 prologue_stmts = prologue)
     assign = genc.CAssign(array_ref, array_ref + expr)
 
@@ -261,7 +253,7 @@ def generate_c_naive_from_accumlate_node(polyrep, node, body,
             body.add(s)
 
     if poly_part.pred:
-        ccond = generate_c_cond(poly_part.pred, \
+        ccond = generate_c_cond(poly_part.pred,
                                 cparam_map, cvar_map, cfunc_map)
         cif = genc.CIfThen(ccond)
         with cif.if_block as ifblock:
@@ -270,11 +262,10 @@ def generate_c_naive_from_accumlate_node(polyrep, node, body,
     else:
         body.add(assign)
 
-# TESTME
 def generate_c_naive_from_expression_node(polyrep, node, body,
                                           cparam_map, cfunc_map):
     part_id = node.user_get_expr().get_op_arg(0).get_id()
-    poly_part = polyrep.isl_id_user_map[part_id]
+    poly_part = isl_get_id_user(part_id)
     dom_len = len(poly_part.comp.variables)
     # Get the mapping to the array
     array, scratch = cfunc_map[poly_part.comp]
@@ -316,8 +307,8 @@ def generate_c_naive_from_expression_node(polyrep, node, body,
             scratch_map[poly_part.comp.variables[i]] = (mul_var)
             if scratch[i]:
                 acc_expr = (mul_var)
-        arglist.append(generate_c_expr(acc_expr, \
-                                       cparam_map, cvar_map, cfunc_map, \
+        arglist.append(generate_c_expr(acc_expr,
+                                       cparam_map, cvar_map, cfunc_map,
                                        scratch_map))
     prologue = []
     expr = generate_c_expr(poly_part.expr, cparam_map, cvar_map, cfunc_map,
@@ -329,7 +320,7 @@ def generate_c_naive_from_expression_node(polyrep, node, body,
             body.add(s)
 
     if poly_part.pred:
-        ccond = generate_c_cond(poly_part.pred, \
+        ccond = generate_c_cond(poly_part.pred,
                                 cparam_map, cvar_map, cfunc_map, scratch_map)
         cif = genc.CIfThen(ccond)
         with cif.if_block as ifblock:
@@ -344,7 +335,6 @@ def generate_c_naive_from_expression_node(polyrep, node, body,
         #incr = genc.CAssign(var, var + 1)
         #body.add(inc)
 
-# TESTME
 def generate_c_naive_from_isl_ast(polyrep, node, body, cparam_map, cfunc_map):
     if node.get_type() == isl._isl.ast_node_type.block:
         num_nodes = (node.block_get_children().n_ast_node())
@@ -436,7 +426,7 @@ def generate_c_naive_from_isl_ast(polyrep, node, body, cparam_map, cfunc_map):
             # The first argument is the computation object.
             # Retrieving the polyPart.
             part_id = node.user_get_expr().get_op_arg(0).get_id()
-            poly_part = polyrep.isl_id_user_map[part_id]
+            poly_part = isl_get_id_user(part_id)
             if isinstance(poly_part.expr, Reduction):
                 generate_c_naive_from_accumlate_node(polyrep, node, body,
                                                      cparam_map, cfunc_map)
@@ -447,7 +437,6 @@ def generate_c_naive_from_isl_ast(polyrep, node, body, cparam_map, cfunc_map):
                 assert (False and \
                         "Invalid pipeline stage type:"+str(poly_part.expr))
 
-# TESTME
 def generate_c_cond(cond,
                     cparam_map, cvar_map, cfunc_map, 
                     scratch_map = {}, prologue_stmts = None):
@@ -470,7 +459,6 @@ def generate_c_cond(cond,
     assert (False and \
             "Unsupported or invalid conditional:"+str(cond.conditional))
 
-# TESTME
 def generate_c_expr(exp, cparam_map, cvar_map, cfunc_map,
                     scratch_map = {}, prologue_stmts = None):
     if isinstance(exp, AbstractBinaryOpNode):
@@ -533,8 +521,8 @@ def generate_c_expr(exp, cparam_map, cvar_map, cfunc_map,
             var_type = genc.TypeMap.convert(getType(exp))
             sel_c_var = genc.CVariable(var_type, new_temp())
             decl = genc.CDeclaration(var_type, sel_c_var,
-                                     genc.CSelect(c_cond, \
-                                                  true_c_var, \
+                                     genc.CSelect(c_cond,
+                                                  true_c_var,
                                                   false_c_var))
             prologue_stmts.append(decl)
 
@@ -641,7 +629,7 @@ def create_perfect_nested_loop(group, pipe_body, variables, domains,
 
     return lbody
 
-def generate_function_scan_loops(group, comp_obj, pipe_body, \
+def generate_function_scan_loops(group, comp_obj, pipe_body,
                                  cparam_map, cfunc_map):
     """
     generates code for Function class
@@ -690,26 +678,27 @@ def generate_function_scan_loops(group, comp_obj, pipe_body, \
                     "Invalid case instance:"+str(case))
 
 # TESTME
-def generate_reduction_scan_loops(group, comp_obj, pipe_body, \
+def generate_reduction_scan_loops(group, comp_obj, pipe_body,
                                   cparam_map, cfunc_map):
     """
     generates code for Reduction class
     """
     # Compute Reduction points in lexicographic order of reduction domain
-    cvar_map = self.create_loop_variables(comp_obj.reductionVariables)
+    cvar_map = create_loop_variables(group, comp_obj.reductionVariables)
 
     # Generate loops. lbody is the body of the innermost loop.
     lbody = \
-        self.create_perfect_nested_loop(body, comp_obj.reductionVariables,
-                                        comp_obj.reductionDomain,
-                                        cparam_map, cvar_map, cfunc_map)
+        create_perfect_nested_loop(group, pipe_body,
+                                   comp_obj.reductionVariables,
+                                   comp_obj.reductionDomain,
+                                   cparam_map, cvar_map, cfunc_map)
 
     # Convert function definition into a C expression and add it to loop body
-    for case in comp_obj.definition:
-        if(isinstance(case, Reduction)):
+    for case in comp_obj.defn:
+        if(isinstance(case, Reduce)):
             case_expr = generate_c_expr(case.expression,
                                         cparam_map, cvar_map, cfunc_map)
-            ref_args = case.accumulateRef.arguments
+            ref_args = case.accumulate_ref.arguments
             accum_ref = generate_c_expr(obj(*refArgs),
                                         cparam_map, cvar_map, cfunc_map)
             assign = genc.CAssign(accum_ref, accum_ref + case_expr)
@@ -721,8 +710,8 @@ def generate_reduction_scan_loops(group, comp_obj, pipe_body, \
                                         cparam_map, cvar_map, cfunc_map)
             cif = genc.CIfThen(c_cond)
 
-            if(isinstance(case.expression, Reduction)):
-                ref_args = case.accumulateRef.arguments
+            if(isinstance(case.expression, Reduce)):
+                ref_args = case.accumulate_ref.arguments
                 accum_ref = generate_c_expr(comp_obj(*refArgs),
                                             cparam_map, cvar_map, cfunc_map)
                 assign = genc.CAssign(accum_ref, accum_ref + cond_expr)
@@ -731,6 +720,7 @@ def generate_reduction_scan_loops(group, comp_obj, pipe_body, \
             else:
                 assert (False and \
                         "Invalid expression instance:"+str(case.expression))
+
             lbody.add(cif, False)
         else:
             assert (False and \
@@ -747,7 +737,7 @@ def generate_code_for_group(pipeline, g, body, options,
     # parts of a compute object bears the same level_no*, thus repeated calling
     # of 'orderComputeObjs' can be avoided.
     group_parts = g.polyRep.poly_parts
-    sorted_comp_objs = sorted(g._comp_objs, \
+    sorted_comp_objs = sorted(g._comp_objs,
                               key = lambda \
                               comp : group_parts[comp][0]._level_no)
 
@@ -793,7 +783,7 @@ def generate_code_for_group(pipeline, g, body, options,
             for part in group_parts[comp]:
                 for i in range(0, len(comp.domain)):
                     if i in part.dim_scratch_size:  # as a key
-                        reduced_dims[i] = max(reduced_dims[i], \
+                        reduced_dims[i] = max(reduced_dims[i],
                                               part.dim_scratch_size[i])
                         scratch[i] = True
 
@@ -842,10 +832,10 @@ def generate_code_for_group(pipeline, g, body, options,
 
         # 1.4. generate scan loops
         if type(comp) == Function:
-            generate_function_scan_loops(g, comp, body, \
+            generate_function_scan_loops(g, comp, body,
                                          cparam_map, cfunc_map)
         elif type(comp) == Reduction:
-            generate_reduction_scan_loops(g, comp, body, \
+            generate_reduction_scan_loops(g, comp, body,
                                           cparam_map, cfunc_map)
         else:  # less likely
             assert (False and \
@@ -862,8 +852,8 @@ def generate_code_for_group(pipeline, g, body, options,
 
     return group_freelist
 
-def generate_code_for_pipeline(pipeline, \
-                               outsExternAlloc=True, \
+def generate_code_for_pipeline(pipeline,
+                               outsExternAlloc=True,
                                is_io_void_ptr=True):
     sorted_groups = pipeline.get_ordered_groups()
     # Discard the level order information

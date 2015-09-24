@@ -469,53 +469,53 @@ class Op(object):
     Max = 2
 
 class Reduce(object):
-    def __init__(self, _accRef, _expr, _opTyp):
-        assert isinstance(_accRef, Reference)
-        assert isinstance(_accRef.objectRef, Reduction)
+    def __init__(self, _red_ref, _expr, _op_typ):
+        assert isinstance(_red_ref, Reference)
+        assert isinstance(_red_ref.objectRef, Reduction)
         _expr = Value.numericToValue(_expr)
         assert isinstance(_expr, AbstractExpression)
-        assert _opTyp in [Op.Sum, Op.Min, Op.Max]
+        assert _op_typ in [Op.Sum, Op.Min, Op.Max]
 
-        self._accRef = _accRef
+        self._red_ref = _red_ref
         self._expr = _expr        
-        self._opTyp = _opTyp
+        self._op_typ = _op_typ
 
     @property 
-    def accumulateRef(self):
-        return self._accRef
+    def accumulate_ref(self):
+        return self._red_ref
     @property 
     def expression(self):
         return self._expr
     @property 
-    def opType(self):
+    def op_type(self):
         return self._expr
 
     def replaceReferences(self, refToExprMap):
-        self._expr = substituteRefs(self._expr, refToExprMap)     
-        self._accRef = substituteRefs(self._accRef, refToExprMap)     
+        self._expr = substituteRefs(self._expr, refToExprMap)
+        self._red_ref = substituteRefs(self._red_ref, refToExprMap)
    
     def collect(self, objType):
         if (type(self) is objType):
             return [self]
         
-        objs = self._accRef.collect(objType) + self._expr.collect(objType)
+        objs = self._red_ref.collect(objType) + self._expr.collect(objType)
         return list(set(objs))  
 
     def clone(self):
-        return Reduce(self._accRef.clone(), self._expr.clone(), self._opTyp)
+        return Reduce(self._red_ref.clone(), self._expr.clone(), self._op_typ)
 
     def __str__(self):
         opStr = None
-        if (self._opTyp == Op.Sum):
+        if (self._op_typ == Op.Sum):
             opStr = '+'
-        elif (self._opTyp == Op.Min):
+        elif (self._op_typ == Op.Min):
             opStr = 'Min'
-        elif (self._opTyp == Op.Max):
+        elif (self._op_typ == Op.Max):
             opStr = 'Max'
         else:
             assert False
-        return 'Reduce(' + self._accRef.__str__() + ' = ' + \
-                 self._accRef.__str__() + ',' + self._expr.__str__() + \
+        return 'Reduce(' + self._red_ref.__str__() + ' = ' + \
+                 self._red_ref.__str__() + ',' + self._expr.__str__() + \
                  ' ' + opStr + ')'
 
 class Function(object):
