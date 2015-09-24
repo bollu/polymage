@@ -26,7 +26,7 @@ def test_math():
            Condition(y, '<=', C-1) & Condition(y, '>=', 0)
 
     # A pipeline with completely aimless random sequence of computations
-    # to the math functions support
+    # to test the math functions support
 
     # sin(image1)
     sin = Function(([x, y], [row, col]), Float, "_sin")
