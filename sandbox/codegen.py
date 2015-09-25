@@ -32,7 +32,6 @@ def isl_expr_to_cgen(expr, prologue_stmts = None):
             op_typ == isl._isl.ast_op_type.member or
             op_typ == isl._isl.ast_op_type.cond or
             op_typ == isl._isl.ast_op_type.select):
-            #print(op_typ)
             assert (False and \
                     "Unexpected isl ast_expr op_type:"+str(op_typ))
         if op_typ == isl._isl.ast_op_type.min:
@@ -779,7 +778,7 @@ def generate_code_for_group(pipeline, g, body, options,
         # 1.1. scratchpad allocation, wherever applicable
         reduced_dims = [ -1 for i in range(0, len(comp.domain))]
         scratch = [ False for i in range(0, len(comp.domain))]
-        if not is_liveout and not is_output:
+        if comp in group_parts and not is_liveout:
             for part in group_parts[comp]:
                 for i in range(0, len(comp.domain)):
                     if i in part.dim_scratch_size:  # as a key
@@ -820,7 +819,7 @@ def generate_code_for_group(pipeline, g, body, options,
 
         if is_liveout:
             array.layout = 'contiguous'
-            # do not allocate for output arrays if they are already allocated
+            # do not allocate output arrays if they are already allocated
             if not is_output or not outsExternAlloc:
                 array_decl = genc.CDeclaration(array_ptr, array)
                 body.add(array_decl)
@@ -829,6 +828,9 @@ def generate_code_for_group(pipeline, g, body, options,
         # array is freed, if comp is a group liveout and not an output
         if not is_output and is_liveout:
             group_freelist.append(array)
+
+        if comp in g.polyRep.poly_parts:
+            continue
 
         # 1.4. generate scan loops
         if type(comp) == Function:

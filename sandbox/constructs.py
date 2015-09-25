@@ -465,8 +465,9 @@ class Case(object):
 
 class Op(object):
     Sum = 0
-    Min = 1
-    Max = 2
+    Mul = 1
+    Min = 2
+    Max = 3
 
 class Reduce(object):
     def __init__(self, _red_ref, _expr, _op_typ):
@@ -474,10 +475,10 @@ class Reduce(object):
         assert isinstance(_red_ref.objectRef, Reduction)
         _expr = Value.numericToValue(_expr)
         assert isinstance(_expr, AbstractExpression)
-        assert _op_typ in [Op.Sum, Op.Min, Op.Max]
+        assert _op_typ in [Op.Sum, Op.Mul, Op.Min, Op.Max]
 
         self._red_ref = _red_ref
-        self._expr = _expr        
+        self._expr = _expr
         self._op_typ = _op_typ
 
     @property 
@@ -505,18 +506,27 @@ class Reduce(object):
         return Reduce(self._red_ref.clone(), self._expr.clone(), self._op_typ)
 
     def __str__(self):
-        opStr = None
+        op_str = None
+        op_sep = None
         if (self._op_typ == Op.Sum):
-            opStr = '+'
+            op_str = ''
+            op_sep = ' + '
+        elif (self._op_typ == Op.Mul):
+            op_str = ''
+            op_sep = ' * '
         elif (self._op_typ == Op.Min):
-            opStr = 'Min'
+            op_str = 'Min'
+            op_sep = ', '
         elif (self._op_typ == Op.Max):
-            opStr = 'Max'
+            op_str = 'Max'
+            op_sep = ', '
         else:
             assert False
-        return 'Reduce(' + self._red_ref.__str__() + ' = ' + \
-                 self._red_ref.__str__() + ',' + self._expr.__str__() + \
-                 ' ' + opStr + ')'
+
+        ret_str = 'Reduce [ ' + self._red_ref.__str__() + ' = ' + \
+                  op_str + '(' + \
+                  self._red_ref.__str__() + op_sep + self._expr.__str__() + ') ]'
+        return ret_str
 
 class Function(object):
     def __init__(self, _varDom, _typ, _name):

@@ -331,24 +331,44 @@ class PolyRep(object):
                     context_conds.append(param_constr)
         return context_conds
 
+    def extract_poly_dom_from_comp(self, comp, param_constraints):
+        var_names = [ var.name for var in comp.variables ]
+        dom_map_names = [ name +'\'' for name in var_names ]
+
+        params = []
+        for interval in comp.domain:
+            params = params + interval.collect(Parameter)
+        params = list(set(params))
+        param_names = [ param.name for param in params ]
+
+        space = isl.Space.create_from_names(self.ctx, in_ = var_names,
+                                                      out = dom_map_names,
+                                                      params = param_names)
+        dom_map = isl.BasicMap.universe(space)
+        # Adding the domain constraints
+        [ineqs, eqs] = format_domain_constraints(comp.domain, var_names)
+        dom_map = add_constraints(dom_map, ineqs, eqs)
+
+        param_conds = self.format_param_constraints(param_constraints, params)
+        [param_ineqs, param_eqs] = format_conjunct_constraints(param_conds)
+        dom_map = add_constraints(dom_map, param_ineqs, param_eqs)
+
+        poly_dom = PolyDomain(dom_map.domain(), comp)
+        id_ = isl_alloc_id_for(self.ctx, comp.name, poly_dom)
+        poly_dom.dom_set = poly_dom.dom_set.set_tuple_id(id_)
+        isl_set_id_user(id_, poly_dom)
+
+        return poly_dom
+
     def extract_polyrep_from_function(self, comp,
                                       schedule_names, param_names,
                                       context_conds, level_no,
                                       param_constraints):
-
+        self.poly_doms[comp] = \
+            self.extract_poly_dom_from_comp(comp, param_constraints)
         sched_map = self.create_sched_space(comp.variables, comp.domain,
                                             schedule_names, param_names,
                                             context_conds)
-
-        poly_dom = PolyDomain(sched_map.domain(), comp)
-
-        id_ = isl_alloc_id_for(self.ctx, comp.name, poly_dom)
-
-        poly_dom.dom_set = poly_dom.dom_set.set_tuple_id(id_)
-        isl_set_id_user(id_, poly_dom)
-
-        self.poly_doms[comp] = poly_dom
-
         self.create_poly_parts_from_definition(comp, sched_map, level_no, 
                                                schedule_names, comp.domain)
 
@@ -356,32 +376,22 @@ class PolyRep(object):
                                        schedule_names, param_names,
                                        context_conds, level_no,
                                        param_constraints):
-
+        self.poly_doms[comp] = \
+            self.extract_poly_dom_from_comp(comp, param_constraints)
         sched_map = self.create_sched_space(comp.reductionVariables,
                                             comp.reductionDomain,
                                             schedule_names, param_names,
                                             context_conds)
-
-        poly_dom = PolyDomain(sched_map.domain(), comp)
-
-        id_ = isl_alloc_id_for(self.ctx, comp.name, poly_dom)
-
-        poly_dom.dom_set = poly_dom.dom_set.set_tuple_id(id_)
-        isl_set_id_user(id_, poly_dom)
-
-        self.poly_doms[comp] = poly_dom
-
         self.create_poly_parts_from_definition(comp, sched_map, level_no,
                                                schedule_names,
                                                comp.reductionDomain)
-
         dom_map = self.create_sched_space(comp.variables, comp.domain,
                                           schedule_names, param_names,
                                           context_conds)
 
         # Initializing the reduction earlier than any other function
-        self.create_poly_parts_from_default(comp, dom_map, -1, schedule_names)
-
+        self.create_poly_parts_from_default(comp, dom_map, level_no,
+                                            schedule_names)
 
     def create_sched_space(self, variables, domains,
                            schedule_names, param_names, context_conds):
@@ -436,17 +446,12 @@ class PolyRep(object):
                         parts = self.make_poly_parts(sched_m, case.expression,
                                                      None, comp,
                                                      align, scale, level_no)
-                        # FIXME: Is a loop required here? make_poly_part
-                        # seems to return a list of one part
                         for part in parts:
                             self.poly_parts[comp].append(part)
                     else:
                         parts = self.make_poly_parts(sched_m, case.expression,
                                                      case.condition, comp,
                                                      align, scale, level_no)
-
-                        # FIXME: Is a loop required here? make_poly_part
-                        # seems to return a list of one part
                         for part in parts:
                             self.poly_parts[comp].append(part)
             else:
@@ -501,7 +506,7 @@ class PolyRep(object):
         assert(isinstance(comp.default, AbstractExpression))
         poly_part = PolyPart(sched_m, comp.default,
                              None, comp,
-                             align, scale, level_no)
+                             align, scale, level_no-1)
 
         id_ = isl_alloc_id_for(self.ctx, comp.name, poly_part)
         poly_part.sched = \
