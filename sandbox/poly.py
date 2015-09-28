@@ -52,9 +52,9 @@ def add_constraints_from_list(obj, local_space, constraint_list,
             if isinstance(constr[coeff], Fraction):
                constr[coeff] = m * constr[coeff]
                assert constr[coeff].denominator == 1
-               constr[coeff] = constr[coeff].numerator
+               constr[coeff] = int(constr[coeff].numerator)
             else:
-               constr[coeff] = m * constr[coeff]
+               constr[coeff] = int(m * constr[coeff])
 
         for coeff in constr:
             dim = coeff[1]

@@ -247,6 +247,7 @@ def align_and_scale_parts(pipeline, group):
                             if dim not in part_align]
         for dim in dangling_dims:
             part_align[dim] = avail_dims.pop()
+            part_scale[dim] = 1
 
         # test for unique alignment
         assert (len(part_align) == len(set(part_align)))
