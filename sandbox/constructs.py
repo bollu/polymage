@@ -594,7 +594,8 @@ class Function(object):
             # check if the Case and Expression constructs only use
             # function variables and global parameters
 
-            # MOD -> if _def is not a Case, shouldnt it be disallowed after the first definition?
+            # MOD -> if _def is not a Case, shouldnt it be disallowed after
+            # the first definition?
             self._body.append(case)
 
     def __call__(self, *args):
@@ -739,7 +740,8 @@ class Reduction(Function):
     
             # Which way is better Case inside accumulate or accumulate inside Case
             
-            # MOD -> if _def is not a Case, shouldnt it be disallowed after the first definition?
+            # MOD -> if _def is not a Case, shouldnt it be disallowed after
+            # the first definition?
             self._body.append(case)
 
     def hasBoundedIntegerDomain(self):

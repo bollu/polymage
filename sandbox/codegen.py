@@ -33,8 +33,8 @@ def isl_expr_to_cgen(expr, prologue_stmts = None):
             op_typ == isl._isl.ast_op_type.member or
             op_typ == isl._isl.ast_op_type.cond or
             op_typ == isl._isl.ast_op_type.select):
-            assert (False and \
-                    "Unexpected isl ast_expr op_type:"+str(op_typ))
+            assert ("Unexpected isl ast_expr op_type:"+str(op_typ) \
+                    and False)
         if op_typ == isl._isl.ast_op_type.min:
             num_args = expr.get_op_n_arg()
             cmin = genc.CMin(isl_expr_to_cgen(expr.get_op_arg(0), prolog),
@@ -64,51 +64,51 @@ def isl_expr_to_cgen(expr, prologue_stmts = None):
                 cmax = max_cvar
             return cmax
         if op_typ == isl._isl.ast_op_type.fdiv_q:
-            assert (expr.get_op_n_arg() == 2 and \
-                    "Division must have exactly 2 arguments!")
+            assert("Division must have exactly 2 arguments!" and \
+                   expr.get_op_n_arg() == 2)
             return \
                 genc.CMacroFloord(isl_expr_to_cgen(expr.get_op_arg(0), prolog),
                                   isl_expr_to_cgen(expr.get_op_arg(1), prolog))
         if op_typ == isl._isl.ast_op_type.add:
-            assert (expr.get_op_n_arg() == 2 and \
-                    "Addition must have exactly 2 arguments!")
+            assert("Addition must have exactly 2 arguments!" and \
+                   expr.get_op_n_arg() == 2)
             return isl_expr_to_cgen(expr.get_op_arg(0), prolog) + \
                    isl_expr_to_cgen(expr.get_op_arg(1), prolog)
         if op_typ == isl._isl.ast_op_type.mul:
-            assert (expr.get_op_n_arg() == 2 and \
-                    "Multiplication must have exactly 2 arguments!")
+            assert("Multiplication must have exactly 2 arguments!" and \
+                   expr.get_op_n_arg() == 2)
             return isl_expr_to_cgen(expr.get_op_arg(0), prolog) * \
                    isl_expr_to_cgen(expr.get_op_arg(1), prolog)
         if (op_typ == isl._isl.ast_op_type.div or
             op_typ == isl._isl.ast_op_type.pdiv_q):
-            assert (expr.get_op_n_arg() == 2 and \
-                    "Division must have exactly 2 arguments!")
+            assert("Division must have exactly 2 arguments!" and \
+                   expr.get_op_n_arg() == 2)
             return isl_expr_to_cgen(expr.get_op_arg(0), prolog) / \
                    isl_expr_to_cgen(expr.get_op_arg(1), prolog)
         if op_typ == isl._isl.ast_op_type.pdiv_r:
-            assert (expr.get_op_n_arg() == 2 and \
-                    "Division must have exactly 2 arguments!")
+            assert("Division must have exactly 2 arguments!" and \
+                   expr.get_op_n_arg() == 2)
             return isl_expr_to_cgen(expr.get_op_arg(0), prolog) % \
                    isl_expr_to_cgen(expr.get_op_arg(1), prolog)
         if op_typ == isl._isl.ast_op_type.sub:
-            assert (expr.get_op_n_arg() == 2 and \
-                    "Subtraction must have exactly 2 arguments!")
+            assert("Subtraction must have exactly 2 arguments!" and \
+                   expr.get_op_n_arg() == 2)
             return isl_expr_to_cgen(expr.get_op_arg(0), prolog) - \
                    isl_expr_to_cgen(expr.get_op_arg(1), prolog)
         if op_typ == isl._isl.ast_op_type.minus:
-            assert (expr.get_op_n_arg() == 1 and \
-                    "Unary minus must have exactly 1 argument!")
+            assert("Unary minus must have exactly 1 argument!" and \
+                   expr.get_op_n_arg() == 1)
             return -isl_expr_to_cgen(expr.get_op_arg(0), prolog)
         if (op_typ == isl._isl.ast_op_type.and_ or
             op_typ == isl._isl.ast_op_type.and_then):
-            assert (expr.get_op_n_arg() == 2 and \
-                    "Logical And must have exactly 2 arguments!")
+            assert("Logical And must have exactly 2 arguments!" and \
+                   expr.get_op_n_arg() == 2)
             return isl_expr_to_cgen(expr.get_op_arg(0), prolog) & \
                    isl_expr_to_cgen(expr.get_op_arg(1), prolog)
         if (op_typ == isl._isl.ast_op_type.or_ or
             op_typ == isl._isl.ast_op_type.or_else):
-            assert (expr.get_op_n_arg() == 2 and \
-                    "Logical Or must have exactly 2 arguments!")
+            assert("Logical Or must have exactly 2 arguments!" and \
+                   expr.get_op_n_arg() == 2)
             return isl_expr_to_cgen(expr.get_op_arg(0), prolog) |\
                    isl_expr_to_cgen(expr.get_op_arg(1), prolog)
 
@@ -128,12 +128,12 @@ def isl_cond_to_cgen(cond, prologue_stmts = None):
                   isl._isl.ast_op_type.or_: '||',
                   isl._isl.ast_op_type.or_else: '||' }
 
-    assert (cond.get_op_type() in comp_dict and \
-            "Unsupported isl conditional type:"+str(cond.get_op_type())+ \
-            " of condition:"+str(cond))
+    assert("Unsupported isl conditional type:"+str(cond.get_op_type())+\
+           " of condition:"+str(cond) and \
+           cond.get_op_type() in comp_dict)
     comp = comp_dict[cond.get_op_type()]
-    assert (cond.get_op_n_arg() == 2 and \
-            "Conditional expressions must have exactly 2 arguments!")
+    assert("Conditional expressions must have exactly 2 arguments!" and \
+           cond.get_op_n_arg() == 2)
     if (comp == '&&' or comp == '||'):
         left = isl_cond_to_cgen(cond.get_op_arg(0), prologue_stmts)
         right = isl_cond_to_cgen(cond.get_op_arg(1), prologue_stmts)
@@ -168,8 +168,8 @@ def is_inner_most_parallel(node):
         elif node.get_type() == isl._isl.ast_node_type.user:
             pass
         else:
-            assert (False and \
-                    "Unexpected isl ast node type:"+str(node.get_type()))
+            assert("Unexpected isl ast node type:"+str(node.get_type()) and \
+                   False)
     return no_inner_parallel
 
 def get_user_nodes_in_body(body):
@@ -189,8 +189,8 @@ def get_user_nodes_in_body(body):
         elif body.get_type() == isl._isl.ast_node_type.user:
             user_nodes += [body]
         else:
-            assert (False and \
-                    "Unexpected isl node type:"+str(node.get_type()))
+            assert("Unexpected isl node type:"+str(node.get_type()) and \
+                   False)
     return user_nodes
 
 def is_sched_dim_parallel(polyrep, user_nodes, sched_dim_name):
@@ -434,8 +434,8 @@ def generate_c_naive_from_isl_ast(polyrep, node, body, cparam_map, cfunc_map):
                 generate_c_naive_from_expression_node(polyrep, node, body,
                                                       cparam_map, cfunc_map)
             else:
-                assert (False and \
-                        "Invalid pipeline stage type:"+str(poly_part.expr))
+                assert ("Invalid pipeline stage type:"+str(poly_part.expr) \
+                        and False)
 
 def generate_c_cond(cond,
                     cparam_map, cvar_map, cfunc_map, 
@@ -456,8 +456,8 @@ def generate_c_cond(cond,
                                     cparam_map, cvar_map, cfunc_map,
                                     scratch_map, prologue_stmts)
         return genc.CCond(left_cond, cond.conditional, right_cond)
-    assert (False and \
-            "Unsupported or invalid conditional:"+str(cond.conditional))
+    assert("Unsupported or invalid conditional:"+str(cond.conditional) and \
+           False)
 
 def generate_c_expr(exp, cparam_map, cvar_map, cfunc_map,
                     scratch_map = {}, prologue_stmts = None):
@@ -670,12 +670,12 @@ def generate_function_scan_loops(group, comp_obj, pipe_body,
                 with cif.if_block as ifblock:
                     ifblock.add(assign)
             else:
-                assert (False and \
-                        "Invalid expression instance:"+str(expr))
+                assert("Invalid expression instance:"+str(expr) and \
+                       False)
             lbody.add(cif, False)
         else:
-            assert (False and \
-                    "Invalid case instance:"+str(case))
+            assert("Invalid case instance:"+str(case) and \
+                   False)
 
 # TESTME
 def generate_reduction_scan_loops(group, comp_obj, pipe_body,
@@ -718,13 +718,13 @@ def generate_reduction_scan_loops(group, comp_obj, pipe_body,
                 with cif.if_block as ifblock:
                     ifblock.add(assign)
             else:
-                assert (False and \
-                        "Invalid expression instance:"+str(case.expression))
+                assert("Invalid expression instance:"+str(case.expression) and \
+                       False)
 
             lbody.add(cif, False)
         else:
-            assert (False and \
-                    "Invalid case instance:"+str(case))
+            assert("Invalid case instance:"+str(case) and \
+                   False)
 
 def generate_code_for_group(pipeline, g, body, options,
                             cparam_map, cfunc_map,
@@ -841,9 +841,9 @@ def generate_code_for_group(pipeline, g, body, options,
             generate_reduction_scan_loops(g, comp, body,
                                           cparam_map, cfunc_map)
         else:  # less likely
-            assert (False and \
-                    "Invalid compute object type:"+str(type(comp))+\
-                    " of object:"+str(comp.name))
+            assert("Invalid compute object type:"+str(type(comp))+\
+                   " of object:"+str(comp.name) and \
+                   False)
 
     # 2. generate code for built isl ast
     polyrep = g.polyRep
