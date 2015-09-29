@@ -5,6 +5,7 @@ from collections import OrderedDict
 import pipe
 from constructs import *
 from expression import *
+from poly import *
 import islpy as isl
 import expr_ast as expr
 import targetc as genc

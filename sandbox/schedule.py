@@ -37,6 +37,7 @@ def base_schedule(group):
                                                    part._level_no)
         part.sched = add_constraints(part.sched.copy(), ineqs, eqs)
 
+    return parts
 
 def align_and_scale_parts(pipeline, group):
 

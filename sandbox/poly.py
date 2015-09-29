@@ -636,11 +636,9 @@ class PolyRep(object):
 
     def default_align_and_scale(self, sched):
         dim_in = sched.dim(isl._isl.dim_type.in_)
-        align = {}
         # align[i] = j means input dimension i is mapped to output 
         # dimension j
-        for i in range(0, dim_in):
-            align[i] = [i+1]
+        align = [ i+1 for i in range(0, dim_in) ]
         # the default scaling in each dimension is set to 1 i.e., the
         # schedule dimension correspoinding to input dimension will be 
         # scaled by 1
@@ -661,7 +659,7 @@ class PolyRep(object):
        
         # TODO figure out a way to create the correct parameter context
         # since the parameters for all the parts may not be the same
-        astbld =  isl.AstBuild.from_context(parts[0].sched.params())
+        astbld = isl.AstBuild.from_context(parts[0].sched.params())
         #astbld =  astbld.set_options(isl.UnionMap("{ }"))
 
         sched_map = None
@@ -677,14 +675,12 @@ class PolyRep(object):
             srange = part.sched.range()
             unroll_union_set = \
                 isl.UnionSet.from_set(isl.Set("{:}", self.ctx))
+            dom_union_set = \
+                isl.UnionSet.universe(isl.UnionSet.from_set(srange))
             if opt_map is None:
-                dom_union_set = \
-                    isl.UnionSet.universe(isl.UnionSet.from_set(srange))
                 opt_map = isl.UnionMap.from_domain_and_range(dom_union_set, \
                                                              unroll_union_set)
             else:
-                dom_union_set = \
-                    isl.UnionSet.universe(isl.UnionSet.from_set(srange))
                 opt_map = opt_map.union( \
                             isl.UnionMap.from_domain_and_range( \
                                 dom_union_set, unroll_union_set) )

@@ -227,7 +227,9 @@ class Pipeline:
 
         ''' BASE SCHEDULE AND CODEGEN '''
         for g in list(set(self._groups.values())):
-            base_schedule(g)
+            gparts = base_schedule(g)
+            for p in gparts:
+                p.liveout = True
             #fused_schedule(g)  # (g, param_estimates)
             #g.polyRep.generate_code()
 
