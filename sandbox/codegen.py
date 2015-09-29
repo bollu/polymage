@@ -427,7 +427,7 @@ def generate_c_naive_from_isl_ast(polyrep, node, body, cparam_map, cfunc_map):
             # Retrieving the polyPart.
             part_id = node.user_get_expr().get_op_arg(0).get_id()
             poly_part = isl_get_id_user(part_id)
-            if isinstance(poly_part.expr, Reduction):
+            if isinstance(poly_part.expr, Reduce):
                 generate_c_naive_from_accumlate_node(polyrep, node, body,
                                                      cparam_map, cfunc_map)
             elif isinstance(poly_part.expr, AbstractExpression):
