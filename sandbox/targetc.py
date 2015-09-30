@@ -146,9 +146,12 @@ c_double = CType("float64")
 c_void = CType("void")
 
 class TypeMap(object):
-    _type_map = { Void: c_void, ULong:c_ulong, Long: c_long, UInt:c_uint, Int:c_int,
-                 UShort:c_ushort, Short:c_short, UChar:c_uchar, Char:c_char,
-                 Float:c_float, Double:c_double }
+    _type_map = { Void: c_void,
+                  ULong:c_ulong, Long: c_long,
+                  UInt:c_uint, Int:c_int,
+                  UShort:c_ushort, Short:c_short,
+                  UChar:c_uchar, Char:c_char,
+                  Float:c_float, Double:c_double }
     @classmethod
     def convert(cls, typ):
         assert typ in cls._type_map
@@ -194,7 +197,8 @@ class CDeclaration(AbstractCgenObject):
         self.expr = _expr
     def _cgen(self):
         if self.expr is not None:
-            val_decl = cgen.Value(self.ctyp.__str__(), self.cname.name).inline(True)
+            val_decl = \
+                cgen.Value(self.ctyp.__str__(), self.cname.name).inline(True)
             return cgen.Assign(val_decl, self.expr.__str__())
         else:
             return cgen.Value(self.ctyp.__str__(), self.cname.name)
@@ -286,21 +290,15 @@ class CFunctionDecl(AbstractCgenObject):
         self.are_io_void_ptrs = are_io_void_ptrs
 
     def _cgen(self):
-        #arg_decls = [ cgen.Value(self.func.arg_dict[arg].__str__(), arg.__str__())\
-        #             for arg in self.func.arg_dict ]
         arg_decls = []
-
-        if not self.are_io_void_ptrs:
-            for arg in self.func.arg_dict:
-                arg_decls.append(cgen.Value(self.func.arg_dict[arg].__str__(), arg.__str__()))
-        else:
-            for arg in self.func.arg_dict:
-                # print the variable type of input and output arrays (CPointer) as
-                # 'void *', so as to handle it using ctypes.c_void_p()
-                if isinstance(arg.typ, CPointer):
-                    arg_decls.append(cgen.Value('void *', arg.__str__()))
-                else:
-                    arg_decls.append(cgen.Value(self.func.arg_dict[arg].__str__(), arg.__str__()))
+        for arg in self.func.arg_dict:
+            # print the variable type of input and output arrays (CPointer) as
+            # 'void *', so as to handle it using ctypes.c_void_p()
+            if isinstance(arg.typ, CPointer) and self.are_io_void_ptrs :
+                arg_decls.append(cgen.Value('void *', arg.__str__()))
+            else:
+                arg_decls.append(cgen.Value(self.func.arg_dict[arg].__str__(),
+                                            arg.__str__()))
 
         type_str = self.func.ret_typ.__str__()
         if self.is_extern_c_func:
@@ -345,7 +343,8 @@ class CMacroDecl(AbstractCgenObject):
 
 c_macro_min = CMacro('isl_min', 'isl_min(x,y)', '((x) < (y) ? (x) : (y))')
 c_macro_max = CMacro('isl_max', 'isl_max(x,y)', '((x) > (y) ? (x) : (y))')
-c_macro_floord = CMacro('isl_floord', 'isl_floord(n,d)', '(((n)<0) ? -((-(n)+(d)-1)/(d)) : (n)/(d))')
+c_macro_floord = CMacro('isl_floord', 'isl_floord(n,d)', \
+                        '(((n)<0) ? -((-(n)+(d)-1)/(d)) : (n)/(d))')
 
 class CInclude(AbstractCgenObject):
     def __init__(self, _name):
