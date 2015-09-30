@@ -15,9 +15,9 @@ def initNorm(dataDict):
     dataDict['err']   = 0.0
 
     # calculate the initial residual norm and error
-    print "[exec]: calculating the initial norm and error ..."
+    print("[init]: calculating the initial norm and error ...")
     calcNorm(U_, dataDict)
-    print "[exec]: ... DONE"
+    print("[init]: ... DONE")
 
     return
 
@@ -44,7 +44,7 @@ def initBorder(grid, borderWidth, borderValues):
     return
 
 def initGrids(dataDict):
-    print '[init_mg.py] : grids'
+    print("[init_mg.py] : grids")
 
     N = dataDict['N']
 
@@ -72,10 +72,10 @@ def initGrids(dataDict):
     return 
 
 def initParams(dataDict):
-    print '[init_mg.py] : parameters'
+    print("[init_mg.py] : parameters")
 
     # size of each dimension of the coarsest grid
-    n = 255
+    n = 15
     # number of multigrid levels
     L = 2
 

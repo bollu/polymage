@@ -4,11 +4,11 @@ from polymage_defect      import defect
 from polymage_restrict    import restrict
 from polymage_interpolate import interpolate
 
-sys.path.insert(0, '../../../../optimizer')
-sys.path.insert(0, '../../../../frontend')
+sys.path.insert(0, '../../../../')
+sys.path.insert(0, '../../../../')
 
-from Compiler   import *
-from Constructs import *
+from compiler   import *
+from constructs import *
 
 def vCycle(impipeDict, dataDict):
     N = impipeDict['N']

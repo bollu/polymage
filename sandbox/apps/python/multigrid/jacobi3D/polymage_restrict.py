@@ -4,11 +4,11 @@ import sys
 from fractions  import Fraction
 from polymage_common import setGhosts
 
-sys.path.insert(0, '../../../../optimizer')
-sys.path.insert(0, '../../../../frontend')
+sys.path.insert(0, '../../../../')
+sys.path.insert(0, '../../../../')
 
-from Compiler   import *
-from Constructs import *
+from compiler   import *
+from constructs import *
 
 def restrict(U_, l, name, impipeDict):
     z = impipeDict['z']

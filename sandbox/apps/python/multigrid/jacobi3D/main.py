@@ -25,8 +25,8 @@ def main():
     dataDict = {}
     impipeDict = {}
 
-    print "[main]: initializing..."
-    print
+    print("[main]: initializing...")
+    print("")
 
     # init all the required data
     initAll(impipeDict, dataDict)

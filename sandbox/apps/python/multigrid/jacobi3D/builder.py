@@ -1,23 +1,23 @@
 import sys
 import subprocess
 
-from compiler          import cCompile
-from loader            import loadLib
-from polymage_vcycle   import vCycle
+from cpp_compiler    import cCompile
+from loader          import loadLib
+from polymage_vcycle import vCycle
 
 sys.path.insert(0, '../../../../optimizer')
 sys.path.insert(0, '../../../../frontend')
 
-from Compiler   import *
-from Constructs import *
+from compiler   import *
+from constructs import *
 
 def codeGen(pipe, fileName, dataDict):
-    print
-    print "[builder]: writing the code to", fileName, "..."
-     
-    code = pipe.generateCNaive(isExternAlloc=True,
-                               isExternFunc=True,
-                               areParamsVoidPtrs=True)
+    print("")
+    print("[builder]: writing the code to", fileName, "...")
+
+    code = pipe.generate_code(is_extern_c_func=True,
+                              outputs_no_alloc=True,
+                              are_io_void_ptrs=True)
 
     f = open(fileName, 'w')
     f.write(code.__str__())
@@ -25,27 +25,29 @@ def codeGen(pipe, fileName, dataDict):
 
     return
 
+'''
 def graphGen(pipe, fileName, dataDict):
     graphFile = fileName+".dot"
     pngGraph = fileName+".png"
 
-    print
-    print "[builder]: writing the graph dot file to", graphFile, "..."
+    print("")
+    print("[builder]: writing the graph dot file to", graphFile, "...")
 
     #graph = pipe.drawPipelineGraphWithGroups()
     graph = pipe.originalGraph
     graph.write(graphFile)
-    print "[builder]: ... DONE"
+    print("[builder]: ... DONE")
 
     dottyStr = "dot -Tpng "+graphFile+" -o "+pngGraph
 
-    print
-    print "[builder]: drawing the graph using dotty to", pngGraph
-    print ">", dottyStr
+    print("")
+    print("[builder]: drawing the graph using dotty to", pngGraph)
+    print(">", dottyStr)
     subprocess.check_output(dottyStr, shell=True)
-    print "[builder]: ... DONE"
+    print("[builder]: ... DONE")
 
     return
+'''
 
 def buildVCycle(impipeDict, dataDict):
     # construct the multigrid v-cycle pipeline
@@ -88,10 +90,10 @@ def createLib(buildFunc, pipeName, impipeDict, dataDict, mode):
             pipe = buildFunc(impipeDict, dataDict)
 
             # draw the pipeline graph to a png file
-            graphGen(pipe, pipeName, dataDict)
+            #graphGen(pipe, pipeName, dataDict)
 
-            print "STOP HERE FOR NOW"
-            assert(False)
+            #print("STOP HERE FOR NOW")
+            #assert(False)
 
             # generate pipeline cpp source
             codeGen(pipe, pipeSrc, dataDict)

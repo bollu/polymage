@@ -6,16 +6,16 @@ CXX_FLAGS=-openmp -ipo -O3 -xhost -fPIC -shared -DTIME
 all: new
 
 new:
-	python main.py 'new' 10
+	python3.4 main.py 'new' 10
 
 existing:
-	python main.py 'existing' 10
+	python3.4 main.py 'existing' 10
 
 ready:
-	python main.py 'ready' 10
+	python3.4 main.py 'ready' 10
 
 clean:
-	rm -f *.pyc *.so *.dot *.png
+	rm -rf *.pyc *.so *.dot *.png __pycache__
 
 cleaner:
-	rm -f *.pyc *.so *.dot *.png vcycle.cpp
+	rm -rf *.pyc *.so *.dot *.png __pycache__ vcycle.cpp

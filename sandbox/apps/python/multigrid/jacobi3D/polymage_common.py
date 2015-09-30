@@ -1,11 +1,11 @@
 from __future__ import absolute_import, division, print_function
 
 import sys
-sys.path.insert(0, '../../../../optimizer')
-sys.path.insert(0, '../../../../frontend')
+sys.path.insert(0, '../../../../')
+sys.path.insert(0, '../../../../')
 
-from Compiler   import *
-from Constructs import *
+from compiler   import *
+from constructs import *
 
 from fractions  import Fraction
 

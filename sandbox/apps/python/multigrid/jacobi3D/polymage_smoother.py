@@ -1,11 +1,11 @@
 import sys
 from polymage_common import setGhosts
 
-sys.path.insert(0, '../../../../optimizer')
-sys.path.insert(0, '../../../../frontend')
+sys.path.insert(0, '../../../../')
+sys.path.insert(0, '../../../../')
 
-from Compiler   import *
-from Constructs import *
+from compiler   import *
+from constructs import *
 
 def wJacobi(U_, F_, l, name, impipeDict, dataDict):
     z = impipeDict['z']

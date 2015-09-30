@@ -4,8 +4,8 @@ import subprocess
 sys.path.insert(0, '../../../../optimizer')
 sys.path.insert(0, '../../../../frontend')
 
-from Compiler   import *
-from Constructs import *
+from compiler   import *
+from constructs import *
 
 def cCompile(inFile, outFile, cCompiler=None):
     if cCompiler == None or cCompiler == "intel":
@@ -30,10 +30,10 @@ def cCompile(inFile, outFile, cCompiler=None):
                + inFile + " " \
                + out
 
-    print
-    print "[compiler]: compiling", inFile, "to", outFile, "..."
-    print ">", compileStr
+    print("")
+    print("[cpp_compiler]: compiling", inFile, "to", outFile, "...")
+    print(">", compileStr)
     subprocess.check_output(compileStr, shell=True)
-    print "[compiler]: ... DONE"
+    print("[cpp_compiler]: ... DONE")
 
     return

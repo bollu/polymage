@@ -9,8 +9,8 @@ from printer import printLine, printLayout, printErrors
 sys.path.insert(0, '../../../../optimizer')
 sys.path.insert(0, '../../../../frontend')
 
-from Compiler   import *
-from Constructs import *
+from compiler   import *
+from constructs import *
 
 def calcNorm(U_, dataDict):
     N = dataDict['N']
@@ -101,7 +101,7 @@ def multigrid(dataDict):
         t2 = time.clock()
 
         timeTaken = float(t2) - float(t1)
-        print
-        print '[execMG] : time taken to execute = ', timeTaken*1000, ' ms'
+        print("")
+        print("[execMG] : time taken to execute = ", timeTaken*1000, " ms")
 
     return
