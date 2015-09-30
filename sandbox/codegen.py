@@ -728,7 +728,7 @@ def generate_reduction_scan_loops(group, comp_obj, pipe_body,
 
 def generate_code_for_group(pipeline, g, body, options,
                             cparam_map, cfunc_map,
-                            outputs, outsExternAlloc):
+                            outputs, outputs_no_alloc):
 
     g.polyRep.generate_code()
 
@@ -821,7 +821,7 @@ def generate_code_for_group(pipeline, g, body, options,
         if is_liveout:
             array.layout = 'contiguous'
             # do not allocate output arrays if they are already allocated
-            if not is_output or not outsExternAlloc:
+            if not is_output or not outputs_no_alloc:
                 array_decl = genc.CDeclaration(array_ptr, array)
                 body.add(array_decl)
                 array.allocate_contiguous(body, pooled)
@@ -856,8 +856,9 @@ def generate_code_for_group(pipeline, g, body, options,
     return group_freelist
 
 def generate_code_for_pipeline(pipeline,
-                               outsExternAlloc=True,
-                               is_io_void_ptr=True):
+                               outputs_no_alloc=False,
+                               is_extern_c_func=False,
+                               are_io_void_ptrs=False):
     sorted_groups = pipeline.get_ordered_groups()
     # Discard the level order information
     sorted_groups = [ g[0] for g in sorted_groups ]
@@ -909,7 +910,7 @@ def generate_code_for_pipeline(pipeline,
         # 2.2. collect inputs
         inputs = sorted(pipeline.inputs, key=lambda x: x.name)
         for img in inputs:
-            if is_io_void_ptr:
+            if are_io_void_ptrs:
                 img_type = genc.c_void
                 cptr = genc.CPointer(img_type, 1)
                 cvar = genc.CVariable(cptr, img.name+'_void_arg')
@@ -925,13 +926,13 @@ def generate_code_for_pipeline(pipeline,
 
         # 2.3. collect outputs
         outputs = sorted(pipeline.outputs, key=lambda x: x.name)
-        if outsExternAlloc:
+        if outputs_no_alloc:
             pass_by_type = genc.CReference
         else:
             pass_by_type = genc.CPointer
 
         for out in outputs:
-            if is_io_void_ptr:
+            if are_io_void_ptrs:
                 out_typ = genc.c_void
                 cptr = pass_by_type(out_typ, 1)
                 cvar = genc.CVariable(cptr, out.name+'_void_arg')
@@ -945,7 +946,9 @@ def generate_code_for_pipeline(pipeline,
         # 2.4. function name and declaration
         cpipe_name = 'pipeline_' + pipeline.name
         cpipe = genc.CFunction(genc.c_void, cpipe_name, pipeline_args)
-        cpipe_decl = genc.CFunctionDecl(cpipe)
+        cpipe_decl = genc.CFunctionDecl(cpipe,
+                                        is_extern_c_func=True,
+                                        are_io_void_ptrs=True)
         cpipe_body = genc.CFunctionBody(cpipe_decl)
 
         func_block.add(cpipe_body)
@@ -959,7 +962,7 @@ def generate_code_for_pipeline(pipeline,
             # to their respective types first.
 
             # 2.5.1. typecast the i/o array ptrs
-            if is_io_void_ptr:
+            if are_io_void_ptrs:
                 inouts = list(set(inputs) | set(outputs))
                 for inout in inouts:
                     # actual input to be used
@@ -986,7 +989,7 @@ def generate_code_for_pipeline(pipeline,
                     generate_code_for_group(pipeline, g, pbody,
                                             pipeline._options,
                                             cparam_map, cfunc_map,
-                                            outputs, outsExternAlloc)
+                                            outputs, outputs_no_alloc)
                 pipe_freelist.extend(group_freelist)
 
             # TODO free the arrays ASAP (compaction)

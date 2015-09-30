@@ -279,20 +279,18 @@ c_printf = CLibraryFunction('printf', 'stdio.h')
 
 # TODO clean up this function. 
 class CFunctionDecl(AbstractCgenObject):
-    def __init__(self, _func, _is_extern_func=False, _are_params_void_ptrs=False):
+    def __init__(self, _func, is_extern_c_func=False, are_io_void_ptrs=False):
         assert(isinstance(_func, CFunction))
         self.func = _func
-        self.is_extern_func = _is_extern_func
-        self.are_params_void_ptrs = _are_params_void_ptrs
+        self.is_extern_c_func = is_extern_c_func
+        self.are_io_void_ptrs = are_io_void_ptrs
+
     def _cgen(self):
         #arg_decls = [ cgen.Value(self.func.arg_dict[arg].__str__(), arg.__str__())\
         #             for arg in self.func.arg_dict ]
         arg_decls = []
 
-        # are_params_void_ptrs : if the target is to generate shared library
-        # implementation using python ctypes
-
-        if not self.are_params_void_ptrs:
+        if not self.are_io_void_ptrs:
             for arg in self.func.arg_dict:
                 arg_decls.append(cgen.Value(self.func.arg_dict[arg].__str__(), arg.__str__()))
         else:
@@ -305,7 +303,7 @@ class CFunctionDecl(AbstractCgenObject):
                     arg_decls.append(cgen.Value(self.func.arg_dict[arg].__str__(), arg.__str__()))
 
         type_str = self.func.ret_typ.__str__()
-        if self.is_extern_func:
+        if self.is_extern_c_func:
             type_str = "extern \"C\" " + type_str
         return cgen.FunctionDeclaration(cgen.Value(type_str,
                                         self.func.name), arg_decls)

@@ -173,9 +173,6 @@ class PolyPart(object):
         # attempt to improve locality and uniformize dependencies.
         self._level_no = _level_no
 
-        # a map of {parent_part -> dependence vector(part, parent_part)}
-        self.dep_vec_map = {}
-
         # tile shape, size, coordinate info
         self.dim_tile_info = {}
 

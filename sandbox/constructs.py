@@ -880,7 +880,7 @@ def getType(expr):
     elif (isinstance(expr, AbstractBinaryOpNode)):
         leftType = getType(expr.left)
         rightType = getType(expr.right)
-        return implictTypeConversion(leftType, rightType) 
+        return result_type(leftType, rightType)
     elif (isinstance(expr, AbstractUnaryOpNode)):
         return getType(expr.child)
     elif (isinstance(expr, Cast)):

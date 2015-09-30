@@ -301,7 +301,33 @@ class Pipeline:
         return G
     '''
 
-    def generate_code(self):
+    def generate_code(self, outputs_no_alloc=False,
+                            is_extern_c_func=False,
+                            are_io_void_ptrs=False):
+        """
+        Code generation for the entire pipeline starts here.
+
+        Flags:
+
+        1. "outputs_no_alloc"
+        (*) True => memory allocation code is not generated
+        (*) False => malloc / pool_malloc / multidim array
+
+
+        2. "is_extern_c_func"
+        (*) True => function declaration generated with ' extern "C" ' string
+                    (used when dynamic libs are needed for python wrapping)
+        (*) False => normal C function declaration
+
+
+        3. "are_io_void_ptrs"
+        (*) True => all inputs and outputs of the pipeline are expected, by the
+                    C function declaration, to be passed as 'void *'
+                    (used when dynamic libs are needed for python wrapping)
+        (*) False => inputs and outputs are to be passed as pointers of their
+                     data type. E.g: 'float *'
+        """
+
         return generate_code_for_pipeline(self)
 
     def merge_groups(self, g1, g2):
