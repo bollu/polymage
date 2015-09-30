@@ -9,7 +9,7 @@ schedule_logger.setLevel(logging.INFO)
 LOG = schedule_logger.log
 
 def get_parent_parts(part, group):
-     refs = part.getPartRefs()
+     refs = part.refs
      parent_parts = []
      for ref in refs:
          if ref.objectRef != part.comp:
@@ -425,7 +425,7 @@ def align_and_scale_parts(pipeline, group):
         LOG(log_level, "aligning and scaling with all refs...")
         # ***
 
-        refs = part.getPartRefs()
+        refs = part.refs
         for ref in refs:
             no_conflict = compatible_align(part_align, old_align)
             if old_align and not no_conflict:
@@ -1139,21 +1139,6 @@ def splitTile(self, group, slopeMin, slopeMax):
             numTileDims += 1
         else:
             stageDim = self.moveIndependentDim(i, group, stageDim)
-
-def simpleSchedule(self, paramEstimates):
-    """Generate a simple schedule for the stage."""
-    stageGroups = self.baseSchedule(paramEstimates)
-    for i in range(0, len(stageGroups)):
-        for p in stageGroups[i]:
-            p.liveout = True
-
-def isPartSelfDependent(self, part):
-    refs    = part.getPartRefs()
-    objRefs = [ ref.objectRef for ref in refs\
-                     if ref.objectRef == part.comp]
-    if len(objRefs) > 0:
-        return True
-    return False
 
 def getDomainDimCoeffs(self, sched, arg):
     domDimCoeff = {}

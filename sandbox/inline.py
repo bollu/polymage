@@ -18,7 +18,7 @@ def inline(childStage, parentStage, noSplit = False):
     if childStage.polyRep.polyParts and parentStage.polyRep.polyParts: 
         for childPart in childStage.polyRep.polyParts[childObj]:
             # Compute dependence relations between child and parent
-            childRefs = childPart.getPartRefs()
+            childRefs = childPart.refs
             if childPart.pred:
                 childRefs += childPart.pred.collect(Reference)
             childRefs = [ ref for ref in childRefs if ref.objectRef == parentFunc]

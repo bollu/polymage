@@ -189,11 +189,9 @@ class Pipeline:
         # Create a group for each pipeline function / reduction and compute
         # maps for parent and child relations between the groups
         self._groups, \
-         self._groupParents, \
-          self._groupChildren = \
-            self.buildInitialGroups(self._comp_objs,
-                                    self._comp_objs_parents,
-                                    self._comp_objs_children)
+         self._group_parents, \
+          self._group_children = \
+            self.build_initial_groups()
 
         # Store the initial pipeline graph. The compiler can modify 
         # the pipeline by inlining functions.
@@ -231,7 +229,6 @@ class Pipeline:
             for p in gparts:
                 p.liveout = True
             #fused_schedule(g)  # (g, param_estimates)
-            #g.polyRep.generate_code()
 
     @property
     def groups(self):
@@ -253,27 +250,28 @@ class Pipeline:
     def originalGraph(self):
         return self._initialGraph
     
-    def buildInitialGroups(self, compObjs, compObjsParents, compObjsChildren):
+    def build_initial_groups(self):
         """
-        Create a pipeline graph where the nodes are a group and the edges
-        represent the dependences between the groups. The initial graph
-        has each compute object in a separate group. 
+        Place each compute object of the pipeline in its own Group, and set the
+        dependence relations between the created Group objects.
         """
-        # TODO correct the comment
-        groupMap = {}
-        groupParents = {}
-        groupChildren = {}
-        for comp in compObjs:
-            groupMap[comp] = Group(self._ctx, [comp], self._param_constraints)
+        comp_objs = self._comp_objs
+        comp_parents = self._comp_objs_parents
+        comp_children = self._comp_objs_children
+        group_map = {}
+        group_parents = {}
+        group_children = {}
+        for comp in comp_objs:
+            group_map[comp] = Group(self._ctx, [comp], self._param_constraints)
 
-        for comp in groupMap:
-            groupParents[groupMap[comp]] = [ groupMap[p] for p in \
-                                                        compObjsParents[comp] ]
-            groupChildren[groupMap[comp]] = [ groupMap[c] for c in \
-                                                        compObjsChildren[comp] ]
+        for comp in group_map:
+            group_parents[group_map[comp]] = \
+                [ group_map[p] for p in comp_parents[comp] ]
+            group_children[group_map[comp]] = \
+                [ group_map[c] for c in comp_children[comp] ]
 
-        return groupMap, groupParents, groupChildren
-    
+        return group_map, group_parents, group_children
+
     def getParameters(self):
         params=[]
         for group in self._groups.values():
@@ -318,40 +316,40 @@ class Pipeline:
             self._groups[comp] = merged
 
         # Update the group parent map
-        parents = self._groupParents[g1] + self._groupParents[g2]
+        parents = self._group_parents[g1] + self._group_parents[g2]
         parents = [ p for p in parents if p is not g1 and p is not g2 ]
         parents = list(set(parents))
 
-        self._groupParents.pop(g1)
-        self._groupParents.pop(g2)
+        self._group_parents.pop(g1)
+        self._group_parents.pop(g2)
 
-        for g in self._groupParents:
-            if g1 in self._groupParents[g] or g2 in self._groupParents[g]:
-                self._groupParents[g].append(merged)
-            if g1 in self._groupParents[g]:
-                self._groupParents[g].remove(g1)
-            if g2 in self._groupParents[g]:
-                self._groupParents[g].remove(g2)
+        for g in self._group_parents:
+            if g1 in self._group_parents[g] or g2 in self._group_parents[g]:
+                self._group_parents[g].append(merged)
+            if g1 in self._group_parents[g]:
+                self._group_parents[g].remove(g1)
+            if g2 in self._group_parents[g]:
+                self._group_parents[g].remove(g2)
         
-        self._groupParents[merged] = parents
+        self._group_parents[merged] = parents
 
         # update the group child map
-        children = self._groupChildren[g1] + self._groupChildren[g2]
+        children = self._group_children[g1] + self._group_children[g2]
         children = [ c for c in children if c is not g1 and c is not g2 ]
         children = list(set(children))
 
-        self._groupChildren.pop(g1)
-        self._groupChildren.pop(g2)
+        self._group_children.pop(g1)
+        self._group_children.pop(g2)
 
-        for g in self._groupChildren:
-            if g1 in self._groupChildren[g] or g2 in self._groupChildren[g]:
-                self._groupChildren[g].append(merged)
-            if g1 in self._groupChildren[g]:
-                self._groupChildren[g].remove(g1)
-            if g2 in self._groupChildren[g]:
-                self._groupChildren[g].remove(g2)
+        for g in self._group_children:
+            if g1 in self._group_children[g] or g2 in self._group_children[g]:
+                self._group_children[g].append(merged)
+            if g1 in self._group_children[g]:
+                self._group_children[g].remove(g1)
+            if g2 in self._group_children[g]:
+                self._group_children[g].remove(g2)
         
-        self._groupChildren[merged] = children
+        self._group_children[merged] = children
 
         return merged
 
@@ -359,7 +357,7 @@ class Pipeline:
         # Assign level numbers to each group and sort accourding to the level
         group_order = {}
         groups = set(self._groups.values())
-        group_list = [ [g, len(self._groupParents[g])] for g in groups ]
+        group_list = [ [g, len(self._group_parents[g])] for g in groups ]
 
         level = 0
         while group_list:
@@ -369,7 +367,7 @@ class Pipeline:
                 group_order[assgn[0]] = level
                 group_list.remove(assgn)
                 # reduce the unassigned parent count for all the children
-                child_groups = self._groupChildren[assgn[0]]
+                child_groups = self._group_children[assgn[0]]
                 for assgn in group_list:
                     if assgn[0] in child_groups:
                         assgn[1] -= 1

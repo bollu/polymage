@@ -155,8 +155,9 @@ class PolyPart(object):
         self.expr = _expr
         self.pred = _pred
         self.comp = _comp
-        # Dependencies between values of computation objects
-        self.deps = []
+
+        # References made by self
+        self._refs = self.collect_part_refs()
         # Mapping between the input variables to the corresponding 
         # schedule dimension. A full affine schedule will need a 
         # transformation matrix. Currently we only shuffle the 
@@ -171,6 +172,9 @@ class PolyPart(object):
         # alignment and loop scaling passes. Both these passer
         # attempt to improve locality and uniformize dependencies.
         self._level_no = _level_no
+
+        # a map of {parent_part -> dependence vector(part, parent_part)}
+        self.dep_vec_map = {}
 
         # tile shape, size, coordinate info
         self.dim_tile_info = {}
@@ -187,13 +191,15 @@ class PolyPart(object):
 
     @property
     def align(self):
-        align_clone = [i for i in self._align]
-        return align_clone
+        return list(self._align)
 
     @property
     def scale(self):
-        scale_clone = [i for i in self._scale]
-        return scale_clone
+        return list(self._scale)
+
+    @property
+    def refs(self):
+        return list(self._refs)
 
     def set_align(self, align):
         self._align = [i for i in align]
@@ -203,11 +209,159 @@ class PolyPart(object):
         self._scale = [i for i in _scale]
         return
 
-    def getPartRefs(self):
+    def collect_part_refs(self):
         refs = self.expr.collect(Reference)
         if (self.pred):
             refs += self.pred.collect(Reference)
+
         return refs
+
+    # TESTME
+    def compute_dependence_vector(parent_part,
+                                  ref, scale_map = None):
+        def get_scale(s_map, p, i):
+            if s_map is not None:
+                return s_map[p][i]
+            return p.scale[i]
+
+        num_args = len(ref.arguments)
+        dim_out = parent_part.sched.dim(isl._isl.dim_type.out)
+        dep_vec = [ '-' for i in range(0, dim_out) ]
+
+        if isinstance(parent_part.comp, Reduction):
+            for i in range(1, dim_out):
+                dep_vec[i] = '*'
+            dep_vec[0] = self.level_no - parent_part.level_no
+            return (dep_vec, parent_part.level_no)
+
+        for i in range(0, num_args):
+            arg = ref.arguments[i]
+            pvar_sched_dim = parent_part.align[i]
+            if (isAffine(arg)):
+                dom_dim_coeff = \
+                    get_domain_dim_coeffs(self.sched, arg)
+                param_coeff = \
+                    get_param_coeffs(self.sched, arg)
+                # Parameter coefficents can also be considered to
+                # generate parametric shifts. Yet to be seen.
+
+                # Indexed with multiple variables.
+                if (len(dom_dim_coeff) > 1 or \
+                    (len(dom_dim_coeff) == 1 and len(param_coeff) >=1)):
+                    # Although there are multiple coefficients, if there is
+                    # only one variable coefficient and other parametric
+                    # coefficients, uniformization can be done with parametric
+                    # shifts. Full affine scheduling might be able to find a
+                    # way to uniformize dependencies. This has to be further
+                    # explored.
+                    #assert False
+                    dep_vec[pvar_sched_dim] = '*'
+                # Indexed with a single variable. This can either be an uniform
+                # access or can be uniformized with scaling when possible
+                elif len(dom_dim_coeff) == 1 and len(param_coeff) == 0:
+                    dim = (dom_dim_coeff.keys())[0]
+                    cvar_sched_dim = self.align[dim]
+
+                    pscale = get_scale(scale_map, parent_part, i)
+                    cscale = get_scale(scale_map, self, dim)
+
+                    assert Fraction(pscale).denominator == 1
+                    assert Fraction(cscale).denominator == 1
+
+                    if ((cvar_sched_dim == pvar_sched_dim) and \
+                        (dom_dim_coeff[dim] * pscale == cscale)):
+                        dep_vec[pvar_sched_dim] = \
+                                -get_constant_from_expr(arg, affine=True)
+                        access_scale = pscale
+                        if dep_vec[pvar_sched_dim] > 0:
+                            dep_vec[pvar_sched_dim] = \
+                                (int(math.ceil(dep_vec[pvar_sched_dim] *
+                                               access_scale)))
+                        else:
+                            dep_vec[pvar_sched_dim] = \
+                               (int(math.floor(dep_vec[pvar_sched_dim] *
+                                               access_scale)))
+                            #print(parent_part.sched)
+                            #print(self.sched)
+                            #print(self.expr)
+                            #print(dep_vec, ref)
+                    else:
+                        dep_vec[pvar_sched_dim] = '*'
+                elif len(dom_dim_coeff) == 0 and len(param_coeff) > 0:
+                    #assert False
+                    dep_vec[parentVarSchedDim] = '*'
+                # Only parametric or Constant access. The schedule in this
+                # dimension can be shifted to this point to uniformize the
+                # dependence
+                # In case the dimension in the parent has a constant size
+                # an upper and lower bound on the dependence vector can
+                # be computed.
+                elif len(domDimCoeff) + len(paramCoeff) == 0:
+                    # offsets should be set here.
+                    access_const = get_constant_from_expr(arg, affine = True)
+                    p_lower_bound = parent_part.sched.domain().dim_min(i)
+                    p_upper_bound = parent_part.sched.domain().dim_max(i)
+                    if ((p_lower_bound.is_cst() and
+                        p_lower_bound.n_piece() == 1) and
+                        (p_upper_bound.is_cst() and
+                        p_upper_bound.n_piece() == 1)):
+
+                        pscale = get_scale(scale_map, parent_part, i)
+
+                        low_vec_aff = (p_lower_bound.get_pieces())[0][1]
+                        val = low_vec_aff.get_constant_val()
+                        assert(val.get_den_si() == 1)
+                        low_vec = \
+                            int(math.floor((access_const - val.get_num_si()) *
+                                           pscale))
+
+                        high_vec_aff = (p_upper_bound.get_pieces())[0][1]
+                        val = high_vec_aff.get_constant_val()
+                        assert(val.get_den_si() == 1)
+                        high_vec = \
+                            int(math.ceil((access_const - val.get_num_si()) *
+                                          pscale))
+
+                        if high_vec == low_vec:
+                            dep_vec[pvar_sched_dim] = high_vec
+                        else:
+                            # Unpack dependence vectors when this hits
+                            #assert False
+                            #dep_vec[pvar_sched_dim] = (low_vec, high_vec)
+                            dep_vec[pvar_sched_dim] = '*'
+                    else:
+                        dep_vec[pvar_sched_dim] = '*'
+                else:
+                    assert False
+            else:  # if not isAffine(arg)
+                #assert(False)
+                dep_vec[pvar_sched_dim] = '*'
+
+        assert dep_vec[0] == '-'
+        dep_vec[0] = self.level_no - parent_part.level_no
+        for i in range(0, dim_out):
+            if (dep_vec[i] == '-'):
+                dep_vec[i] = 0
+        #for i in range(0, dim_out):
+        #    if (dep_vec[i] == '-'):
+        #        dep_vec[i] = '*'
+        #        #print(parent_part.sched)
+        #        #print(self.sched)
+        #        #print(i, ref)
+        #        p_lower_bound = parent_part.sched.range().dim_min(i)
+        #        p_upper_bound = parent_part.sched.range().dim_max(i)
+
+        #        c_lower_bound = self.sched.range().dim_min(i)
+        #        c_upper_bound = self.sched.range().dim_max(i)
+
+        #        if (c_lower_bound.is_equal(c_upper_bound) and
+        #            p_lower_bound.is_equal(p_upper_bound)):
+        #            dim_diff = c_upper_bound.sub(p_upper_bound)
+        #            if (dim_diff.is_cst() and dim_diff.n_piece() == 1):
+        #                aff = (dim_diff.get_pieces())[0][1]
+        #                val = aff.get_constant_val()
+        #                dep_vec[i] = (val.get_num_si())/(val.get_den_si())
+        return (dep_vec, parent_part.level_no)
 
     def __str__(self):
         partStr = "Schedule: " + self.sched.__str__() + '\n'\
@@ -703,152 +857,6 @@ class PolyRep(object):
         sched_map.foreach_map(printer)
         self.polyast.append(astbld.ast_from_schedule(sched_map))
 
-    def getDependenceVector(self, parentPart, childPart, ref, scaleMap = None):
-        def getScale(sMap, p, i):
-            if sMap is not None:
-                return sMap[p][i]
-            return p.scale[i]
-
-        numArgs = len(ref.arguments)
-        dimOut = parentPart.sched.dim(isl._isl.dim_type.out)
-        depVec = [ '-' for i in range(0, dimOut) ]
-
-        if isinstance(parentPart.comp, Accumulator):
-            for i in range(1, dimOut):
-                depVec[i] = '*'
-            depVec[0] = childPart.level_no - parentPart.level_no
-            return (depVec, parentPart.level_no)
-
-        for i in range(0, numArgs):
-            arg = ref.arguments[i]
-            parentVarSchedDim = parentPart.align[i]            
-            if (isAffine(arg)):
-                domDimCoeff = self.getDomainDimCoeffs(childPart.sched, arg)
-                paramCoeff = self.getParamCoeffs(childPart.sched, arg)
-                # Parameter coefficents can also be considered to
-                # generate parametric shifts. Yet to be seen.
-                
-                # Indexed with multiple variables.
-                if (len(domDimCoeff) > 1 or 
-                    (len(domDimCoeff) == 1 and len(paramCoeff) >=1)):
-                    # Although there are multiple coefficients. If 
-                    # there is only one variable coefficient and other
-                    # parametric coefficients. Uniformization can be 
-                    # done with parametric shifts. Full affine scheduling 
-                    # might be able to find a way to uniformize 
-                    # dependencies. This has to be further explored.
-                    #print(ref)
-                    #assert False
-                    depVec[parentVarSchedDim] = '*'
-                # Indexed with a single variable. This can either be an 
-                # uniform access or can be uniformized with scaling when 
-                # possible.
-                elif len(domDimCoeff) == 1 and len(paramCoeff) == 0:                    
-                    dim = (domDimCoeff.keys())[0]
-                    childVarSchedDim = childPart.align[dim]
-
-                    pscale = getScale(scaleMap, parentPart, i)
-                    cscale = getScale(scaleMap, childPart, dim)
-
-                    assert Fraction(pscale).denominator == 1
-                    assert Fraction(cscale).denominator == 1
-
-                    if ((childVarSchedDim == parentVarSchedDim) and 
-                        (domDimCoeff[dim] * pscale == cscale)):
-                        depVec[parentVarSchedDim] = \
-                                -get_constant_from_expr(arg, affine=True)
-                        accessScale = pscale
-                        if depVec[parentVarSchedDim] > 0:
-                            depVec[parentVarSchedDim] = \
-                                (int(math.ceil(depVec[parentVarSchedDim] *
-                                accessScale)))
-                        else:         
-                            depVec[parentVarSchedDim] = \
-                               (int(math.floor(depVec[parentVarSchedDim] *
-                                accessScale)))
-                            #print(parentPart.sched)
-                            #print(childPart.sched)
-                            #print(childPart.expr)
-                            #print(depVec, ref)
-                    else:
-                        depVec[parentVarSchedDim] = '*'
-                elif len(domDimCoeff) == 0 and len(paramCoeff) > 0:
-                    #print(ref)
-                    #assert False
-                    depVec[parentVarSchedDim] = '*'
-                # Only parametric or Constant access. The schedule in this 
-                # dimension can be shifted to this point to uniformize the 
-                # dependence.
-                # In case the dimension in the parent has a constant size
-                # an upper and lower bound on the dependence vector can 
-                # be computed.
-                elif len(domDimCoeff) + len(paramCoeff) == 0:
-                    # offsets should be set here.
-                    accessConstant = get_constant_from_expr(arg, affine = True)
-                    parentLowerBound = parentPart.sched.domain().dim_min(i)
-                    parentUpperBound = parentPart.sched.domain().dim_max(i)
-                    if ((parentLowerBound.is_cst() and 
-                        parentLowerBound.n_piece() == 1) and
-                        (parentUpperBound.is_cst() and
-                        parentUpperBound.n_piece() == 1)):
-                          
-                        pscale = getScale(scaleMap, parentPart, i)
-
-                        lowVecAff = (parentLowerBound.get_pieces())[0][1]
-                        val = lowVecAff.get_constant_val()
-                        assert(val.get_den_si() == 1)
-                        lowVec = int(math.floor((accessConstant - val.get_num_si()) *
-                                             pscale))
-
-                        highVecAff = (parentUpperBound.get_pieces())[0][1]
-                        val = highVecAff.get_constant_val()
-                        assert(val.get_den_si() == 1)
-                        highVec = int(math.ceil((accessConstant - val.get_num_si()) *
-                                             pscale))
-
-                        if highVec == lowVec:
-                            depVec[parentVarSchedDim] = highVec
-                        else:
-                            # Unpack dependence vectors when this hits
-                            #print(ref)
-                            #assert False
-                            #depVec[parentVarSchedDim] = (lowVec, highVec)
-                            depVec[parentVarSchedDim] = '*'
-                    else:
-                        depVec[parentVarSchedDim] = '*'
-                else:
-                    assert False
-            else:
-                #print(ref)
-                #assert(False)
-                depVec[parentVarSchedDim] = '*'
-
-        assert depVec[0] == '-'
-        depVec[0] = childPart.level_no - parentPart.level_no
-        for i in range(0, dimOut):
-            if (depVec[i] == '-'):
-                depVec[i] = 0
-        #for i in range(0, dimOut):
-        #    if (depVec[i] == '-'):
-        #        depVec[i] = '*'
-        #        print(parentPart.sched)
-        #        print(childPart.sched)
-        #        print(i, ref)
-        #        parentLowerBound = parentPart.sched.range().dim_min(i)
-        #        parentUpperBound = parentPart.sched.range().dim_max(i)
-                    
-        #        childLowerBound  = childPart.sched.range().dim_min(i)
-        #        childUpperBound = childPart.sched.range().dim_max(i)
-
-        #        if (childLowerBound.is_equal(childUpperBound) and
-        #            parentLowerBound.is_equal(parentUpperBound)):
-        #            dimDiff = childUpperBound.sub(parentUpperBound)
-        #            if (dimDiff.is_cst() and dimDiff.n_piece() == 1):
-        #                aff = (dimDiff.get_pieces())[0][1]
-        #                val = aff.get_constant_val()
-        #                depVec[i] = (val.get_num_si())/(val.get_den_si())
-        return (depVec, parentPart.level_no)
-
 
     def isCompSelfDependent(self, comp):
         parts = self.poly_parts[comp]
@@ -858,7 +866,7 @@ class PolyRep(object):
         return False
 
     def isPartSelfDependent(self, part):
-        refs    = part.getPartRefs()
+        refs    = part.refs
         objRefs = [ ref.objectRef for ref in refs\
                          if ref.objectRef == part.comp]
         if len(objRefs) > 0:
@@ -866,34 +874,12 @@ class PolyRep(object):
         return False
 
     def isParent(self, part1, part2): 
-        refs    = part2.getPartRefs()
+        refs    = part2.refs
         objRefs = [ ref.objectRef for ref in refs\
                          if ref.objectRef == part1.comp]
         if len(objRefs) > 0:
             return True
         return False
-
-    def getDomainDimCoeffs(self, sched, arg):
-        domDimCoeff = {}
-        if (isAffine(arg)):
-            coeff = get_affine_var_and_param_coeff(arg)
-            for item in coeff:
-                if type(item) == Variable:
-                    dim = sched.find_dim_by_name(isl._isl.dim_type.in_,
-                                                 item.name)
-                    domDimCoeff[dim] = coeff[item]
-        return domDimCoeff
-
-    def getParamCoeffs(self, sched, arg):
-        paramCoeff = {}
-        if (isAffine(arg)):
-            coeff = get_affine_var_and_param_coeff(arg)
-            for item in coeff:
-                if type(item) == Parameter:
-                    dim = sched.find_dim_by_name(isl._isl.dim_type.param,
-                                                 item.name)
-                    paramCoeff[dim] == coeff[item]
-        return paramCoeff
 
     def getPartSize(self, part, param_estimates):
         size = None
@@ -948,6 +934,28 @@ class PolyRep(object):
                 polystr = polystr + '\n' + aststr
         return polystr
 
+
+def get_domain_dim_coeffs(sched, arg):
+    dom_dim_coeff = {}
+    if (isAffine(arg)):
+        coeff = get_affine_var_and_param_coeff(arg)
+        for item in coeff:
+            if type(item) == Variable:
+                dim = sched.find_dim_by_name(isl._isl.dim_type.in_,
+                                             item.name)
+                dom_dim_coeff[dim] = coeff[item]
+    return dom_dim_coeff
+
+def get_param_coeffs(sched, arg):
+    param_coeff = {}
+    if (isAffine(arg)):
+        coeff = get_affine_var_and_param_coeff(arg)
+        for item in coeff:
+            if type(item) == Parameter:
+                dim = sched.find_dim_by_name(isl._isl.dim_type.param,
+                                             item.name)
+                param_coeff[dim] == coeff[item]
+    return param_coeff
 
 def map_coeff_to_dim(coeff):
     variables = list(coeff.keys())

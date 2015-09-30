@@ -13,7 +13,7 @@ def checkRefs(childStage, parentStage):
     if childStage.polyRep.poly_parts and parentStage.polyRep.poly_doms:
         for childPart in childStage.polyRep.poly_parts[childObj]:
             # Compute dependence relations between child and parent
-            childRefs = childPart.getPartRefs()
+            childRefs = childPart.refs
             if childPart.pred:
                 childRefs += childPart.pred.collect(Reference)
             # It is not generally feasible to check the validity of

@@ -50,7 +50,7 @@ def getDimSize(self, interval, param_estimates):
 def getGroupDependenceVectors(self, group, scaleMap = None):
     depVecs = []   
     for part in group:
-        refs = part.getPartRefs()
+        refs = part.refs
         for ref in refs:
             if ref.objectRef in self.poly_parts:
                 for pp in self.poly_parts[ref.objectRef]:
@@ -61,61 +61,9 @@ def getGroupDependenceVectors(self, group, scaleMap = None):
                     depVecs.append(depVec)  
     return depVecs
 
-def alignWithGroup(self, part, group):
-
-    def getDomainDimsInvolved(sched, arg):
-        domDims = []
-        if (isAffine(arg)):
-            coeff = getAffineVarAndParamCoeff(arg)
-            for item in coeff:
-                if type(item) == Variable:
-                    dim = sched.find_dim_by_name(isl._isl.dim_type.in_,
-                                                 item.name)
-                    domDims.append(dim)
-        return domDims
-
-    dimIn      = part.sched.dim(isl._isl.dim_type.in_)
-    refs       = part.getPartRefs()
-    # Avoiding Input references this should be revisited at some point
-    parentRefs = [ ref for ref in refs \
-                   if ref.objectRef in self.poly_parts ]
-    dimAlignMap = {}           
-    for ref in parentRefs:
-        parentParts = self.poly_parts[ref.objectRef]
-        # Filter out self references
-        groupParentParts = [ pp for pp in parentParts \
-                             if pp in group and pp != part]
-        if not groupParentParts:
-            continue
-        numArgs = len(ref.arguments)
-        for i in range(0, numArgs):
-            arg = ref.arguments[i]
-            domDims = getDomainDimsInvolved(part.sched, arg)
-            # This can get tricky with multiple parts have to revisit
-            for repParentPart in groupParentParts:
-                for dim in domDims:
-                    if dim not in dimAlignMap:
-                        dimAlignMap[dim] = [repParentPart.align[i]]
-                    if repParentPart.align[i] not in dimAlignMap[dim]:
-                        dimAlignMap[dim].append(repParentPart.align[i])
-
-    newAlign = [ '-' for i in range(0, part.sched.dim(isl._isl.dim_type.in_))]
-    for i in range(0, dimIn):
-        alignDim = None
-        # Check if the dimension is uniquely mapped
-        if i in dimAlignMap and len(dimAlignMap[i]) == 1:
-            alignDim = dimAlignMap[i][0]
-        # Remove the assigned dimension from the maps    
-        for dim in dimAlignMap:
-            if alignDim in dimAlignMap[dim]:
-                dimAlignMap[dim].remove(alignDim)
-        if alignDim is not None:
-            newAlign[i] = alignDim
-    return newAlign 
-
 def isGroupDependentOnPart(self, group, parentPart):
     for part in group:
-        refs = part.getPartRefs()
+        refs = part.refs
         # This can be more precise
         objRefs = [ ref.objectRef for ref in refs\
                      if ref.objectRef == parentPart.comp]
@@ -129,29 +77,6 @@ def estimateReuse(self, part1, part2):
         if self.isParent(part1, part2):
             return 1
         return 0
-
-def findParentGroups(self, part, groups):
-    parentParts = []
-    for comp in self.poly_parts:
-        for p in self.poly_parts[comp]:
-            if self.isParent(p, part):
-                parentParts.append(p)
-    parentGroups = []        
-    for p in parentParts:        
-        for g in groups:
-            if (p in g) and (g not in parentGroups):
-                parentGroups.append(g)
-    return parentGroups
-
-def findChildGroups(self, parentGroup, groups):
-    childGroups = []
-    for p in parentGroup:
-        for child in groups:
-            if child != parentGroup and\
-              self.isGroupDependentOnPart(child, p) and\
-              child not in childGroups:
-                childGroups.append(child)
-    return childGroups             
 
 def findLeafGroups(self, groups):
     leafGroups = []
@@ -186,7 +111,7 @@ def groupStages(self, param_estimates):
                     self.computeRelativeScalingFactors(parts[i], parts[j])
 
     def scaleToParentGroup(part, group):
-        refs       = part.getPartRefs()
+        refs = part.refs
         # Avoiding Input references this should be revisited at some point
         parentRefs = [ ref for ref in refs \
                        if ref.objectRef in self.poly_parts ]
