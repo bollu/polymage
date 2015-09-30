@@ -298,7 +298,7 @@ class CFunctionDecl(AbstractCgenObject):
                 # print the variable type of input and output arrays (CPointer) as
                 # 'void *', so as to handle it using ctypes.c_void_p()
                 if isinstance(arg.typ, CPointer):
-                    arg_decls.append(cgen.Value('void *', arg.__str__()+'_void_arg'))
+                    arg_decls.append(cgen.Value('void *', arg.__str__()))
                 else:
                     arg_decls.append(cgen.Value(self.func.arg_dict[arg].__str__(), arg.__str__()))
 

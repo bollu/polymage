@@ -304,6 +304,7 @@ class Pipeline:
     def generate_code(self, outputs_no_alloc=False,
                             is_extern_c_func=False,
                             are_io_void_ptrs=False):
+
         """
         Code generation for the entire pipeline starts here.
 
@@ -328,7 +329,9 @@ class Pipeline:
                      data type. E.g: 'float *'
         """
 
-        return generate_code_for_pipeline(self)
+        return generate_code_for_pipeline(self, outputs_no_alloc,
+                                                is_extern_c_func,
+                                                are_io_void_ptrs)
 
     def merge_groups(self, g1, g2):
         # Get comp objects from both groups 

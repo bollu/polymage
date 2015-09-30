@@ -947,8 +947,8 @@ def generate_code_for_pipeline(pipeline,
         cpipe_name = 'pipeline_' + pipeline.name
         cpipe = genc.CFunction(genc.c_void, cpipe_name, pipeline_args)
         cpipe_decl = genc.CFunctionDecl(cpipe,
-                                        is_extern_c_func=True,
-                                        are_io_void_ptrs=True)
+                                        is_extern_c_func,
+                                        are_io_void_ptrs)
         cpipe_body = genc.CFunctionBody(cpipe_decl)
 
         func_block.add(cpipe_body)
