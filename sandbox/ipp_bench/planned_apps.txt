@@ -1,0 +1,123 @@
+Data Types
+==========
+- char  (8)
+- short (16)
+- float (32f)
+
+
+Image Sizes
+===========
+- 32x32
+- 64x64
+- 128x128
+- 512x512
+- 1024x1024
+- 2048x2048
+- 4096x4096
+
+
+Image Processing
+================
+- Abs Diff
+- Colour Conversion
+    -- RGB to YUV
+    -- YUV to RGB
+    -- RGB to YCbCr
+    -- YCbCr to RGB
+    -- RGB to HSV
+    -- HSV to RGB
+    -- RGB to Lab
+    -- Lab to RGB
+- Colour - Grayscale Conversions
+    -- RGB to Gray
+    -- DemosaicAHD
+    (+) [ http://nagykrisztian.com/store/hirakawa.pdf ]
+- Thresholding Operation
+    -- Threshold_GT/LT
+    -- ComputeThreshold_Otsu
+- Morphological Operations
+    -- Dilate
+    -- Erode
+    -- MorphTopHatBorder
+    -- MorphBlackHatBorder
+- Filters
+    -- FilterBox (Blur)
+    -- FilterBilateral
+    -- DecimateFilterRow/Column
+    -- MedianFilter
+    -- Separable Filters (Row, Column)
+    -- Weiner Filter
+    -- Convolution
+    -- Unsharp Mask (NA)
+    -- Deconvolution (Later)
+    # Pick ->
+    -- Prewitt Filter 3x3 (Horiz, Vert)
+    -- Sobel 3x3 / 5x5 (Horiz, Vert)
+    -- Sobel 3x3 / 5x5 (Horiz, Vert)
+    -- II order Sobel 3x3 / 5x5 (Horiz, Vert)
+    -- Sobel Cross 3x3 / 5x5
+    -- Laplacian Filter 3x3 / 5x5
+    -- Gaussian Filter 3x3 / 5x5
+    -- High Pass Filter 3x3 / 5x5
+    -- Sharpening Filter 3x3
+- Image Statistics Functions
+    -- Sum
+        Computes the sum of image pixel values.
+    -- Integral
+        Transforms an image to the integral representation.
+    -- Tilted Integral (should we?)
+        Transforms an image to the tilted integral representation.
+    -- Mean Standard Deviation
+        Computes the mean and standard deviation of image pixel values
+    -- Histogram
+        Computes the intensity histogram of an image.
+    -- Histogram Even (Uniform Bins)
+    -- Min & Max
+        Computes the minimum and maximum of image pixel values.
+    -- Local Maxima/Minima (FindPeaks3x3)
+        Finds coordinates of peaks (maximums or minimums) with absolute
+        value exceeding threshold value.
+    -- Image Norms
+        --- L^1
+        --- L^2
+        --- L^inf Norms
+    -- Image Quality Index
+- Image Geometry Functions
+    -- Antialiasing Interpolation
+    -- Nearest Neighbour Interpolation
+    -- Linear Interpolation
+    -- Cubic Interpolation
+    -- Lanczos Interpolation
+    -- Super Sampling Interpolation
+    -- * Omitting Warp Affine Resizing for now *
+- Computer Vision
+    -- Harris Corner Detection
+    -- Detection using Eigen Value, Eigen Vectors
+    -- Line Suppression
+    -- Histogram of Oriented Gradients
+    -- Hough Transform
+    -- Hough Lines
+    -- Optical Flow (Lucas-Kanade)
+    -- Pyramid Functions
+        --- Laplacian Pyramid
+        --- PyramidLayerDown
+        --- PyramidLayerUp
+    -- Wavelet Transform Functions (* Move this to Signal Processing *)
+        --- Haar
+
+Leaving Behind :
+    -- Adaptive Threshold
+        --- Box
+        --- Gaussian (uses exp function)
+    -- Distance Transform ( Interesting! )
+    -- Flood Fill
+    -- Gaussian Mixture Model for foreground / background subtraction
+    (+) [ http://www.zoranz.net/Publications/zivkovic2004ICPR.pdf ]
+    -- Pattern Recognition
+    -- Local Binary Patterns
+
+*** Have both Single and Multichannel variants wherever possible ****
+
+
+Signal Processing
+=================
