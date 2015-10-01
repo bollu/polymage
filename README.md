@@ -12,14 +12,15 @@ On a Fedora, these can be installed with 'sudo yum -y install opencv python-open
 
 4) Python bindings for isl  
 islpy http://documen.tician.de/islpy/  
-This can be easily installed via python-pip  
-$ sudo yum -y install python-pip $ sudo pip install islpy  
-C code generation library  
-cgen https://bitbucket.org/rmullapudi/cgen.git  
+This can be easily installed via python3-pip  
+$ sudo yum -y install python3-pip  
+$ sudo pip3 install islpy  
+C code generation library:  
+cgen https://github.com/inducer/cgen.git  
 
 5) Python packages numpy, pytest. These can be installed via  
-(on a Fedora) $ sudo yum -y install python-numpy python3-pytest  
-(on Ubuntu) $ sudo apt-get install python-numpy python3-pytest  
+(on a Fedora) $ sudo yum -y install python3-numpy python3-pytest  
+(on Ubuntu) $ sudo apt-get install python3-numpy python3-pytest  
 
 **PROJECT STRUCTURE**
 sandbox is the main directory of interest and it contains most of the code.  
