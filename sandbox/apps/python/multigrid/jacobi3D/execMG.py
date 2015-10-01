@@ -47,24 +47,25 @@ def calcNorm(U_, dataDict):
 
     return
 
-def callVCycle(U_, W_, dataDict):
+def callMGCycle(U_, W_, dataDict):
     n = dataDict['n']
 
     gridDict = dataDict['gridDict']
     F_       = gridDict['F_']
 
     # lib function name
-    vCycleFunc = dataDict['pipeline_vcycle']
+    cycleName = "pipeline_"+dataDict['cycle']+"cycle"
+    mgCycleFunc = dataDict[cycleName]
 
     # lib function args
-    vCycleArgs = []
-    vCycleArgs += [ctypes.c_int(n)]
-    vCycleArgs += [ctypes.c_void_p(F_.ctypes.data)]
-    vCycleArgs += [ctypes.c_void_p(U_.ctypes.data)]
-    vCycleArgs += [ctypes.c_void_p(W_.ctypes.data)]
+    mgCycleArgs = []
+    mgCycleArgs += [ctypes.c_int(n)]
+    mgCycleArgs += [ctypes.c_void_p(F_.ctypes.data)]
+    mgCycleArgs += [ctypes.c_void_p(U_.ctypes.data)]
+    mgCycleArgs += [ctypes.c_void_p(W_.ctypes.data)]
 
     # call lib function
-    vCycleFunc(*vCycleArgs)
+    mgCycleFunc(*mgCycleArgs)
 
     return
 
@@ -86,11 +87,11 @@ def multigrid(dataDict):
     while it < nit :
         it += 1
         if it%2 == 1:
-            callVCycle(U_, W_, dataDict)
+            callMGCycle(U_, W_, dataDict)
             if timer == False:
                 calcNorm(W_, dataDict)
         else:
-            callVCycle(W_, U_, dataDict)
+            callMGCycle(W_, U_, dataDict)
             if timer == False:
                 calcNorm(U_, dataDict)
 

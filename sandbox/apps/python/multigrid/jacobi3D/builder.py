@@ -4,6 +4,7 @@ import subprocess
 from cpp_compiler    import cCompile
 from loader          import loadLib
 from polymage_vcycle import vCycle
+from polymage_wcycle import wCycle
 
 sys.path.insert(0, '../../../../optimizer')
 sys.path.insert(0, '../../../../frontend')
@@ -49,9 +50,15 @@ def graphGen(pipe, fileName, dataDict):
     return
 '''
 
-def buildVCycle(impipeDict, dataDict):
-    # construct the multigrid v-cycle pipeline
-    mg = vCycle(impipeDict, dataDict)
+def buildMGCycle(impipeDict, dataDict):
+    cycleType = dataDict['cycle']
+
+    if cycleType == 'V':
+        # construct the multigrid v-cycle pipeline
+        mg = vCycle(impipeDict, dataDict)
+    elif cycleType == 'W':
+        # construct the multigrid w-cycle pipeline
+        mg = wCycle(impipeDict, dataDict)
 
     n = impipeDict['n']
     N = dataDict['N']

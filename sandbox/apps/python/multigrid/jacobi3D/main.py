@@ -4,7 +4,7 @@ import sys
 
 from init    import initAll, initNorm
 from printer import printHeader, printConfig, printLine
-from builder import createLib, buildVCycle
+from builder import createLib, buildMGCycle
 from execMG  import multigrid
 
 app = "jacobi-3d"
@@ -33,8 +33,9 @@ def main():
 
     printConfig(dataDict)
     #-------------------------------------------------------------------
-    createLib(       None,   "norm", impipeDict, dataDict, dataDict['mode'])
-    createLib(buildVCycle, "vcycle", impipeDict, dataDict, dataDict['mode'])
+    cycleName = dataDict['cycle']+"cycle"
+    createLib(        None,    "norm", impipeDict, dataDict, dataDict['mode'])
+    createLib(buildMGCycle, cycleName, impipeDict, dataDict, dataDict['mode'])
     #-------------------------------------------------------------------
     initNorm(dataDict)
     multigrid(dataDict)

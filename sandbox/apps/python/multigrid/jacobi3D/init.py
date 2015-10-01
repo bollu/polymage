@@ -101,9 +101,10 @@ def initParams(dataDict):
     return dataDict
 
 def getInput(dataDict):
-    if len(sys.argv) > 2:
+    if len(sys.argv) > 3:
         dataDict['mode'] = sys.argv[1]
-        dataDict['nit']  = int(sys.argv[2])
+        dataDict['cycle'] = sys.argv[2]
+        dataDict['nit']  = int(sys.argv[3])
     else:
         printUsage()
         sys.exit(1)
