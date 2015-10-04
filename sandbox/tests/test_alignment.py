@@ -37,7 +37,8 @@ cond4D = Condition(x, '>=', 1) & Condition(x, '<=', R) & \
          Condition(z, '>=', 1) & Condition(z, '<=', P) & \
          Condition(w, '>=', 1) & Condition(w, '<=', B)
 
-def test_gray():
+#def test_gray():
+def gray():
     img = Image(Float, "img", [R+2, C+2, 3])
 
     gray = Function(([x, y], [row, col]), Float, "gray")
@@ -65,7 +66,8 @@ def test_flip():
 
     return
 
-def test_robin():
+#def test_robin():
+def robin():
     img = Image(Short, "img", [R+2, C+2, 3])
 
     robin1 = Function(([c, x, y], [cr, row, col]), Short, "robin1")
@@ -82,7 +84,8 @@ def test_robin():
 
     return
 
-def test_high_dim():
+#def test_high_dim():
+def high_dim():
     img = Image(Short, "img", [B+2, P+2, R+2, C+2])
 
     random0 = Function(([w, z, y, x], [box, plane, row, col]), \
