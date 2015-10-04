@@ -119,21 +119,22 @@ def add_constraints(obj, ineqs, eqs):
 
     return obj
 
-def extract_value_dependence(part, ref, refPolyDom):
+def extract_value_dependence(part, ref, ref_poly_dom):
     # Dependencies are calculated between values. There is no storage
     # mapping done yet.
     assert(part.sched)
     deps = []
-    accessRegion = isl.BasicSet.universe(refPolyDom.dom_set.get_space())
-    partDom = part.sched.domain().align_params(refPolyDom.dom_set.get_space())
-    accessRegion = accessRegion.align_params(partDom.get_space())
+    access_region = isl.BasicSet.universe(ref_poly_dom.dom_set.get_space())
+    part_dom = \
+        part.sched.domain().align_params(ref_poly_dom.dom_set.get_space())
+    access_region = access_region.align_params(part_dom.get_space())
 
-    rel = isl.BasicMap.from_domain_and_range(partDom, accessRegion)
-    dimOut = rel.dim(isl._isl.dim_type.out)
-    sourceDims = [ ('out', i) for i in range(0, dimOut)]
-    numArgs = len(ref.arguments)                
+    rel = isl.BasicMap.from_domain_and_range(part_dom, access_region)
+    dim_out = rel.dim(isl._isl.dim_type.out)
+    source_dims = [ ('out', i) for i in range(0, dim_out)]
+    num_args = len(ref.arguments)
 
-    for i in range(0, numArgs):
+    for i in range(0, num_args):
         arg = ref.arguments[i]
         # If the argument is not affine the dependence reflects that
         # the computation may depend on any value of the referenced object
@@ -141,8 +142,8 @@ def extract_value_dependence(part, ref, refPolyDom):
             coeff = get_affine_var_and_param_coeff(arg)
             coeff = map_coeff_to_dim(coeff)
 
-            coeff[('constant', 0)] = get_constant_from_expr(arg, affine = True)
-            coeff[sourceDims[i]] = -1
+            coeff[('constant', 0)] = get_constant_from_expr(arg, affine=True)
+            coeff[source_dims[i]] = -1
             rel = add_constraints(rel, [], [coeff])
     if not rel.is_empty():
         deps.append(PolyDep(ref.objectRef, part.comp, rel))
@@ -377,7 +378,6 @@ class PolyDomain(object):
     def __str__(self):
         return "Domain: " + self.dom_set.__str__()
 
-# NOTE: Dead Code?
 class PolyDep(object):
     def __init__(self, _producer_obj, _consumer_obj, _rel):
         self.producer_obj = _producer_obj

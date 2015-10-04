@@ -560,7 +560,7 @@ class Function(object):
         # * Body of a function is composed of Case and Expression constructs.
         # * The Case constructs are expected to be non-overlapping. Therefore,
         #   value at each point in the function domain is uniquely defined.
-        self._body      = None
+        self._body      = []
 
     @property
     def name(self):
@@ -586,8 +586,7 @@ class Function(object):
         return self._body
     @defn.setter
     def defn(self, _def):
-        assert(self._body == None)
-        self._body = []
+        assert(self._body == [])
         for case in _def:
             case = Value.numericToValue(case)
             assert(isinstance(case, (Case, AbstractExpression)))
@@ -730,8 +729,7 @@ class Reduction(Function):
 
     @defn.setter
     def defn(self, _def):
-        assert(self._body == None)
-        self._body = []
+        assert(self._body == [])
         for case in _def:
             case = Value.numericToValue(case)
             assert(isinstance(case, (Case, Reduce)))

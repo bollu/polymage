@@ -14,6 +14,7 @@ from expression import *
 from codegen import *
 from schedule import *
 from poly import *
+from bounds import *
 
 def get_parents_from_comp_obj(comp):
     refs = comp.getObjects(Reference)
@@ -70,7 +71,7 @@ class Group:
         # Function class. Input images cannot be part of a group.
         for comp in _comp_objs:
             assert(isinstance(comp, Function))
-            assert(not isinstance(comp, Image))
+            #assert(not isinstance(comp, Image))
 
         self._comp_objs  = _comp_objs
         self._polyrep = None
@@ -202,6 +203,10 @@ class Pipeline:
         for f in self._groups:
             inputs = inputs + self._groups[f].inputs
         self._inputs = list(set(inputs))
+
+        # Checking bounds
+        self.bounds_check_pass()
+
 
         ''' GROUPING '''
         # TODO check grouping validity
@@ -404,27 +409,27 @@ class Pipeline:
         
         return sorted(group_order.items(), key=lambda x: x[1])
 
-    def boundsCheckPass(self):
+    def bounds_check_pass(self):
         """ 
-            Bounds check pass analyzes if function values used in the compute
-            objects are within the domain of the functions. Static analysis is
-            only possible when the references to function values are regular
-            i.e. they are not data dependent. We restrict ourselves to affine
-            references.
+        Bounds check pass analyzes if function values used in the compute
+        objects are within the domain of the functions. Static analysis is
+        only possible when the references to function values are regular
+        i.e. they are not data dependent. We restrict ourselves to affine
+        references.
         """
         for group in self._groups.values():
-            for child in group.childGroups:
-                checkRefs(child, group)              
+            for child in self._group_children[group]:
+                check_refs(child, group)
             for inp in group.inputs:
                 # Creating a computation group for an input which is given
                 # is meaningless. Ideally it should be done in a clean way
                 # currently abusing group for construction of a polyhedral
                 # representation
-                inpGroup = Group([inp], self._ctx, self._param_constraints,
-                                 self._param_estimates, self._tileSizes,
-                                 self._sizeThreshold, self._groupSize,
-                                 self._outputs)
-                checkRefs(group, inpGroup)
+                inp_group = Group(self._ctx, [inp], self._param_constraints)
+
+                check_refs(group, inp_group)
+
+        return
 
     def inlinePass(self):
         """ 

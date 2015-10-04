@@ -1,40 +1,51 @@
 from __future__ import absolute_import, division, print_function
 
-def checkRefs(childStage, parentStage):
-    # Check refs works only on non-fused stages. It can be made to
-    # work with fused stages as well. However, it might serve very
-    # little use.
-    assert (not childStage.isFused() and not parentStage.isFused())
-    parentFunc = parentStage.computeObjs[0]
-    childObj   = childStage.computeObjs[0]
+from constructs import isAffine
+from poly import extract_value_dependence
 
-    # Only verifying if both child and  parent stage have a polyhedral 
+def check_refs(child_group, parent_group):
+    # Check refs works only on non-fused groups. It can be made to
+    # work with fused groups as well. However, it might serve very
+    # little use.
+    # assert (not child_group.isFused() and not parent_group.isFused())
+
+    # get the only comp_obj in child and parent groups
+    parent_func = parent_group._comp_objs[0]
+    child_obj = child_group._comp_objs[0]
+
+    # Only verifying if both child and  parent group have a polyhedral
     # representation
-    if childStage.polyRep.poly_parts and parentStage.polyRep.poly_doms:
-        for childPart in childStage.polyRep.poly_parts[childObj]:
+    if child_group.polyRep.poly_parts and parent_group.polyRep.poly_doms:
+        for child_part in child_group.polyRep.poly_parts[child_obj]:
             # Compute dependence relations between child and parent
-            childRefs = childPart.refs
-            if childPart.pred:
-                childRefs += childPart.pred.collect(Reference)
+            child_refs = child_part.refs
+            if child_part.pred:
+                child_refs += child_part.pred.collect(Reference)
+
             # It is not generally feasible to check the validity of
             # and access when the reference is not affine. 
             # Approximations can be done but for now skipping them.
-            def affineParentRef(ref, parentFunc):
+            def affine_ref(ref):
                 affine = True
                 for arg in ref.arguments:
-                    affine = affine and isAffine(arg) 
-                return affine and ref.objectRef == parentFunc    
-            childRefs = [ ref for ref in childRefs if \
-                            affineParentRef(ref, parentFunc)]
+                    affine = affine and isAffine(arg)
+                return affine
+
+            # filter out only the affine refs to parent_func
+            child_refs = [ ref for ref in child_refs \
+                                 if ref.objectRef == parent_func and
+                                    affine_ref(ref) ]
 
             deps = []
-            for ref in childRefs:
-                deps += extract_value_dependence(childPart, ref,
-                             parentStage.polyRep.poly_doms[parentFunc])
+            parent_dom = parent_group.polyRep.poly_doms[parent_func]
+            for ref in child_refs:
+                deps += extract_value_dependence(child_part, ref, parent_dom)
             for dep in deps:
-                diff = dep.rel.range().subtract(
-                        parentStage.polyRep.poly_doms[parentFunc].domSet)
+                diff = dep.rel.range().subtract(parent_dom.dom_set)
                 if(not diff.is_empty()):
-                    raise TypeError("Reference out of domain", childStage, 
-                                     parentStage, diff)
+                    print("referenced    =", dep.rel.range())
+                    print("parent domain =", parent_dom.dom_set)
+                    raise TypeError("Reference out of domain", child_group,
+                                     parent_group, diff)
 
+    return
