@@ -2,6 +2,13 @@ from __future__ import absolute_import, division, print_function
 
 from constructs import isAffine
 from poly import extract_value_dependence
+import logging
+
+# LOG CONFIG #
+bounds_logger = logging.getLogger("bounds.py")
+bounds_logger.setLevel(logging.ERROR)
+
+LOG = bounds_logger.log
 
 def check_refs(child_group, parent_group):
     # Check refs works only on non-fused groups. It can be made to
@@ -42,9 +49,22 @@ def check_refs(child_group, parent_group):
                 deps += extract_value_dependence(child_part, ref, parent_dom)
             for dep in deps:
                 diff = dep.rel.range().subtract(parent_dom.dom_set)
+                # ***
+                ref_str = "referenced    = "+str(dep.rel.range())
+                dom_str = "parent domain = "+str(parent_dom.dom_set)
+                log_level = logging.DEBUG
+                LOG(log_level, ref_str)
+                LOG(log_level, dom_str)
+                # ***
                 if(not diff.is_empty()):
-                    print("referenced    =", dep.rel.range())
-                    print("parent domain =", parent_dom.dom_set)
+                    # ***
+                    log_level = logging.ERROR
+                    LOG(log_level, "_______________________")
+                    LOG(log_level, "Reference out of domain")
+                    LOG(log_level, ref_str)
+                    LOG(log_level, dom_str)
+                    LOG(log_level, "_______________________")
+                    # ***
                     raise TypeError("Reference out of domain", child_group,
                                      parent_group, diff)
 
