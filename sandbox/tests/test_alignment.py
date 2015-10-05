@@ -23,7 +23,7 @@ row = Interval(Int, 0, R+1)
 col = Interval(Int, 0, C+1)
 plane = Interval(Int, 0, P+1)
 box = Interval(Int, 0, B+1)
-cr  = Interval(Int, 0, 3)
+cr  = Interval(Int, 0, 2)
 
 cond = Condition(x, '>=', 1) & Condition(x, '<=', R) & \
        Condition(y, '>=', 1) & Condition(y, '<=', C)
@@ -37,8 +37,7 @@ cond4D = Condition(x, '>=', 1) & Condition(x, '<=', R) & \
          Condition(z, '>=', 1) & Condition(z, '<=', P) & \
          Condition(w, '>=', 1) & Condition(w, '<=', B)
 
-#def test_gray():
-def gray():
+def test_gray():
     img = Image(Float, "img", [R+2, C+2, 3])
 
     gray = Function(([x, y], [row, col]), Float, "gray")
@@ -66,8 +65,7 @@ def test_flip():
 
     return
 
-#def test_robin():
-def robin():
+def test_robin():
     img = Image(Short, "img", [R+2, C+2, 3])
 
     robin1 = Function(([c, x, y], [cr, row, col]), Short, "robin1")
