@@ -82,6 +82,7 @@ def test_robin():
 
     return
 
+# *** Extreme Case *** not so practical, can be used as a stress test
 #def test_high_dim():
 def high_dim():
     img = Image(Short, "img", [B+2, P+2, R+2, C+2])
