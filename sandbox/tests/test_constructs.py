@@ -113,7 +113,7 @@ def test_conjuncts():
     c4 = Condition(x + y, '<=',N)
     c5 = Condition(x, '!=', 2*N)
     cond  = (c1 & c2) | (c3 | c4) & c5
-    conjuncts = cond.splitToConjuncts()
+    conjuncts = cond.split_to_conjuncts()
     conjuncts_str = []
     for conjunct in conjuncts:
         conjunct_str = ""

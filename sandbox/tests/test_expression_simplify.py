@@ -13,7 +13,7 @@ def test_simplify():
     y = Variable(UInt, "y")
 
     expr = (2*x + 3*x + 3 + 4 + 1 + 5*y - 4*y + N + 2 * 3 + 4//2)//2 
-    expr = simplifyExpr(expr)
+    expr = simplify_expr(expr)
     coeff = get_affine_var_and_param_coeff(expr)
     
     assert coeff[x] == Fraction(5, 2)

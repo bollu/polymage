@@ -75,9 +75,6 @@ def test_harris_corner():
     # test boundary case
     harris.defn.append(Case(zeroCond, 0.0))
 
-    # test self reference
-    harris.defn.append(Case(endCond , harris(0, 0)))
-
     groups = [[Ix, Iy, Ixx, Iyy, Ixy], \
               [Sxx, Sxy, Syy], \
               [det, trace, harris]]
@@ -86,7 +83,7 @@ def test_harris_corner():
 
     # build the pipeline
     pipeline = buildPipeline([harris],
-                             #grouping = groups,
+                             grouping = groups,
                              param_estimates = p_est,
                              pipe_name = "harris")
 
