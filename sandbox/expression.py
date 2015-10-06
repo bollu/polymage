@@ -129,7 +129,7 @@ def is_constant_expr(expr, affine = False):
         return False
     raise TypeError(type(expr))
 
-def simplifyExpr(expr):
+def simplify_expr(expr):
     expr = Value.numericToValue(expr)
     assert(isinstance(expr, AbstractExpression))
     if (isinstance(expr, Value)):
@@ -137,33 +137,33 @@ def simplifyExpr(expr):
     elif (isinstance(expr, Variable)):
         return expr.clone()
     elif (isinstance(expr, Reference)):
-        simpleArgs = []
+        simple_args = []
         for arg in expr.arguments:
-            simpleArgs.append(simplifyExpr(arg))
+            simple_args.append(simplify_expr(arg))
         # Equivalent to cloning
-        return expr.objectRef(*simpleArgs)
+        return expr.objectRef(*simple_args)
     elif (isinstance(expr, AbstractBinaryOpNode) or
           isinstance(expr, AbstractUnaryOpNode)):
         if (isAffine(expr, includeDiv=False)):
             coeff = get_affine_var_and_param_coeff(expr)
             variables = list(set(expr.collect(Variable)))
             params = list(set(expr.collect(Parameter)))
-            simpleExpr = get_constant_from_expr(expr)
+            simple_expr = get_constant_from_expr(expr)
             for var in variables:
                 if (coeff[var] == 1):
-                    simpleExpr = simpleExpr + var
+                    simple_expr = simple_expr + var
                 elif (coeff[var] == -1):
-                    simpleExpr = simpleExpr - var
+                    simple_expr = simple_expr - var
                 else:
-                    simpleExpr = simpleExpr + coeff[var] * var
+                    simple_expr = simple_expr + coeff[var] * var
             for param in params:
                 if (coeff[param] == 1):
-                    simpleExpr = simpleExpr + param
+                    simple_expr = simple_expr + param
                 elif (coeff[param] == -1):
-                    simpleExpr = simpleExpr - param
+                    simple_expr = simple_expr - param
                 else:
-                    simpleExpr = simpleExpr + coeff[param] * param
-            return Value.numericToValue(simpleExpr)
+                    simple_expr = simple_expr + coeff[param] * param
+            return Value.numericToValue(simple_expr)
         else:
             return expr.clone()
     elif (isinstance(expr, (Select, Cast, InbuiltFunction))):
@@ -171,7 +171,7 @@ def simplifyExpr(expr):
         return expr.clone()
     raise TypeError(type(expr))
 
-def substituteRefs(expr, refToExprMap):
+def substitute_refs(expr, ref_to_expr_map):
     expr = Value.numericToValue(expr)
     assert(isinstance(expr, AbstractExpression))
     if (isinstance(expr, Value)):
@@ -179,75 +179,75 @@ def substituteRefs(expr, refToExprMap):
     elif (isinstance(expr, Variable)):
         return expr.clone()
     elif (isinstance(expr, Reference)):
-        if (expr in refToExprMap):
-            refVars = expr.objectRef.variables
-            varToExprMap = {}
-            assert len(expr.arguments) == len(refVars)
-            for i in range(0, len(refVars)):
-                varToExprMap[refVars[i]] = expr.arguments[i]
+        if (expr in ref_to_expr_map):
+            ref_vars = expr.objectRef.variables
+            var_to_expr_map = {}
+            assert len(expr.arguments) == len(ref_vars)
+            for i in range(0, len(ref_vars)):
+                var_to_expr_map[ref_vars[i]] = expr.arguments[i]
             # Equivalent to cloning
-            return substituteVars(refToExprMap[expr], varToExprMap)
+            return substitute_vars(ref_to_expr_map[expr], var_to_expr_map)
         else:
             return expr.clone()
     elif (isinstance(expr, AbstractBinaryOpNode)):
-        left = substituteRefs(expr.left, refToExprMap)
-        right = substituteRefs(expr.right, refToExprMap)
+        left = substitute_refs(expr.left, ref_to_expr_map)
+        right = substitute_refs(expr.right, ref_to_expr_map)
         op = expr.op
-        newExpr = AbstractBinaryOpNode(left, right, op)
-        return simplifyExpr(newExpr)
+        new_expr = AbstractBinaryOpNode(left, right, op)
+        return simplify_expr(new_expr)
     elif (isinstance(expr, AbstractUnaryOpNode)):
-        child = substituteRefs(expr.child, refToExprMap)
+        child = substitute_refs(expr.child, ref_to_expr_map)
         op = expr.op
-        newExpr = AbstractUnaryOpNode(child, op)
-        return simplifyExpr(newExpr)
+        new_expr = AbstractUnaryOpNode(child, op)
+        return simplify_expr(new_expr)
     elif (isinstance(expr, InbuiltFunction)):
         expr = expr.clone()
-        expr.inlineRefs(refToExprMap)
+        expr.inline_refs(ref_to_expr_map)
         return expr
     elif (isinstance(expr, (Select, Cast))):
         expr = expr.clone()
-        expr.inlineRefs(refToExprMap)
+        expr.inline_refs(ref_to_expr_map)
         return expr
     raise TypeError(type(expr))
 
-def substituteVars(expr, varToExprMap):
+def substitute_vars(expr, var_to_expr_map):
     expr = Value.numericToValue(expr)
     assert(isinstance(expr, AbstractExpression))
     if (isinstance(expr, Value)):
         return expr.clone()
     elif (isinstance(expr, Variable)):
-        if expr in varToExprMap:
-            return varToExprMap[expr].clone()
+        if expr in var_to_expr_map:
+            return var_to_expr_map[expr].clone()
         return expr.clone()
     elif (isinstance(expr, Reference)):
-        numArgs = len(expr.arguments)
+        num_args = len(expr.arguments)
         args = []
-        for i in range(0, numArgs):
-            args.append(substituteVars(expr.arguments[i], varToExprMap))
+        for i in range(0, num_args):
+            args.append(substitute_vars(expr.arguments[i], var_to_expr_map))
         # Equivalent to cloning
         return expr.objectRef(*args)
     elif (isinstance(expr, AbstractBinaryOpNode)):
-        left = substituteVars(expr.left, varToExprMap)
-        right = substituteVars(expr.right, varToExprMap)
+        left = substitute_vars(expr.left, var_to_expr_map)
+        right = substitute_vars(expr.right, var_to_expr_map)
         op = expr.op
-        newExpr = AbstractBinaryOpNode(left, right, op)
-        return simplifyExpr(newExpr)
+        new_expr = AbstractBinaryOpNode(left, right, op)
+        return simplify_expr(new_expr)
     elif (isinstance(expr, AbstractUnaryOpNode)):
-        child = substituteVars(expr.child, varToExprMap)
+        child = substitute_vars(expr.child, var_to_expr_map)
         op = expr.op
-        newExpr = AbstractUnaryOpNode(child, op)
-        return simplifyExpr(newExpr)
+        new_expr = AbstractUnaryOpNode(child, op)
+        return simplify_expr(new_expr)
     elif (isinstance(expr, Cast)):
         typ = expr.typ
-        return Cast(typ, substituteVars(expr.expression, varToExprMap))
+        return Cast(typ, substitute_vars(expr.expression, var_to_expr_map))
     elif (isinstance(expr, Select)):
-        newCond = substituteVars(expr.condition, varToExprMap)
-        newTrue = substituteVars(expr.trueExpression, varToExprMap)
-        newFalse = substituteVars(expr.falseExpression, varToExprMap)
-        return Select(newCond, newTrue, newFalse)
+        new_cond = substitute_vars(expr.condition, var_to_expr_map)
+        new_true = substitute_vars(expr.trueExpression, var_to_expr_map)
+        new_false = substitute_vars(expr.falseExpression, var_to_expr_map)
+        return Select(new_cond, new_true, new_false)
     elif (isinstance(expr, InbuiltFunction)):
         expr = expr.clone()
-        expr.substituteVars(varToExprMap)
+        expr.substitute_vars(var_to_expr_map)
         return expr
     raise TypeError(type(expr))
 

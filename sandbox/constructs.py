@@ -189,8 +189,8 @@ class Cast(AbstractExpression):
     def clone(self):
         return Cast(self._typ, self._expr.clone())
     
-    def replaceReferences(self, refToExprMap):
-        self._expr = substituteRefs(self._expr, refToExprMap)
+    def replace_refs(self, ref_to_expr_map):
+        self._expr = substitute_refs(self._expr, ref_to_expr_map)
 
     def __str__(self):
         exprStr = self._expr.__str__()
@@ -230,10 +230,10 @@ class Select(AbstractExpression):
             objs += [self]
         return list(set(objs))
 
-    def replaceReferences(self, refToExprMap):
-        self._cond.replaceReferences(refToExprMap)
-        self._trueExpr = substituteRefs(self._trueExpr, refToExprMap)
-        self._falseExpr = substituteRefs(self._falseExpr, refToExprMap)
+    def replace_refs(self, ref_to_expr_map):
+        self._cond.replace_refs(ref_to_expr_map)
+        self._true_expr = substitute_refs(self._true_expr, ref_to_expr_map)
+        self._false_expr = substitute_refs(self._false_expr, ref_to_expr_map)
     
     def clone(self):
         return Select(self._cond.clone(),
@@ -326,7 +326,7 @@ class Reference(AbstractExpression):
     def objectRef(self):
         return self._obj
 
-    def _replaceRefObject(self, cloneObj):
+    def _replace_ref_object(self, cloneObj):
         self._obj = cloneObj
 
     @property
@@ -384,33 +384,33 @@ class Condition(object):
         objs = self._left.collect(objType) + self._right.collect(objType)
         return list(set(objs))
 
-    def replaceReferences(self, refToExprMap):
+    def replace_refs(self, ref_to_expr_map):
         if(isinstance(self._left, Condition)):
-            self._left.replaceReferences(refToExprMap)
+            self._left.replace_refs(ref_to_expr_map)
         else:
-            self._left = substituteRefs(self._left, refToExprMap)
+            self._left = substitute_refs(self._left, ref_to_expr_map)
         if(isinstance(self._right, Condition)):
-            self._right.replaceReferences(refToExprMap)
+            self._right.replace_refs(ref_to_expr_map)
         else:
-            self._right = substituteRefs(self._right, refToExprMap)
+            self._right = substitute_refs(self._right, ref_to_expr_map)
 
-    def splitToConjuncts(self):
+    def split_to_conjuncts(self):
         conjuncts = []
         if self._cond in ['<', '<=', '>', '>=', '==']:
             conjuncts.append([self])
         elif (self._cond  == '!='):
-            lessThan = Condition(self._left, '<', self._right)
-            conjuncts.append([lessThan])
-            greaterThan = Condition(self._left, '>', self._right)
-            conjuncts.append([greaterThan])
+            less_than = Condition(self._left, '<', self._right)
+            conjuncts.append([less_than])
+            greater_than = Condition(self._left, '>', self._right)
+            conjuncts.append([greater_than])
         elif (self._cond == '||'):
-            conjuncts = self._left.splitToConjuncts() + \
-                        self._right.splitToConjuncts()
+            conjuncts = self._left.split_to_conjuncts() + \
+                        self._right.split_to_conjuncts()
         elif (self._cond == '&&'):
-            leftConjuncts = self._left.splitToConjuncts()
-            rightConjuncts = self._right.splitToConjuncts()
-            for lconjunct in leftConjuncts:
-                for rconjunct in rightConjuncts:
+            left_conjuncts = self._left.split_to_conjuncts()
+            right_conjuncts = self._right.split_to_conjuncts()
+            for lconjunct in left_conjuncts:
+                for rconjunct in right_conjuncts:
                     conjuncts.append(lconjunct + rconjunct)
         else:
             assert False
@@ -452,9 +452,9 @@ class Case(object):
         objs = self._cond.collect(objType) + self._expr.collect(objType)
         return list(set(objs))
 
-    def replaceReferences(self, refToExprMap):
-        self._cond.replaceReferences(refToExprMap)
-        self._expr = substituteRefs(self._expr, refToExprMap)
+    def replace_refs(self, ref_to_expr_map):
+        self._cond.replace_refs(ref_to_expr_map)
+        self._expr = substitute_refs(self._expr, ref_to_expr_map)
 
     def clone(self):
         return Case(self._cond.clone(), self._expr.clone())
@@ -491,10 +491,10 @@ class Reduce(object):
     def op_type(self):
         return self._expr
 
-    def replaceReferences(self, refToExprMap):
-        self._expr = substituteRefs(self._expr, refToExprMap)
-        self._red_ref = substituteRefs(self._red_ref, refToExprMap)
-   
+    def replace_refs(self, ref_to_expr_map):
+        self._expr = substitute_refs(self._expr, ref_to_expr_map)
+        self._red_ref = substitute_refs(self._red_ref, ref_to_expr_map)
+
     def collect(self, objType):
         if (type(self) is objType):
             return [self]
@@ -604,13 +604,13 @@ class Function(object):
             assert(isinstance(arg, AbstractExpression))
         return Reference(self, args)
 
-    def replaceReferences(self, refToExprMap):
-        numCases = len(self._body)
-        for i in range(0, numCases):
+    def replace_refs(self, ref_to_expr_map):
+        num_cases = len(self._body)
+        for i in range(0, num_cases):
             if isinstance(self._body[i], Case):
-                self._body[i].replaceReferences(refToExprMap)
+                self._body[i].replace_refs(ref_to_expr_map)
             else:
-                self._body[i] = substituteRefs(self._body[i], refToExprMap)
+                self._body[i] = substitute_refs(self._body[i], ref_to_expr_map)
 
     def getObjects(self, objType):
         objs = []
