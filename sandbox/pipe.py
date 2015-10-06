@@ -16,6 +16,11 @@ from schedule import *
 from poly import *
 from bounds import *
 
+# LOG CONFIG #
+pipe_logger = logging.getLogger("pipe.py")
+pipe_logger.setLevel(logging.INFO)
+LOG = pipe_logger.log
+
 def get_parents_from_comp_obj(comp):
     refs = comp.getObjects(Reference)
     # Filter out self and image references 
@@ -90,7 +95,7 @@ class Group:
             self._polyrep = PolyRep(_ctx, self, [], _param_constraints)
 
     @property
-    def computeObjs(self):
+    def compute_objs(self):
         return self._comp_objs
     @property
     def polyRep(self):
@@ -178,7 +183,7 @@ class Pipeline:
             refs = cln.getObjects(Reference)
             for ref in refs:
                 if not isinstance(ref.objectRef, Image):
-                    ref._replaceRefObject(self._clone_map[ref.objectRef])
+                    ref._replace_ref_object(self._clone_map[ref.objectRef])
 
         ''' DAG OF CLONES '''
         self._comp_objs, \
@@ -221,12 +226,20 @@ class Pipeline:
                      for i in range(1, len(merge_group_list)):
                         merged = \
                             self.merge_groups(merged, merge_group_list[i])
-                        # to be done after each merge, to know if the
-                        # merging was valid.
+                        # to be done after each merge, to know if the merging
+                        # was valid.
                         align_and_scale_parts(self, merged)
         else:
             # Run the grouping algorithm
             pass
+
+        # ***
+        log_level = logging.INFO
+        LOG(log_level, "Grouped compute objects:")
+        glist = list(set([g for g in self._groups.values()]))
+        for g in glist:
+            LOG(log_level, [comp.name for comp in g.compute_objs])
+        # ***
 
         ''' BASE SCHEDULE AND CODEGEN '''
         for g in list(set(self._groups.values())):
@@ -254,7 +267,7 @@ class Pipeline:
     @property
     def originalGraph(self):
         return self._initialGraph
-    
+
     def build_initial_groups(self):
         """
         Place each compute object of the pipeline in its own Group, and set the
@@ -338,52 +351,67 @@ class Pipeline:
                                                 is_extern_c_func,
                                                 are_io_void_ptrs)
 
-    def merge_groups(self, g1, g2):
-        # Get comp objects from both groups 
-        comp_objs = g1.computeObjs + g2.computeObjs
-        comp_objs = list(set(comp_objs))
-        # Create a new group 
-        merged = Group(self._ctx, comp_objs, self._param_constraints)
-        # Update the group map
-        for comp in comp_objs:
+    def add_group(self, group):
+        """
+        add a new group to the pipeline
+        """
+        if not group._comp_objs:
+            return
+
+        parents = []
+        children = []
+        for comp in group.compute_objs:
+            # add group's parents
+            parents.extend( \
+                [self._groups[p] for p in self._comp_objs_parents[comp] \
+                                   if p not in group.compute_objs] )
+            # add group's children
+            children.extend( \
+                [self._groups[c] for c in self._comp_objs_children[comp] \
+                                   if c not in group.compute_objs] )
+            # add group to comp -> group mapping
+            self._groups[comp] = group
+        self._group_parents[group] = list(set(parents))
+        self._group_children[group] = list(set(children))
+
+        # add group as child for all its parents
+        for parent_group in self._group_parents[group]:
+            self._group_children[parent_group].append(group)
+        # add group as parent for all its children
+        for child_group in self._group_children[group]:
+            self._group_parents[child_group].append(group)
+
+        return
+
+    def drop_group(self, group):
+        """
+        drop the group from the pipeline
+        """
+        # if group is a child of any other group
+        if group in self._group_parents:
+            for p_group in self._group_parents[group]:
+                self._group_children[p_group].remove(group)
+            self._group_parents.pop(group)
+        # if group is a parent of any other group
+        if group in self._group_children:
+            for c_group in self._group_children[group]:
+                self._group_parents[c_group].remove(group)
+            self._group_children.pop(group)
+        # remove group from comp -> group mapping
+        for comp in group.compute_objs:
             self._groups.pop(comp)
-            self._groups[comp] = merged
+        return
 
-        # Update the group parent map
-        parents = self._group_parents[g1] + self._group_parents[g2]
-        parents = [ p for p in parents if p is not g1 and p is not g2 ]
-        parents = list(set(parents))
+    def merge_groups(self, g1, g2):
+        # Get comp objects from both groups
+        comp_objs = g1.compute_objs + g2.compute_objs
+        comp_objs = list(set(comp_objs))
+        # Create a new group
+        merged = Group(self._ctx, comp_objs, self._param_constraints)
 
-        self._group_parents.pop(g1)
-        self._group_parents.pop(g2)
-
-        for g in self._group_parents:
-            if g1 in self._group_parents[g] or g2 in self._group_parents[g]:
-                self._group_parents[g].append(merged)
-            if g1 in self._group_parents[g]:
-                self._group_parents[g].remove(g1)
-            if g2 in self._group_parents[g]:
-                self._group_parents[g].remove(g2)
-        
-        self._group_parents[merged] = parents
-
-        # update the group child map
-        children = self._group_children[g1] + self._group_children[g2]
-        children = [ c for c in children if c is not g1 and c is not g2 ]
-        children = list(set(children))
-
-        self._group_children.pop(g1)
-        self._group_children.pop(g2)
-
-        for g in self._group_children:
-            if g1 in self._group_children[g] or g2 in self._group_children[g]:
-                self._group_children[g].append(merged)
-            if g1 in self._group_children[g]:
-                self._group_children[g].remove(g1)
-            if g2 in self._group_children[g]:
-                self._group_children[g].remove(g2)
-        
-        self._group_children[merged] = children
+        self.drop_group(g1)
+        self.drop_group(g2)
+        self.add_group(merged)
 
         return merged
 
@@ -433,15 +461,15 @@ class Pipeline:
 
     def inlinePass(self):
         """ 
-            Inline pass takes all the inlining decisions and inlines functions 
-            at their use points in other groups.
+        Inline pass takes all the inlining decisions and inlines functions at
+        their use points in other groups.
         """
         # Guidelines for inlining
-        # -- Inlining functions which have multiple case constructs can quickly 
+        # -- Inlining functions which have multiple case constructs can quickly
         #    turn out to be messy code generation nightmare.
-        # -- Splitting an use site can occur when the inlined function is defined 
-        #    by different expression in different parts of the function domain. 
-        #    Functions which are defined by a single expression over the entire 
+        # -- Splitting a use site can occur when the inlined function is defined
+        #    by different expression in different parts of the function domain.
+        #    Functions which are defined by a single expression over the entire
         #    domain are good candidates for inlining.
         #    Example :
         #    f(x) = g(x-1) + g(x) + g(x+1) when (1 <= x <= N-1)
@@ -449,18 +477,18 @@ class Pipeline:
         #    h(x) = f(x-1) + f(x) + f(x+1) when (1 <= x <= N-1)
         #         = 0                      otherwise
         #    Inlining f into h will result in splitting as shown below
-        #    h(x) = g(x-2) + g(x-1) + g(x) +      when (2 <= x <= N-2) 
+        #    h(x) = g(x-2) + g(x-1) + g(x) +      when (2 <= x <= N-2)
         #           g(x-1) + g(x) + g(x+1) +
         #           g(x)   + g(x+1) + g(x+2)
-        #         = 2*g(x-1) + 3*g(x) + 2*g(x+1)  when (x == 1) 
-        #           + g(3)      
+        #         = 2*g(x-1) + 3*g(x) + 2*g(x+1)  when (x == 1)
+        #           + g(3)
         #         = g(x-2) + 2*g(x-1) +           when (x == N-1)
         #           3*g(x) + 2*g(x+1)
         #         = 0                             otherwise
         #    For multiple dimensions and complex expression it gets ugly fast
-        # -- Inlining without splitting is possible even when the function is 
+        # -- Inlining without splitting is possible even when the function is
         #    defined by mutliple expressions. When the function references at
-        #    the use site can all be proved to be generated from a single 
+        #    the use site can all be proved to be generated from a single
         #    expression.
         #    Example :
         #    f(x) = g(x-1) + g(x) + g(x+1) when (1 <= x <= N-1)
@@ -468,26 +496,32 @@ class Pipeline:
         #    h(x) = f(x-1) + f(x) + f(x+1) when (2 <= x <= N-2)
         #         = 0                      otherwise
         #    Inlining f into h will not result in splitting as shown below
-        #    h(x) = g(x-2) + g(x-1) + g(x) +      when (2 <= x <= N-2) 
+        #    h(x) = g(x-2) + g(x-1) + g(x) +      when (2 <= x <= N-2)
         #           g(x-1) + g(x) + g(x+1) +
         #           g(x)   + g(x+1) + g(x+2)
         #         = 0                             otherwise
-        # -- Users should be enouraged to write functions in a form that makes
+        # -- Users should be encouraged to write functions in a form that makes
         #    inlining easy.
-        inlinedCompObjs = []
-        for directive in self._inlineDirectives:
+        inlined_comp_objs = []
+        # TODO: _inline_directives flag
+        for directive in self._inline_directives:
             # Only function constructs can be inlined for now
             assert isinstance(directive, Function)
             # Does inling into a fused group cause problems?
-            parentGroup = self._groups[directive]
-            assert parentGroup.computeObjs[0] not in self._outputs
-            for child in parentGroup.childGroups:
-                refToInlineExprMap = inline(child, parentGroup, noSplit = True)
-                child.computeObjs[0].inlineRefs(refToInlineExprMap)
-            # Recompute group graph
-            self._groups = self.buildGroupGraph()
+            group = self._groups[directive]
 
-    # TODO printing the pipeline 
+            # One simply does not walk into Inlining
+            assert group._comp_objs[0] not in self._outputs
+
+            for child in self._group_children[group]:
+                ref_to_inline_expr_map = \
+                    poly.inline(child, group, no_split=True)
+                child._comp_objs[0].replace_refs(ref_to_inline_expr_map)
+            # Recompute group graph
+            # TODO: tweak the graph edges instead of rebuilding the whole graph
+            #self._groups = self.buildGroupGraph()
+
+    # TODO printing the pipeline
     def __str__(self):
         return_str = "Final Group: " + self._name + "\n"
         for s in self._groups:
