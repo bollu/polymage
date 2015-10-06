@@ -105,6 +105,9 @@ class Group:
     def inputs(self):
         return self._inputs
 
+    def is_fused(self):
+        return len(self.compute_objs) > 1
+
     def getParameters(self):
         params = []
         for comp in self._comp_objs:
@@ -508,12 +511,15 @@ class Pipeline:
         # -- Users should be encouraged to write functions in a form that makes
         #    inlining easy.
         inlined_comp_objs = []
+        groups = list(set(self._groups.values()))
         # TODO: _inline_directives flag
         for directive in self._inline_directives:
             # Only function constructs can be inlined for now
             assert isinstance(directive, Function)
+
+            comp = self._clone_map[directive]
             # Does inling into a fused group cause problems?
-            group = self._groups[directive]
+            group = self._groups[comp]
 
             # One simply does not walk into Inlining
             assert group._comp_objs[0] not in self._outputs

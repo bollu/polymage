@@ -3,6 +3,7 @@ from __future__ import absolute_import, division, print_function
 # TODO remove this at some point
 from expr_ast import *
 from expr_types import *
+from expression import *
 import logging
 
 logging.basicConfig(format="%(levelname)s: %(name)s: %(message)s")
@@ -797,7 +798,7 @@ class Reduction(Function):
                     caseStr + '\n' + "Default: " + self._default.__str__()
         else:
             return self._name
-        
+
 def isAffine(expr, includeDiv = True, includeModulo = False):
     """
         Function to determine if an expression is affine or not. The input

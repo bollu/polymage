@@ -84,6 +84,7 @@ def test_harris_corner():
     # build the pipeline
     pipeline = buildPipeline([harris],
                              grouping = groups,
+                             inline_directives = [Ixx, Iyy, Ixy, det, trace],
                              param_estimates = p_est,
                              pipe_name = "harris")
 

@@ -1,9 +1,12 @@
 from __future__ import absolute_import, division, print_function
 
+from constructs import *
+from poly import *
+
 def inline_piecewise(child_group, parent_group, no_split = False):
     ref_to_inline_expr_map = {}
     # Inling currently only handles non-fused stages
-    assert (not child_group.is_fused() and not parent_group.is_used())
+    assert (not child_group.is_fused() and not parent_group.is_fused())
     # Computation object in the parent group can only be a function
     parent_comp = parent_group.compute_objs[0]
     assert isinstance(parent_comp, Function)
@@ -62,7 +65,7 @@ def inline_piecewise(child_group, parent_group, no_split = False):
                     inline = False
                 else:
                     inline_deps = []
-                    for ref in childRefs:
+                    for ref in child_refs:
                         ref_to_inline_expr_map[ref] = parent_expr
             elif(no_split):
                 pass
