@@ -10,6 +10,7 @@ def buildPipeline(outputs,
                   param_estimates = [],
                   param_constraints = [],
                   grouping = [],
+                  inline_directives = [],
                   pipe_name = None,
                   options = []):
 
@@ -22,5 +23,6 @@ def buildPipeline(outputs,
                          _param_estimates = param_estimates,
                          _param_constraints = param_constraints,
                          _grouping = grouping,
+                         _inline_directives = inline_directives,
                          _name = pipe_name,
                          _options = options)

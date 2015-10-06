@@ -15,6 +15,7 @@ from codegen import *
 from schedule import *
 from poly import *
 from bounds import *
+from inline import *
 
 # LOG CONFIG #
 pipe_logger = logging.getLogger("pipe.py")
@@ -145,7 +146,8 @@ class Group:
 class Pipeline:
     def __init__(self, _ctx, _outputs,
                  _param_estimates, _param_constraints,
-                 _grouping, _options, _name = None):
+                 _grouping, _inline_directives,
+                 _options, _name = None):
         # Name of the pipleline is a concatenation of the names of the 
         # pipeline outputs, unless it is explicitly named.
         if _name is None:
@@ -158,6 +160,7 @@ class Pipeline:
         self._param_estimates = _param_estimates
         self._param_constraints = _param_constraints
         self._grouping = _grouping
+        self._inline_directives = _inline_directives
         self._options = _options
 
         ''' CONSTRUCT DAG '''
@@ -212,6 +215,8 @@ class Pipeline:
         # Checking bounds
         self.bounds_check_pass()
 
+        # inline pass
+        self.inline_pass()
 
         ''' GROUPING '''
         # TODO check grouping validity
@@ -459,7 +464,7 @@ class Pipeline:
 
         return
 
-    def inlinePass(self):
+    def inline_pass(self):
         """ 
         Inline pass takes all the inlining decisions and inlines functions at
         their use points in other groups.
@@ -515,8 +520,9 @@ class Pipeline:
 
             for child in self._group_children[group]:
                 ref_to_inline_expr_map = \
-                    poly.inline(child, group, no_split=True)
-                child._comp_objs[0].replace_refs(ref_to_inline_expr_map)
+                    inline_piecewise(child, group, no_split=True)
+                if ref_to_inline_expr_map:
+                    child._comp_objs[0].replace_refs(ref_to_inline_expr_map)
             # Recompute group graph
             # TODO: tweak the graph edges instead of rebuilding the whole graph
             #self._groups = self.buildGroupGraph()
