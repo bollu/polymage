@@ -426,6 +426,9 @@ def align_and_scale_parts(pipeline, group):
         # ***
 
         refs = part.refs
+        if not refs:
+            part.set_align(base_align)
+            part.set_scale(base_scale)
         for ref in refs:
             no_conflict = compatible_align(part_align, old_align)
             if old_align and not no_conflict:

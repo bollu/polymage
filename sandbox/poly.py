@@ -157,6 +157,8 @@ class PolyPart(object):
         self.pred = _pred
         self.comp = _comp
 
+        # Dependencies between values of computation objects
+        self.deps = []
         # References made by self
         self._refs = self.collect_part_refs()
         # Mapping between the input variables to the corresponding 
@@ -477,7 +479,7 @@ class PolyRep(object):
             # Only add the constraint if it is affine and has no conjunctions.
             # Handling conjunctions can be done but will require more care.
             if context_add and isAffine(param_constr):
-                param_constr_conjunct = param_constr.splitToConjuncts()
+                param_constr_conjunct = param_constr.split_to_conjuncts()
                 if len(param_constr_conjunct) == 1:
                     context_conds.append(param_constr)
         return context_conds
@@ -579,7 +581,7 @@ class PolyRep(object):
             if (isinstance(case, Case)):
                 # Dealing with != and ||. != can be replaced with < || >.
                 # and || splits the domain into two.
-                split_conjuncts = case.condition.splitToConjuncts()
+                split_conjuncts = case.condition.split_to_conjuncts()
                 for conjunct in split_conjuncts:
                     # If the condition is non-affine it is stored as a
                     # predicate for the expression. An affine condition
@@ -676,7 +678,7 @@ class PolyRep(object):
         # of the form (affine)%constant == constant.
         broken_parts = []
         if isinstance(expr, Select):
-            conjuncts = expr.condition.splitToConjuncts()
+            conjuncts = expr.condition.split_to_conjuncts()
             if len(conjuncts) == 1 and len(conjuncts[0]) == 1:
                 cond = conjuncts[0][0]
                 left_expr = cond.lhs

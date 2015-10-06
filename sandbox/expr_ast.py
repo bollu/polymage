@@ -281,7 +281,7 @@ class InbuiltFunction(AbstractExpression):
             self._args[i] = sub_vars(self._args[i], varToExprMap)
 
     def inline_refs(self, refToExprMap):
-        self._args = [ substituteRefs(arg, refToExprMap) for arg in self._args]
+        self._args = [ substitute_refs(arg, refToExprMap) for arg in self._args]
 
 class AbstractUnaryOpNode(AbstractExpression):
     def __init__(self, _child, _op=None): 

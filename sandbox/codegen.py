@@ -487,7 +487,7 @@ def generate_c_expr(exp, cparam_map, cvar_map, cfunc_map,
             # TESTME
             if scratch and scratch[i]:
                 scratch_arg = substituteVars(exp.arguments[i], scratch_map)
-            shifted_args.append(simplifyExpr(scratch_arg))
+            shifted_args.append(simplify_expr(scratch_arg))
         args = [ generate_c_expr(arg, cparam_map, cvar_map, cfunc_map,
                                  scratch_map, prologue_stmts)
                  for arg in shifted_args ]
@@ -793,7 +793,7 @@ def generate_code_for_group(pipeline, g, body, options,
             interval = comp.domain[i]
             if reduced_dims[i] == -1:
                 # NOTE interval step is always +1
-                dim_expr = simplifyExpr(interval.upperBound -
+                dim_expr = simplify_expr(interval.upperBound -
                                         interval.lowerBound + 1)
 
                 # FIXME Creating both a cVariable (for C declaration) and a
