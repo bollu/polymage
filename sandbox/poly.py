@@ -683,7 +683,7 @@ class PolyRep(object):
                 cond = conjuncts[0][0]
                 left_expr = cond.lhs
                 right_expr = cond.rhs
-                is_left_modulo = isAffine(left_expr, includeModulo=True) and \
+                is_left_modulo = isAffine(left_expr, include_modulo=True) and \
                                  not isAffine(left_expr)
                 is_right_constant = is_constant_expr(right_expr)
                 break_select = False

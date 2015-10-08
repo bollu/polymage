@@ -1,6 +1,6 @@
 from __future__ import absolute_import, division, print_function
 
-from constructs import isAffine
+from expression import isAffine
 from poly import extract_value_dependence
 import logging
 

@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function
 
-from constructs import *
+from expr_ast import *
+import constructs
 
 def get_affine_var_and_param_coeff(expr):
     expr = Value.numericToValue(expr)
@@ -9,7 +10,7 @@ def get_affine_var_and_param_coeff(expr):
             isinstance(expr, Value) or \
             is_constant_expr(expr)):
         return {}
-    elif (isinstance(expr, Variable)):
+    elif (isinstance(expr, constructs.Variable)):
         return {expr: 1}
     elif (isinstance(expr, AbstractBinaryOpNode)):
         coeff = {}
@@ -94,9 +95,9 @@ def get_constant_from_expr(expr, affine=False):
         if affine:
             assert (expr.typ is Int) or (expr.typ is Rational)
         return expr.value 
-    elif (isinstance(expr, Variable)):
+    elif (isinstance(expr, constructs.Variable)):
         return 0
-    elif (isinstance(expr, Reference)):
+    elif (isinstance(expr, constructs.Reference)):
         return 0    
     elif (isinstance(expr, AbstractBinaryOpNode)):
         leftConst = get_constant_from_expr(expr.left, affine)
@@ -105,7 +106,8 @@ def get_constant_from_expr(expr, affine=False):
     elif (isinstance(expr, AbstractUnaryOpNode)):
         childConst = get_constant_from_expr(expr.child, affine)
         return evaluateUnaryOp(childConst, expr.op)
-    elif (isinstance(expr, (Select, Cast, InbuiltFunction))):
+    elif (isinstance(expr,
+                     (constructs.Select, constructs.Cast, InbuiltFunction))):
         return 0
     raise TypeError(type(expr))
 
@@ -116,16 +118,17 @@ def is_constant_expr(expr, affine = False):
         if affine:
             return (expr.typ is Int) or (expr.typ is Rational)
         return True 
-    elif (isinstance(expr, Variable)):
+    elif (isinstance(expr, constructs.Variable)):
         return False
-    elif (isinstance(expr, Reference)):
+    elif (isinstance(expr, constructs.Reference)):
         return False    
     elif (isinstance(expr, AbstractBinaryOpNode)):
         return (is_constant_expr(expr.left, affine) and 
                 is_constant_expr(expr.right, affine))
     elif (isinstance(expr, AbstractUnaryOpNode)):
         return is_constant_expr(expr.child, affine)
-    elif (isinstance(expr, (Select, InbuiltFunction, Cast))):
+    elif (isinstance(expr,
+                    (constructs.Select, InbuiltFunction, constructs.Cast))):
         return False
     raise TypeError(type(expr))
 
@@ -134,9 +137,9 @@ def simplify_expr(expr):
     assert(isinstance(expr, AbstractExpression))
     if (isinstance(expr, Value)):
         return expr.clone()
-    elif (isinstance(expr, Variable)):
+    elif (isinstance(expr, constructs.Variable)):
         return expr.clone()
-    elif (isinstance(expr, Reference)):
+    elif (isinstance(expr, constructs.Reference)):
         simple_args = []
         for arg in expr.arguments:
             simple_args.append(simplify_expr(arg))
@@ -144,10 +147,10 @@ def simplify_expr(expr):
         return expr.objectRef(*simple_args)
     elif (isinstance(expr, AbstractBinaryOpNode) or
           isinstance(expr, AbstractUnaryOpNode)):
-        if (isAffine(expr, includeDiv=False)):
+        if (isAffine(expr, include_div=False)):
             coeff = get_affine_var_and_param_coeff(expr)
-            variables = list(set(expr.collect(Variable)))
-            params = list(set(expr.collect(Parameter)))
+            variables = list(set(expr.collect(constructs.Variable)))
+            params = list(set(expr.collect(constructs.Parameter)))
             simple_expr = get_constant_from_expr(expr)
             for var in variables:
                 if (coeff[var] == 1):
@@ -166,7 +169,8 @@ def simplify_expr(expr):
             return Value.numericToValue(simple_expr)
         else:
             return expr.clone()
-    elif (isinstance(expr, (Select, Cast, InbuiltFunction))):
+    elif (isinstance(expr,
+                     (constructs.Select, constructs.Cast, InbuiltFunction))):
         # Some simplification can be done but ignoring for now
         return expr.clone()
     raise TypeError(type(expr))
@@ -176,9 +180,9 @@ def substitute_refs(expr, ref_to_expr_map):
     assert(isinstance(expr, AbstractExpression))
     if (isinstance(expr, Value)):
         return expr.clone()
-    elif (isinstance(expr, Variable)):
+    elif (isinstance(expr, constructs.Variable)):
         return expr.clone()
-    elif (isinstance(expr, Reference)):
+    elif (isinstance(expr, constructs.Reference)):
         if (expr in ref_to_expr_map):
             ref_vars = expr.objectRef.variables
             var_to_expr_map = {}
@@ -204,7 +208,7 @@ def substitute_refs(expr, ref_to_expr_map):
         expr = expr.clone()
         expr.inline_refs(ref_to_expr_map)
         return expr
-    elif (isinstance(expr, (Select, Cast))):
+    elif (isinstance(expr, (constructs.Select, constructs.Cast))):
         expr = expr.clone()
         expr.inline_refs(ref_to_expr_map)
         return expr
@@ -215,11 +219,11 @@ def substitute_vars(expr, var_to_expr_map):
     assert(isinstance(expr, AbstractExpression))
     if (isinstance(expr, Value)):
         return expr.clone()
-    elif (isinstance(expr, Variable)):
+    elif (isinstance(expr, constructs.Variable)):
         if expr in var_to_expr_map:
             return var_to_expr_map[expr].clone()
         return expr.clone()
-    elif (isinstance(expr, Reference)):
+    elif (isinstance(expr, constructs.Reference)):
         num_args = len(expr.arguments)
         args = []
         for i in range(0, num_args):
@@ -237,17 +241,116 @@ def substitute_vars(expr, var_to_expr_map):
         op = expr.op
         new_expr = AbstractUnaryOpNode(child, op)
         return simplify_expr(new_expr)
-    elif (isinstance(expr, Cast)):
+    elif (isinstance(expr, constructs.Cast)):
         typ = expr.typ
-        return Cast(typ, substitute_vars(expr.expression, var_to_expr_map))
-    elif (isinstance(expr, Select)):
+        return \
+            constructs.Cast(typ,
+                            substitute_vars(expr.expression, var_to_expr_map))
+    elif (isinstance(expr, constructs.Select)):
         new_cond = substitute_vars(expr.condition, var_to_expr_map)
         new_true = substitute_vars(expr.trueExpression, var_to_expr_map)
         new_false = substitute_vars(expr.falseExpression, var_to_expr_map)
-        return Select(new_cond, new_true, new_false)
+        return constructs.Select(new_cond, new_true, new_false)
     elif (isinstance(expr, InbuiltFunction)):
         expr = expr.clone()
         expr.substitute_vars(var_to_expr_map)
         return expr
     raise TypeError(type(expr))
 
+def isAffine(expr, include_div = True, include_modulo = False):
+    """
+    Function to determine if an expression is affine or not. The input is a
+    binary expression tree. It recursively checks if the left and right sub
+    expressions are affine. Determines if the entire expression is affine
+    using the following rules:
+
+    affine +,-,* constant = affine
+    constant +,-,* affine = affine
+    affine +,- affine  = affine
+    affine *,/ affine = non-affine
+    non-affine operand always results in a non-affine expression
+
+    Divisions and modulo operators are considered affine if the appropriate
+    option is specified.
+
+    This function is meant to work on straight forward expressions it can be
+    easily tricked into conservatively saying that the expression is not
+    affine. For example -x^3 + x^3 will be non affine.
+
+    Making the expression anaylsis more robust will require integration with
+    a symbolic math package.
+    """
+    expr = Value.numericToValue(expr)
+    assert(isinstance(expr, AbstractExpression)
+           or isinstance(expr, constructs.Condition))
+    if (isinstance(expr, Value)):
+        return (expr.typ is Int) or (include_div and (expr.typ is Rational))
+    elif (isinstance(expr, constructs.Variable)):
+        return True
+    elif (isinstance(expr, constructs.Reference)):
+        return False
+    elif (isinstance(expr, AbstractBinaryOpNode)):
+        left_check = isAffine(expr.left, include_div, include_modulo)
+        right_check = isAffine(expr.right, include_div, include_modulo)
+        if (left_check and right_check):
+            if (expr.op in ['+','-']):
+                return True
+            elif(expr.op in ['*']):
+                if(not (expr.left.has(constructs.Variable) or \
+                        expr.left.has(constructs.Parameter)) or \
+                   not (expr.right.has(constructs.Variable) or \
+                        expr.right.has(constructs.Parameter))):
+                    return True
+                else:
+                    return False
+            elif(include_div and expr.op in ['/']):
+                if (not (expr.right.has(constructs.Variable)) and \
+                    not (expr.right.has(constructs.Parameter))):
+                    return True
+                else:
+                    return False
+            elif(include_modulo and expr.op in ['%']):
+                if (not (expr.right.has(constructs.Variable)) and \
+                    not (expr.right.has(constructs.Parameter))):
+                    return isAffine(expr.left, include_div, False)
+                else:
+                    return False
+            else:
+                return False
+        else:
+            return False
+    elif (isinstance(expr, AbstractUnaryOpNode)):
+        return isAffine(expr.child, include_div, include_modulo)
+    elif (isinstance(expr, constructs.Condition)):
+        return isAffine(expr.lhs, include_div, include_modulo) and \
+               isAffine(expr.rhs, include_div, include_modulo)
+    elif (isinstance(expr,
+                     (constructs.Select, constructs.Cast, InbuiltFunction))):
+        return False
+    raise TypeError(type(expr))
+
+def getType(expr):
+    expr = Value.numericToValue(expr)
+    assert(isinstance(expr, AbstractExpression))
+    if (isinstance(expr, Value)):
+        return expr.typ
+    elif (isinstance(expr, constructs.Variable)):
+        return expr.typ
+    elif (isinstance(expr, constructs.Reference)):
+        return expr.objectRef.typ
+    elif (isinstance(expr, AbstractBinaryOpNode)):
+        left_type = getType(expr.left)
+        right_type = getType(expr.right)
+        return result_type(left_type, right_type)
+    elif (isinstance(expr, AbstractUnaryOpNode)):
+        return getType(expr.child)
+    elif (isinstance(expr, constructs.Cast)):
+        return expr.typ
+    elif (isinstance(expr, constructs.Select)):
+        true_type = getType(expr.trueExpression)
+        false_type = getType(expr.falseExpression)
+        assert true_type == false_type
+        return true_type
+    elif (isinstance(expr, InbuiltFunction)):
+        return expr.getType()
+    raise TypeError(type(expr))
