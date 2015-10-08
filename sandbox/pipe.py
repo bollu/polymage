@@ -221,6 +221,16 @@ class Pipeline:
         # inline pass
         self.inline_pass()
 
+        # make sure the set of functions to be inlined and those to be grouped
+        # are disjoint
+        if self._inline_directives and self._grouping:
+            group_comps = []
+            for g in self._grouping:
+                group_comps += g
+            a = set(self._inline_directives)
+            b = set(group_comps)
+            assert a.isdisjoint(b)
+
         ''' GROUPING '''
         # TODO check grouping validity
         if self._grouping:
@@ -276,6 +286,12 @@ class Pipeline:
     def originalGraph(self):
         return self._initialGraph
 
+    def getParameters(self):
+        params=[]
+        for group in self._groups.values():
+            params = params + group.getParameters()
+        return list(set(params))
+
     def build_initial_groups(self):
         """
         Place each compute object of the pipeline in its own Group, and set the
@@ -297,12 +313,6 @@ class Pipeline:
                 [ group_map[c] for c in comp_children[comp] ]
 
         return group_map, group_parents, group_children
-
-    def getParameters(self):
-        params=[]
-        for group in self._groups.values():
-            params = params + group.getParameters()
-        return list(set(params))
 
     '''
     def drawPipelineGraph(self):
@@ -359,6 +369,22 @@ class Pipeline:
                                                 is_extern_c_func,
                                                 are_io_void_ptrs)
 
+    def drop_compute_obj(self, comp_obj):
+        # if the compute object is a child of any other
+        if comp_obj in self._comp_objs_parents:
+            for p_comp in self._comp_objs_parents[comp_obj]:
+                self._comp_objs_children[p_comp].remove(comp_obj)
+            self._comp_objs_parents.pop(comp_obj)
+        # if the compute object is a parent of any other
+        if comp_obj in self._comp_objs_children:
+            for c_comp in self._comp_objs_children[comp_obj]:
+                self._comp_objs_parents[c_comp].remove(comp_obj)
+            self._comp_objs_children.pop(comp_obj)
+        # remove comp_obj
+        self._comp_objs.remove(comp_obj)
+
+        return
+
     def add_group(self, group):
         """
         add a new group to the pipeline
@@ -408,6 +434,7 @@ class Pipeline:
         # remove group from comp -> group mapping
         for comp in group.compute_objs:
             self._groups.pop(comp)
+
         return
 
     def merge_groups(self, g1, g2):
@@ -532,6 +559,8 @@ class Pipeline:
             # Recompute group graph
             # TODO: tweak the graph edges instead of rebuilding the whole graph
             #self._groups = self.buildGroupGraph()
+            self.drop_group(self._groups[comp])
+            self.drop_compute_obj(comp)
 
     # TODO printing the pipeline
     def __str__(self):

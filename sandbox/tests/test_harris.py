@@ -75,9 +75,14 @@ def test_harris_corner():
     # test boundary case
     harris.defn.append(Case(zeroCond, 0.0))
 
+    '''
     groups = [[Ix, Iy, Ixx, Iyy, Ixy], \
               [Sxx, Sxy, Syy], \
               [det, trace, harris]]
+    '''
+    groups = [[Ix, Iy], \
+              [Sxx, Sxy, Syy], \
+              [harris]]
 
     p_est = [ (R, 1024), (C, 1024) ]
 
