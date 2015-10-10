@@ -472,6 +472,74 @@ class Pipeline:
         
         return sorted(group_order.items(), key=lambda x: x[1])
 
+    def replace_group(self, old_group, new_group):
+        # if old_group has any child
+        if old_group in self._group_children:
+            for child in self._group_children[old_group]:
+                self._group_parents[child].append(new_group)
+                self._group_children[new_group].append(child)
+        # if old_group has any parent
+        if old_group in self._group_parents:
+            for parent in self._group_parents[old_group]:
+                self._group_children[parent].append(new_group)
+                self._group_parents[new_group].append(parent)
+        # replace old_group with new_group in groups list
+        comp = old_group._comp_objs[0]
+        self._groups[comp] = new_group
+        self.drop_group(old_group)
+
+        return
+
+    def make_comp_independent(self, comp_a, comp_b):
+        """
+        makes comp_b independent of comp_b and updates parent children
+        relations in the graph structure
+        [ assumes that comp_b is a child of comp_a, and that comp_a is inlined
+        into comp_b ]
+        """
+        # if parent_comp has any parent
+        if comp_a in self._comp_objs_parents:
+            parents_of_a = self._comp_objs_parents[comp_a]
+            parents_of_b = self._comp_objs_parents[comp_b]
+
+            # remove relation between a and b
+            self._comp_objs_children[comp_a].remove(comp_b)
+            parents_of_b.remove(comp_a)
+
+            # new parents list for b
+            parents_of_b.extend(parents_of_a)
+            parents_of_b = list(set(parents_of_b))
+            self._comp_objs_parents[comp_b] = parents_of_b
+
+            # new children list for parents_of_b
+            for p in parents_of_b:
+                children_of_p = self._comp_objs_children[p]
+                children_of_p.append(comp_b)
+                self._comp_objs_children[p] = list(set(children_of_p))
+
+        return
+
+    def inline_and_update_graph(self, group, child_group, inline_map):
+        """
+        calls the actual reference replacements methods at the low level and
+        updates the compute graph and group graph accordingly
+        """
+        comp = group.compute_objs[0]
+        child_comp = child_group.compute_objs[0]
+
+        # replace the references of the child to inline the comp
+        child_comp.replace_refs(inline_map)
+        self.make_comp_independent(comp, child_comp)
+
+        # create new Group for the child
+        new_group = Group(self._ctx, [child_comp],
+                          self._param_constraints)
+        self._group_parents[new_group] = []
+        self._group_children[new_group] = []
+        self.replace_group(child_group, new_group)
+
+        return
+
     def bounds_check_pass(self):
         """ 
         Bounds check pass analyzes if function values used in the compute
@@ -549,18 +617,26 @@ class Pipeline:
             group = self._groups[comp]
 
             # One simply does not walk into Inlining
-            assert group._comp_objs[0] not in self._outputs
+            assert group.compute_objs[0] not in self._outputs
 
+            drop_inlined = True
+            inlined = []
             for child in self._group_children[group]:
                 ref_to_inline_expr_map = \
-                    inline_piecewise(child, group, no_split=True)
+                    piecewise_inline_check(child, group, no_split=True)
                 if ref_to_inline_expr_map:
-                    child._comp_objs[0].replace_refs(ref_to_inline_expr_map)
-            # Recompute group graph
-            # TODO: tweak the graph edges instead of rebuilding the whole graph
-            #self._groups = self.buildGroupGraph()
-            self.drop_group(self._groups[comp])
-            self.drop_compute_obj(comp)
+                    self.inline_and_update_graph(group, child,
+                                                 ref_to_inline_expr_map)
+                else:
+                    # for this child inlining did not happen, hence do not drop
+                    # the compute object and its group
+                    drop_inlined = False
+
+            if drop_inlined:
+                # remove comp_obj
+                self._comp_objs.remove(comp)
+
+        return
 
     # TODO printing the pipeline
     def __str__(self):

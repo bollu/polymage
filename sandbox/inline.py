@@ -3,7 +3,7 @@ from __future__ import absolute_import, division, print_function
 from constructs import *
 from poly import *
 
-def inline_piecewise(child_group, parent_group, no_split = False):
+def piecewise_inline_check(child_group, parent_group, no_split = False):
     ref_to_inline_expr_map = {}
     # Inling currently only handles non-fused stages
     assert (not child_group.is_fused() and not parent_group.is_fused())
@@ -73,5 +73,6 @@ def inline_piecewise(child_group, parent_group, no_split = False):
                 pass
     else:
         pass
+
     return ref_to_inline_expr_map
 
