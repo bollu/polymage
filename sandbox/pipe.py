@@ -484,9 +484,9 @@ class Pipeline:
                 self._group_children[parent].append(new_group)
                 self._group_parents[new_group].append(parent)
         # replace old_group with new_group in groups list
-        comp = old_group._comp_objs[0]
-        self._groups[comp] = new_group
+        comp = old_group.compute_objs[0]
         self.drop_group(old_group)
+        self._groups[comp] = new_group
 
         return
 
@@ -634,7 +634,9 @@ class Pipeline:
 
             if drop_inlined:
                 # remove comp_obj
-                self._comp_objs.remove(comp)
+                self.drop_compute_obj(comp)
+                self.drop_group(group)
+                self._clone_map.pop(directive)
 
         return
 
