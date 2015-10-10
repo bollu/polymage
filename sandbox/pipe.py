@@ -219,7 +219,7 @@ class Pipeline:
         bounds_check_pass(self)
 
         # inline pass
-        self.inline_pass()
+        inline_pass(self)
 
         # make sure the set of functions to be inlined and those to be grouped
         # are disjoint
@@ -516,105 +516,6 @@ class Pipeline:
                 children_of_p = self._comp_objs_children[p]
                 children_of_p.append(comp_b)
                 self._comp_objs_children[p] = list(set(children_of_p))
-
-        return
-
-    def inline_and_update_graph(self, group, child_group, inline_map):
-        """
-        calls the actual reference replacements methods at the low level and
-        updates the compute graph and group graph accordingly
-        """
-        comp = group.compute_objs[0]
-        child_comp = child_group.compute_objs[0]
-
-        # replace the references of the child to inline the comp
-        child_comp.replace_refs(inline_map)
-        self.make_comp_independent(comp, child_comp)
-
-        # create new Group for the child
-        new_group = Group(self._ctx, [child_comp],
-                          self._param_constraints)
-        self._group_parents[new_group] = []
-        self._group_children[new_group] = []
-        self.replace_group(child_group, new_group)
-
-        return
-
-    def inline_pass(self):
-        """ 
-        Inline pass takes all the inlining decisions and inlines functions at
-        their use points in other groups.
-        """
-        # Guidelines for inlining
-        # -- Inlining functions which have multiple case constructs can quickly
-        #    turn out to be messy code generation nightmare.
-        # -- Splitting a use site can occur when the inlined function is defined
-        #    by different expression in different parts of the function domain.
-        #    Functions which are defined by a single expression over the entire
-        #    domain are good candidates for inlining.
-        #    Example :
-        #    f(x) = g(x-1) + g(x) + g(x+1) when (1 <= x <= N-1)
-        #         = 0                      otherwise
-        #    h(x) = f(x-1) + f(x) + f(x+1) when (1 <= x <= N-1)
-        #         = 0                      otherwise
-        #    Inlining f into h will result in splitting as shown below
-        #    h(x) = g(x-2) + g(x-1) + g(x) +      when (2 <= x <= N-2)
-        #           g(x-1) + g(x) + g(x+1) +
-        #           g(x)   + g(x+1) + g(x+2)
-        #         = 2*g(x-1) + 3*g(x) + 2*g(x+1)  when (x == 1)
-        #           + g(3)
-        #         = g(x-2) + 2*g(x-1) +           when (x == N-1)
-        #           3*g(x) + 2*g(x+1)
-        #         = 0                             otherwise
-        #    For multiple dimensions and complex expression it gets ugly fast
-        # -- Inlining without splitting is possible even when the function is
-        #    defined by mutliple expressions. When the function references at
-        #    the use site can all be proved to be generated from a single
-        #    expression.
-        #    Example :
-        #    f(x) = g(x-1) + g(x) + g(x+1) when (1 <= x <= N-1)
-        #         = 0                      otherwise
-        #    h(x) = f(x-1) + f(x) + f(x+1) when (2 <= x <= N-2)
-        #         = 0                      otherwise
-        #    Inlining f into h will not result in splitting as shown below
-        #    h(x) = g(x-2) + g(x-1) + g(x) +      when (2 <= x <= N-2)
-        #           g(x-1) + g(x) + g(x+1) +
-        #           g(x)   + g(x+1) + g(x+2)
-        #         = 0                             otherwise
-        # -- Users should be encouraged to write functions in a form that makes
-        #    inlining easy.
-        inlined_comp_objs = []
-        groups = list(set(self._groups.values()))
-        # TODO: _inline_directives flag
-        for directive in self._inline_directives:
-            # Only function constructs can be inlined for now
-            assert isinstance(directive, Function)
-
-            comp = self._clone_map[directive]
-            # Does inling into a fused group cause problems?
-            group = self._groups[comp]
-
-            # One simply does not walk into Inlining
-            assert group.compute_objs[0] not in self._outputs
-
-            drop_inlined = True
-            inlined = []
-            for child in self._group_children[group]:
-                ref_to_inline_expr_map = \
-                    piecewise_inline_check(child, group, no_split=True)
-                if ref_to_inline_expr_map:
-                    self.inline_and_update_graph(group, child,
-                                                 ref_to_inline_expr_map)
-                else:
-                    # for this child inlining did not happen, hence do not drop
-                    # the compute object and its group
-                    drop_inlined = False
-
-            if drop_inlined:
-                # remove comp_obj
-                self.drop_compute_obj(comp)
-                self.drop_group(group)
-                self._clone_map.pop(directive)
 
         return
 

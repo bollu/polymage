@@ -2,6 +2,106 @@ from __future__ import absolute_import, division, print_function
 
 from constructs import *
 from poly import *
+import pipe
+
+def inline_pass(pipeline):
+    """
+    Inline pass takes all the inlining decisions and inlines functions at
+    their use points in other groups.
+    """
+    # Guidelines for inlining
+    # -- Inlining functions which have multiple case constructs can quickly
+    #    turn out to be messy code generation nightmare.
+    # -- Splitting a use site can occur when the inlined function is defined
+    #    by different expression in different parts of the function domain.
+    #    Functions which are defined by a single expression over the entire
+    #    domain are good candidates for inlining.
+    #    Example :
+    #    f(x) = g(x-1) + g(x) + g(x+1) when (1 <= x <= N-1)
+    #         = 0                      otherwise
+    #    h(x) = f(x-1) + f(x) + f(x+1) when (1 <= x <= N-1)
+    #         = 0                      otherwise
+    #    Inlining f into h will result in splitting as shown below
+    #    h(x) = g(x-2) + g(x-1) + g(x) +      when (2 <= x <= N-2)
+    #           g(x-1) + g(x) + g(x+1) +
+    #           g(x)   + g(x+1) + g(x+2)
+    #         = 2*g(x-1) + 3*g(x) + 2*g(x+1)  when (x == 1)
+    #           + g(3)
+    #         = g(x-2) + 2*g(x-1) +           when (x == N-1)
+    #           3*g(x) + 2*g(x+1)
+    #         = 0                             otherwise
+    #    For multiple dimensions and complex expression it gets ugly fast
+    # -- Inlining without splitting is possible even when the function is
+    #    defined by mutliple expressions. When the function references at
+    #    the use site can all be proved to be generated from a single
+    #    expression.
+    #    Example :
+    #    f(x) = g(x-1) + g(x) + g(x+1) when (1 <= x <= N-1)
+    #         = 0                      otherwise
+    #    h(x) = f(x-1) + f(x) + f(x+1) when (2 <= x <= N-2)
+    #         = 0                      otherwise
+    #    Inlining f into h will not result in splitting as shown below
+    #    h(x) = g(x-2) + g(x-1) + g(x) +      when (2 <= x <= N-2)
+    #           g(x-1) + g(x) + g(x+1) +
+    #           g(x)   + g(x+1) + g(x+2)
+    #         = 0                             otherwise
+    # -- Users should be encouraged to write functions in a form that makes
+    #    inlining easy.
+    inlined_comp_objs = []
+    groups = list(set(pipeline._groups.values()))
+    # TODO: _inline_directives flag
+    for directive in pipeline._inline_directives:
+        # Only function constructs can be inlined for now
+        assert isinstance(directive, Function)
+
+        comp = pipeline._clone_map[directive]
+        # Does inling into a fused group cause problems?
+        group = pipeline._groups[comp]
+
+        # One simply does not walk into Inlining
+        assert group.compute_objs[0] not in pipeline._outputs
+
+        drop_inlined = True
+        inlined = []
+        for child in pipeline._group_children[group]:
+            ref_to_inline_expr_map = \
+                piecewise_inline_check(child, group, no_split=True)
+            if ref_to_inline_expr_map:
+                inline_and_update_graph(pipeline, group, child,
+                                        ref_to_inline_expr_map)
+            else:
+                # for this child inlining did not happen, hence do not drop
+                # the compute object and its group
+                drop_inlined = False
+
+        if drop_inlined:
+            # remove comp_obj
+            pipeline.drop_compute_obj(comp)
+            pipeline.drop_group(group)
+            pipeline._clone_map.pop(directive)
+
+    return
+
+def inline_and_update_graph(pipeline, group, child_group, inline_map):
+    """
+    calls the actual reference replacements methods at the low level and
+    updates the compute graph and group graph accordingly
+    """
+    comp = group.compute_objs[0]
+    child_comp = child_group.compute_objs[0]
+
+    # replace the references of the child to inline the comp
+    child_comp.replace_refs(inline_map)
+    pipeline.make_comp_independent(comp, child_comp)
+
+    # create new Group for the child
+    new_group = pipe.Group(pipeline._ctx, [child_comp],
+                           pipeline._param_constraints)
+    pipeline._group_parents[new_group] = []
+    pipeline._group_children[new_group] = []
+    pipeline.replace_group(child_group, new_group)
+
+    return
 
 def piecewise_inline_check(child_group, parent_group, no_split = False):
     ref_to_inline_expr_map = {}
