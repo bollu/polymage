@@ -3,12 +3,36 @@ from __future__ import absolute_import, division, print_function
 from expression import isAffine
 from poly import extract_value_dependence
 import logging
+import pipe
 
 # LOG CONFIG #
 bounds_logger = logging.getLogger("bounds.py")
 bounds_logger.setLevel(logging.ERROR)
 
 LOG = bounds_logger.log
+
+def bounds_check_pass(pipeline):
+    """
+    Bounds check pass analyzes if function values used in the compute
+    objects are within the domain of the functions. Static analysis is
+    only possible when the references to function values are regular
+    i.e. they are not data dependent. We restrict ourselves to affine
+    references.
+    """
+    for group in pipeline._groups.values():
+        for child in pipeline._group_children[group]:
+            check_refs(child, group)
+        for inp in group.inputs:
+            # Creating a computation group for an input which is given
+            # is meaningless. Ideally it should be done in a clean way
+            # currently abusing group for construction of a polyhedral
+            # representation
+            inp_group = \
+                pipe.Group(pipeline._ctx, [inp], pipeline._param_constraints)
+
+            check_refs(group, inp_group)
+
+    return
 
 def check_refs(child_group, parent_group):
     # Check refs works only on non-fused groups. It can be made to

@@ -216,7 +216,7 @@ class Pipeline:
         self._inputs = list(set(inputs))
 
         # Checking bounds
-        self.bounds_check_pass()
+        bounds_check_pass(self)
 
         # inline pass
         self.inline_pass()
@@ -537,28 +537,6 @@ class Pipeline:
         self._group_parents[new_group] = []
         self._group_children[new_group] = []
         self.replace_group(child_group, new_group)
-
-        return
-
-    def bounds_check_pass(self):
-        """ 
-        Bounds check pass analyzes if function values used in the compute
-        objects are within the domain of the functions. Static analysis is
-        only possible when the references to function values are regular
-        i.e. they are not data dependent. We restrict ourselves to affine
-        references.
-        """
-        for group in self._groups.values():
-            for child in self._group_children[group]:
-                check_refs(child, group)
-            for inp in group.inputs:
-                # Creating a computation group for an input which is given
-                # is meaningless. Ideally it should be done in a clean way
-                # currently abusing group for construction of a polyhedral
-                # representation
-                inp_group = Group(self._ctx, [inp], self._param_constraints)
-
-                check_refs(group, inp_group)
 
         return
 
