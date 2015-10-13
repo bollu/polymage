@@ -11,6 +11,8 @@ def buildPipeline(outputs,
                   param_constraints = [],
                   grouping = [],
                   inline_directives = [],
+                  tile_sizes = [],
+                  size_threshold = None,
                   pipe_name = None,
                   options = []):
 
@@ -24,5 +26,7 @@ def buildPipeline(outputs,
                          _param_constraints = param_constraints,
                          _grouping = grouping,
                          _inline_directives = inline_directives,
+                         _tile_sizes = tile_sizes,
+                         _size_threshold = size_threshold,
                          _name = pipe_name,
                          _options = options)

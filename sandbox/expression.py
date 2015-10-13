@@ -94,7 +94,7 @@ def get_constant_from_expr(expr, affine=False):
     if (isinstance(expr, Value)):
         if affine:
             assert (expr.typ is Int) or (expr.typ is Rational)
-        return expr.value 
+        return expr.value
     elif (isinstance(expr, constructs.Variable)):
         return 0
     elif (isinstance(expr, constructs.Reference)):
