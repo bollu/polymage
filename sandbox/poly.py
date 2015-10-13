@@ -257,8 +257,8 @@ class PolyPart(object):
         if isinstance(parent_part.comp, Reduction):
             for i in range(1, dim_out):
                 dep_vec[i] = '*'
-            dep_vec[0] = self.level_no - parent_part.level_no
-            return (dep_vec, parent_part.level_no)
+            dep_vec[0] = self._level_no - parent_part._level_no
+            return (dep_vec, parent_part._level_no)
 
         for i in range(0, num_args):
             arg = ref.arguments[i]
@@ -285,7 +285,7 @@ class PolyPart(object):
                 # Indexed with a single variable. This can either be an uniform
                 # access or can be uniformized with scaling when possible
                 elif len(dom_dim_coeff) == 1 and len(param_coeff) == 0:
-                    dim = (dom_dim_coeff.keys())[0]
+                    dim = list(dom_dim_coeff.keys())[0]
                     cvar_sched_dim = self.align[dim]
 
                     pscale = get_scale(scale_map, parent_part, i)
@@ -322,7 +322,7 @@ class PolyPart(object):
                 # In case the dimension in the parent has a constant size
                 # an upper and lower bound on the dependence vector can
                 # be computed.
-                elif len(domDimCoeff) + len(paramCoeff) == 0:
+                elif len(dom_dim_coeff) + len(param_coeff) == 0:
                     # offsets should be set here.
                     access_const = get_constant_from_expr(arg, affine = True)
                     p_lower_bound = parent_part.sched.domain().dim_min(i)
@@ -364,7 +364,7 @@ class PolyPart(object):
                 dep_vec[pvar_sched_dim] = '*'
 
         assert dep_vec[0] == '-'
-        dep_vec[0] = self.level_no - parent_part.level_no
+        dep_vec[0] = self._level_no - parent_part._level_no
         for i in range(0, dim_out):
             if (dep_vec[i] == '-'):
                 dep_vec[i] = 0
@@ -387,7 +387,7 @@ class PolyPart(object):
         #                aff = (dim_diff.get_pieces())[0][1]
         #                val = aff.get_constant_val()
         #                dep_vec[i] = (val.get_num_si())/(val.get_den_si())
-        return (dep_vec, parent_part.level_no)
+        return (dep_vec, parent_part._level_no)
 
     def __str__(self):
         partStr = "Schedule: " + self.sched.__str__() + '\n'\
