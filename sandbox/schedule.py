@@ -2,6 +2,8 @@ from __future__ import absolute_import, division, print_function
 
 from poly import *
 import logging
+from grouping import get_group_dep_vecs
+import expression
 
 # LOG CONFIG #
 schedule_logger = logging.getLogger("schedule.py")
@@ -369,7 +371,7 @@ def align_and_scale_parts(pipeline, group):
     for comp in comp_objs:
         for p in group.polyRep.poly_parts[comp]:
             p_align = p.align
-            if not group.polyRep.isPartSelfDependent(p):
+            if not p.is_self_dependent():
                 no_self_dep_parts.append(p)
                 # update size of align vector to max dim
                 # assuming that 'align' has only spatial dims
@@ -613,109 +615,80 @@ def computeTileSlope(self, stageDeps, hmax):
 
     return (slopeMin, slopeMax)
 
-def fusedSchedule(self, paramEstimates):
+def fused_schedule(pipeline, group, param_estimates):
     """Generate an optimized schedule for the stage."""
-    # Overall Approach
-    # -- Partition the stages into groups
-    #    -- Group together stages which have uniform dependencies across
-    #       or dependencies that can be uniformized.
-    #    -- Try to group stages which only have inter-stage dependencies.
-    #    -- Intra-stage dependencies are dealt separately. Since they 
-    #       generally inhibit concurrent start.
-    #    -- While grouping the stages use scaled schedules to uniformize
-    #       dependencies. Algorithm to determine scaling factors.
-    #    -- Align the dimensions of stages based on the parameters defining
-    #       the dimension as well as subsequent access of the dimension.
-    #       Can this be done while extracting the polyhedral representation?
-    #    -- Try to reduce the live-range of the stages while grouping. A
-    #       stage which only has consumers within the group can be optimized
-    #       for storage.
-    #    -- Use the estimates of input sizes and number of threads to formulate        
-    #       simple heuristics.
-    stageGroups = self.baseSchedule(paramEstimates)
-    # -- Compute dependencies
-    #    -- Since partitioning might introduce scaling factors. The 
-    #       dependencies have to be computed based on the schedule
-    #       How to extract dependence vectors from dependence polyhedra?
-    #       This might be a better approach than trying to finding the vectors
-    #       in an independent step.
-    stageDeps = {}
-    for i in range(0, len(stageGroups)):
-        stageDeps[i] = self.getGroupDependenceVectors(stageGroups[i])
-        #for g in stageGroups[i]:
-        #    print(g.sched)
-        #    print(g.expr)
-        #print(stageDeps[i])
+    g_poly_rep = group.polyRep
+    g_poly_parts = g_poly_rep.poly_parts
+    g_parts = []
+    for comp in g_poly_parts:
+        g_parts.extend(g_poly_parts[comp])
 
-    # -- Generate a tiled schedule for the group
-    #    -- Stencil groups are groups which have only uniform inter stage 
-    #       dependencies. These stages can be tiled using the overlap or split
-    #       tiling approach.
-    #    -- Intra tile uniform dependencies should be tiled in a pipeline 
-    #       fashion. Can this be folded into the overlap or split tiling strategy
-    #       or needs to be dealt separately?
-    #       Integral images and time iterated computations are important patterns 
-    #       that fall into this category.
-    #    -- For general affine dependencies the pluto algorithm should be used.
-    #       We currently do not focus on general affine dependencies.
-    stencilGroups = []
-    for i in range(0, len(stageGroups)):
-        # No point in tiling a group that has no dependencies
-        isStencil = len(stageDeps[i]) > 0 and len(stageGroups[i]) > 1
-        for dep, h in stageDeps[i]:
-            # Skips groups which have self deps
-            if dep[0] == 0:
-                isStencil = False
-        if isStencil:
-            stencilGroups.append(i)
-        else:
-            for p in stageGroups[i]:
-                partSize = self.getPartSize(p, paramEstimates)
-                bigPart = partSize != '*' and partSize > self.sizeThreshold/2
-                if not self.isPartSelfDependent(p) and bigPart:
-                    # Determine the outer most dim and mark it parallel
-                    # the inner most dim and mark it as vector
-                    parallelDim = None
-                    vecDim = None
-                    for dom in range(0, len(p.align)):
-                        interval = p.comp.domain[dom]
-                        if isinstance(p.comp, Accumulator):
-                            interval = p.comp.reductionDomain[dom]
-                        # Since size could be estimated so can interval
-                        # size no need to check.
-                        intSize = self.getDimSize(interval, paramEstimates)
-                        if(getConstantFromExpr(intSize) >= 32):
-                            if parallelDim is not None:
-                                parallelDim = min(p.align[dom], parallelDim)
-                            else:
-                                parallelDim = p.align[dom]
-                                
-                        if(getConstantFromExpr(intSize) >= 4):
-                            if vecDim is not None:
-                                vecDim = max(p.align[dom], vecDim)
-                            else:
-                                vecDim = p.align[dom]
-                    if parallelDim is not None:
-                        pDimName = p.sched.get_dim_name(isl._isl.dim_type.out,
-                                                       parallelDim)
-                        p.parallelSchedDims.append(pDimName)
-                    if vecDim is not None:
-                        vDimName = p.sched.get_dim_name(isl._isl.dim_type.out,
-                                                       vecDim)
-                        p.vectorSchedDim.append(vDimName)
+    comp_deps = get_group_dep_vecs(group, g_parts)
 
-        # Find the stages which are not liveout
-        maxStage = max([ p._level_no for p in stageGroups[i] ])
-        for p in stageGroups[i]:
-            isLiveOut = not isStencil
-            #isLiveOut = True
-            for gn in range(0, len(stageGroups)):
-                if gn != i:
-                    isLiveOut = isLiveOut or self.isGroupDependentOnPart(
-                                                        stageGroups[gn], p)                        
-            if p._level_no == maxStage:
-                p.liveout = True
-            p.liveout = p.liveout or isLiveOut     
+    # No point in tiling a group that has no dependencies
+    is_stencil = len(comp_deps) > 0 and len(g_parts) > 1
+    for dep, h in comp_deps:
+        # Skips groups which have self deps
+        if dep[0] == 0:
+            is_stencil = False
+
+    if not is_stencil:
+        for p in g_parts:
+            part_size = p.get_size(param_estimates)
+            big_part = (part_size != '*' and \
+                        part_size > pipeline._size_threshold)
+            if not p.is_self_dependent() and big_part:
+                # Determine the outer most dim and mark it parallel,
+                # the inner most dim and mark it as vector
+                parallel_dim = None
+                vec_dim = None
+                for dom in range(0, len(p.align)):
+                    interval = p.comp.domain[dom]
+                    if isinstance(p.comp, Reduction):
+                        interval = p.comp.reductionDomain[dom]
+                    # Since size could be estimated so can interval size be
+                    intr_size = \
+                        get_dim_size(interval, param_estimates)
+
+                    # outer parallel dim
+                    if(get_constant_from_expr(intr_size) >= 32):
+                        if parallel_dim is not None:
+                            parallel_dim = min(p.align[dom], parallel_dim)
+                        else:
+                            parallel_dim = p.align[dom]
+
+                    # inner vector dim
+                    if(get_constant_from_expr(intr_size) >= 8):
+                        if vec_dim is not None:
+                            vec_dim = max(p.align[dom], vec_dim)
+                        else:
+                            vec_dim = p.align[dom]
+
+                # mark parallel
+                if parallel_dim is not None:
+                    p_dim_name = p.sched.get_dim_name(isl._isl.dim_type.out,
+                                                      parallel_dim)
+                    p.parallel_sched_dims.append(p_dim_name)
+                # mark vector
+                if vec_dim is not None:
+                    v_dim_name = p.sched.get_dim_name(isl._isl.dim_type.out,
+                                                      vec_dim)
+                    p.vector_sched_dim.append(v_dim_name)
+
+    return
+
+    # Find the stages which are not liveout
+    maxStage = max([ p._level_no for p in stageGroups[i] ])
+    for p in stageGroups[i]:
+        isLiveOut = not isStencil
+        #isLiveOut = True
+        for gn in range(0, len(stageGroups)):
+            if gn != i:
+                isLiveOut = isLiveOut or self.isGroupDependentOnPart(
+                                                    stageGroups[gn], p)
+        if p._level_no == maxStage:
+            p.liveout = True
+        p.liveout = p.liveout or isLiveOut
                 
     for gi in stencilGroups:
         assert(len(stageGroups[gi]) > 1)
