@@ -615,6 +615,47 @@ def computeTileSlope(self, stageDeps, hmax):
 
     return (slopeMin, slopeMax)
 
+def mark_par_and_vec(poly_part, param_estimates):
+    p = poly_part
+    # Determine the outer most dim and mark it parallel,
+    # the inner most dim and mark it as vector
+    parallel_dim = None
+    vec_dim = None
+    for dom in range(0, len(p.align)):
+        interval = p.comp.domain[dom]
+        if isinstance(p.comp, Reduction):
+            interval = p.comp.reductionDomain[dom]
+        # Since size could be estimated so can interval size be
+        intr_size = \
+            get_dim_size(interval, param_estimates)
+
+        # outer parallel dim
+        if(get_constant_from_expr(intr_size) >= 32):
+            if parallel_dim is not None:
+                parallel_dim = min(p.align[dom], parallel_dim)
+            else:
+                parallel_dim = p.align[dom]
+
+        # inner vector dim
+        if(get_constant_from_expr(intr_size) >= 8):
+            if vec_dim is not None:
+                vec_dim = max(p.align[dom], vec_dim)
+            else:
+                vec_dim = p.align[dom]
+
+    # mark parallel
+    if parallel_dim is not None:
+        p_dim_name = p.sched.get_dim_name(isl._isl.dim_type.out,
+                                          parallel_dim)
+        p.parallel_sched_dims.append(p_dim_name)
+    # mark vector
+    if vec_dim is not None:
+        v_dim_name = p.sched.get_dim_name(isl._isl.dim_type.out,
+                                          vec_dim)
+        p.vector_sched_dim.append(v_dim_name)
+
+    return
+
 def fused_schedule(pipeline, group, param_estimates):
     """Generate an optimized schedule for the stage."""
     g_poly_rep = group.polyRep
@@ -638,42 +679,7 @@ def fused_schedule(pipeline, group, param_estimates):
             big_part = (part_size != '*' and \
                         part_size > pipeline._size_threshold)
             if not p.is_self_dependent() and big_part:
-                # Determine the outer most dim and mark it parallel,
-                # the inner most dim and mark it as vector
-                parallel_dim = None
-                vec_dim = None
-                for dom in range(0, len(p.align)):
-                    interval = p.comp.domain[dom]
-                    if isinstance(p.comp, Reduction):
-                        interval = p.comp.reductionDomain[dom]
-                    # Since size could be estimated so can interval size be
-                    intr_size = \
-                        get_dim_size(interval, param_estimates)
-
-                    # outer parallel dim
-                    if(get_constant_from_expr(intr_size) >= 32):
-                        if parallel_dim is not None:
-                            parallel_dim = min(p.align[dom], parallel_dim)
-                        else:
-                            parallel_dim = p.align[dom]
-
-                    # inner vector dim
-                    if(get_constant_from_expr(intr_size) >= 8):
-                        if vec_dim is not None:
-                            vec_dim = max(p.align[dom], vec_dim)
-                        else:
-                            vec_dim = p.align[dom]
-
-                # mark parallel
-                if parallel_dim is not None:
-                    p_dim_name = p.sched.get_dim_name(isl._isl.dim_type.out,
-                                                      parallel_dim)
-                    p.parallel_sched_dims.append(p_dim_name)
-                # mark vector
-                if vec_dim is not None:
-                    v_dim_name = p.sched.get_dim_name(isl._isl.dim_type.out,
-                                                      vec_dim)
-                    p.vector_sched_dim.append(v_dim_name)
+                mark_par_and_vec(p, pipeline._param_estimates)
 
     # Find the parts which are not liveout
     for p in g_all_parts:
@@ -683,11 +689,11 @@ def fused_schedule(pipeline, group, param_estimates):
 
     return
 
-    for gi in stencilGroups:
-        assert(len(stageGroups[gi]) > 1)
-        hmax = max( [ s._level_no for s in stageGroups[gi] ] )
-        hmin = min( [ s._level_no for s in stageGroups[gi] ] )
-        slopeMin, slopeMax = self.computeTileSlope(stageDeps[gi], hmax)
+    if is_stencil:
+        assert(len(g_all_parts) > 1)
+        hmax = max( [ p._level_no for p in g_all_parts ] )
+        hmin = min( [ p._level_no for p in g_all_parts ] )
+        slope_min, slope_max = self.compute_tile_slope(comp_deps, hmax)
         #print(slopeMin, slopeMax, hmax - hmin)
         
         #self.splitTile(stageGroups[gi], slopeMin, slopeMax)
