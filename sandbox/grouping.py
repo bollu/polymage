@@ -1,11 +1,23 @@
 from __future__ import absolute_import, division, print_function
 
-def isCompSelfDependent(self, comp):
-    parts = self.poly_parts[comp]
-    for p in parts:
-        if self.isPartSelfDependent(p):
-            return True
-    return False
+def get_group_dep_vecs(group, parts_list=[], scale_map = None):
+    dep_vecs = []
+    g_poly_rep = group.polyRep
+    g_poly_parts = g_poly_rep.poly_parts
+    if parts_list == []:
+        for comp in g_poly_parts:
+            parts_list.extend(g_poly_parts[comp])
+    for part in parts_list:
+        for ref in part.refs:
+            # if the parent is in the same group
+            if ref.objectRef in g_poly_parts:
+                for pp in g_poly_parts[ref.objectRef]:
+                    if pp not in parts_list:
+                        continue
+                    dep_vec = \
+                        part.compute_dependence_vector(pp, ref, scale_map)
+                    dep_vecs.append(dep_vec)
+    return dep_vecs
 
 def createGroupScaleMap(self, group):
     groupScaleMap = {}
@@ -19,47 +31,6 @@ def isStencilGroup(self, group):
         if '*' in depVec:
             return False
     return True    
-
-def getPartSize(self, part, param_estimates):
-    size = None
-    domain = part.comp.domain
-    if isinstance(part.comp, Accumulator):
-        domain = part.comp.reductionDomain
-    for interval in domain:
-        subsSize = self.getDimSize(interval, param_estimates)
-        if isConstantExpr(subsSize):
-            if size is None:
-                size = getConstantFromExpr(subsSize)
-            else:
-                size = size * getConstantFromExpr(subsSize)
-        else:
-            size = '*'
-            break
-    assert size is not None
-    return size
-
-def getDimSize(self, interval, param_estimates):
-    paramValMap = {}
-    for est in param_estimates:
-        assert isinstance(est[0], Parameter)
-        paramValMap[est[0]] = Value.numericToValue(est[1])
-
-    dimSize = interval.upperBound - interval.lowerBound + 1
-    return substituteVars(dimSize, paramValMap)
-
-def getGroupDependenceVectors(self, group, scaleMap = None):
-    depVecs = []   
-    for part in group:
-        refs = part.refs
-        for ref in refs:
-            if ref.objectRef in self.poly_parts:
-                for pp in self.poly_parts[ref.objectRef]:
-                    if pp not in group:
-                        continue
-                    depVec = self.getDependenceVector(pp, part, ref, 
-                                                      scaleMap)
-                    depVecs.append(depVec)  
-    return depVecs
 
 def isGroupDependentOnPart(self, group, parentPart):
     for part in group:

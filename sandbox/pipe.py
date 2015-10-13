@@ -150,6 +150,7 @@ class Pipeline:
     def __init__(self, _ctx, _outputs,
                  _param_estimates, _param_constraints,
                  _grouping, _inline_directives,
+                 _tile_sizes, _size_threshold,
                  _options, _name = None):
         # Name of the pipleline is a concatenation of the names of the 
         # pipeline outputs, unless it is explicitly named.
@@ -165,6 +166,9 @@ class Pipeline:
         self._grouping = _grouping
         self._inline_directives = _inline_directives
         self._options = _options
+        if _size_threshold == None:
+            self._size_threshold = 5
+        self._tile_sizes = _tile_sizes
 
         ''' CONSTRUCT DAG '''
         # Maps from a compute object to its parents and children by
@@ -264,7 +268,8 @@ class Pipeline:
             gparts = base_schedule(g)
             for p in gparts:
                 p.liveout = True
-            #fused_schedule(g)  # (g, param_estimates)
+
+            fused_schedule(self, g, self._param_estimates)
 
     @property
     def groups(self):
@@ -368,6 +373,10 @@ class Pipeline:
         return generate_code_for_pipeline(self, outputs_no_alloc,
                                                 is_extern_c_func,
                                                 are_io_void_ptrs)
+
+    '''
+    Pipelne graph operations
+    '''
 
     def drop_compute_obj(self, comp_obj):
         # if the compute object is a child of any other
