@@ -209,6 +209,32 @@ class PolyPart(object):
         self._scale = [i for i in _scale]
         return
 
+    def is_self_dependent(self):
+        obj_refs = [ ref.objectRef for ref in self.refs \
+                         if ref.objectRef == self.comp ]
+        if len(obj_refs) > 0:
+            return True
+        return False
+
+    def get_size(self, param_estimates):
+        size = None
+        domain = self.comp.domain
+        if isinstance(self.comp, Reduction):
+            domain = self.comp.reductionDomain
+        for interval in domain:
+            subs_size = get_dim_size(interval, param_estimates)
+            if is_constant_expr(subs_size):
+                if size is None:
+                    size = get_constant_from_expr(subs_size)
+                else:
+                    size = size * get_constant_from_expr(subs_size)
+            else:
+                size = '*'
+                break
+
+        assert size is not None
+        return size
+
     def collect_part_refs(self):
         refs = self.expr.collect(Reference)
         if (self.pred):
@@ -217,7 +243,7 @@ class PolyPart(object):
         return refs
 
     # TESTME
-    def compute_dependence_vector(parent_part,
+    def compute_dependence_vector(self, parent_part,
                                   ref, scale_map = None):
         def get_scale(s_map, p, i):
             if s_map is not None:
@@ -857,19 +883,11 @@ class PolyRep(object):
         self.polyast.append(astbld.ast_from_schedule(sched_map))
 
 
-    def isCompSelfDependent(self, comp):
+    def is_comp_self_dependent(self, comp):
         parts = self.poly_parts[comp]
         for p in parts:
-            if self.isPartSelfDependent(p):
+            if p.is_self_dependent():
                 return True
-        return False
-
-    def isPartSelfDependent(self, part):
-        refs    = part.refs
-        objRefs = [ ref.objectRef for ref in refs\
-                         if ref.objectRef == part.comp]
-        if len(objRefs) > 0:
-            return True
         return False
 
     def isParent(self, part1, part2): 
@@ -879,33 +897,6 @@ class PolyRep(object):
         if len(objRefs) > 0:
             return True
         return False
-
-    def getPartSize(self, part, param_estimates):
-        size = None
-        domain = part.comp.domain
-        if isinstance(part.comp, Accumulator):
-            domain = part.comp.reductionDomain
-        for interval in domain:
-            subsSize = self.getDimSize(interval, param_estimates)
-            if isConstantExpr(subsSize):
-                if size is None:
-                    size = get_constant_from_expr(subsSize)
-                else:
-                    size = size * get_constant_from_expr(subsSize)
-            else:
-                size = '*'
-                break
-        assert size is not None
-        return size
-    
-    def getDimSize(self, interval, param_estimates):
-        paramValMap = {}
-        for est in param_estimates:
-            assert isinstance(est[0], Parameter)
-            paramValMap[est[0]] = Value.numericToValue(est[1])
-
-        dimSize = interval.upperBound - interval.lowerBound + 1
-        return substituteVars(dimSize, paramValMap)
 
     def getVarName(self):
         name = "_i" + str(self._var_count)
@@ -933,6 +924,15 @@ class PolyRep(object):
                 polystr = polystr + '\n' + aststr
         return polystr
 
+
+def get_dim_size(interval, param_estimates):
+    param_val_map = {}
+    for est in param_estimates:
+        assert isinstance(est[0], Parameter)
+        param_val_map[est[0]] = Value.numericToValue(est[1])
+
+    dim_size = interval.upperBound - interval.lowerBound + 1
+    return substitute_vars(dim_size, param_val_map)
 
 def get_domain_dim_coeffs(sched, arg):
     dom_dim_coeff = {}
