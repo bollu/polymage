@@ -619,21 +619,21 @@ def fused_schedule(pipeline, group, param_estimates):
     """Generate an optimized schedule for the stage."""
     g_poly_rep = group.polyRep
     g_poly_parts = g_poly_rep.poly_parts
-    g_parts = []
+    g_all_parts = []
     for comp in g_poly_parts:
-        g_parts.extend(g_poly_parts[comp])
+        g_all_parts.extend(g_poly_parts[comp])
 
-    comp_deps = get_group_dep_vecs(group, g_parts)
+    comp_deps = get_group_dep_vecs(group, g_all_parts)
 
     # No point in tiling a group that has no dependencies
-    is_stencil = len(comp_deps) > 0 and len(g_parts) > 1
+    is_stencil = len(comp_deps) > 0 and len(g_all_parts) > 1
     for dep, h in comp_deps:
         # Skips groups which have self deps
         if dep[0] == 0:
             is_stencil = False
 
     if not is_stencil:
-        for p in g_parts:
+        for p in g_all_parts:
             part_size = p.get_size(param_estimates)
             big_part = (part_size != '*' and \
                         part_size > pipeline._size_threshold)
@@ -675,21 +675,14 @@ def fused_schedule(pipeline, group, param_estimates):
                                                       vec_dim)
                     p.vector_sched_dim.append(v_dim_name)
 
+    # Find the parts which are not liveout
+    for p in g_all_parts:
+        is_liveout = not is_stencil
+        #is_liveout = True
+        p.is_liveout = p.is_liveout or is_liveout
+
     return
 
-    # Find the stages which are not liveout
-    maxStage = max([ p._level_no for p in stageGroups[i] ])
-    for p in stageGroups[i]:
-        isLiveOut = not isStencil
-        #isLiveOut = True
-        for gn in range(0, len(stageGroups)):
-            if gn != i:
-                isLiveOut = isLiveOut or self.isGroupDependentOnPart(
-                                                    stageGroups[gn], p)
-        if p._level_no == maxStage:
-            p.liveout = True
-        p.liveout = p.liveout or isLiveOut
-                
     for gi in stencilGroups:
         assert(len(stageGroups[gi]) > 1)
         hmax = max( [ s._level_no for s in stageGroups[gi] ] )

@@ -242,7 +242,25 @@ class PolyPart(object):
 
         return refs
 
-    # TESTME
+    def compute_liveness(self, pipeline):
+        # if there any children
+        if self.comp in pipeline._comp_objs_children:
+            children = pipeline._comp_objs_children[self.comp]
+        else:
+            # no child => not live_out
+            self.is_liveout = True
+            return
+
+        self.is_liveout = False
+        group = pipeline._groups[self.comp]
+        for child in children:
+            # if any child is in another group
+            if pipeline._groups[child] != group:
+                self.is_liveout = True
+                break
+
+        return
+
     def compute_dependence_vector(self, parent_part,
                                   ref, scale_map = None):
         def get_scale(s_map, p, i):

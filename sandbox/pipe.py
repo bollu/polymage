@@ -267,7 +267,7 @@ class Pipeline:
         for g in list(set(self._groups.values())):
             gparts = base_schedule(g)
             for p in gparts:
-                p.liveout = True
+                p.compute_liveness(self)
 
             fused_schedule(self, g, self._param_estimates)
 
