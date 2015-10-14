@@ -20,6 +20,9 @@ def buildPipeline(outputs,
     # operations during compilation.
     ctx = poly.isl.Context()
 
+    if tile_sizes == []:
+        tile_sizes = [16, 16, 16]
+
     return pipe.Pipeline(_ctx = ctx,
                          _outputs = outputs,
                          _param_estimates = param_estimates,
