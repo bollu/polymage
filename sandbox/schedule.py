@@ -559,61 +559,98 @@ def tileSchedule(sched, dim, size, overlapOffset = 0):
     sched = addConstriants(sched, ineqs, [])
     return (sched, ('rect', name, '_T' + name, size))
 
-def computeTileSlope(self, stageDeps, hmax):
+def compute_tile_slope(dep_vecs, hmax):
     # Compute slopes
-    # -- The first dimension in the domain gives the stage order. The slope of
-    #    the tile in each dimension is computed with respect to the stage order.
-    #    The min extent and max extent in the each dimension are computed. The
+    # -- The first dimension in the domain gives the comp obj order. The slope
+    #    of the tile in each dimension is computed w.r.t the comp obj order.
+    #    The min extent and max extent in each dimension are computed. The
     #    hyperplanes representing the min and max extent give the shape of the
     #    tile in that dimension.
-    if len(stageDeps) < 1 :
+    #
+    # =================================================================
+    # '*' = live-out / live-in
+    # '+' = intermediate
+    # '-' = spurious compute due to over-approximation
+    # (edges bw '*' and '+' are the actual dependences)
+    #
+    #  ^  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+    #  |               /|\               X                |\
+    #  |              + + + + + + + + + + + + + + + + + + + +
+    #  |             /| |              /   \              |  \
+    #  |            - + + + + + + + + + + + + + + + + + + + + -
+    #  |           / /|\|            /       \            |    \
+    #  h          - + + + + + + + + + + + + + + + + + + + + + + -
+    #  |         / /|\  |          /           \          |      \
+    #  |        - + + + + + + + + + + + + + + + + + + + + + + + + -
+    #  |       / /|\    |        /               \        |        \
+    #  v  + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + +
+    #         <--- a --->       <------- o ------->       <--- b --->
+    #
+    # a = min_width
+    # b = max_width
+    # o = overlap
+    # =================================================================
+
+    if len(dep_vecs) < 1 :
         return ([], [])
 
-    vecLen = len(stageDeps[0][0])
-    slopeMin = [ (0, 1) for i in range(0, vecLen - 1) ]
-    slopeMax = [ (0, 1) for i in range(0, vecLen - 1) ]
+    vec_len = len(dep_vecs[0][0])
+    slope_min = [ (0, 1) for i in range(0, vec_len - 1) ]
+    slope_max = [ (0, 1) for i in range(0, vec_len - 1) ]
     # Find max and min widths of dependencies at the base
     widths = []
-    hmin = min([ dep[1] for dep in stageDeps ])
-    minWidth = [ 0 for i in range(0, vecLen - 1)]
-    maxWidth = [ 0 for i in range(0, vecLen - 1)]
-    depUnknown = [ False for i in range(0, vecLen - 1) ]
+    hmin = min([ dep[1] for dep in dep_vecs ])
+    # extent cumulated at each level
+    min_width = [ 0 for i in range(0, vec_len - 1) ]
+    max_width = [ 0 for i in range(0, vec_len - 1) ]
+    dep_unknown = [ False for i in range(0, vec_len - 1) ]
+    # for each level
     for currh in range(hmax - 1, hmin - 1, -1):
-        maxW = [ 0 for i in range(0, vecLen - 1)]
-        minW = [ 0 for i in range(0, vecLen - 1)]
-        hDepVecs = [ depVec for depVec in stageDeps if \
-                     depVec[1] == currh]
-        for depVec, h in hDepVecs:             
-            for i in range(0, len(depVec)-1):
-                if depVec[i+1] == '*':
-                    depUnknown[i] = True
+        local_max_w = [ 0 for i in range(0, vec_len - 1) ]
+        local_min_w = [ 0 for i in range(0, vec_len - 1) ]
+        # dep vecs for this level
+        h_dep_vecs = [ dep_vec for dep_vec in dep_vecs
+                                 if dep_vec[1] == currh ]
+        # h corresponds to topo-order height in the pipeline
+        for dep_vec, h in h_dep_vecs:
+            for i in range(0, len(dep_vec)-1):
+                if dep_vec[i+1] == '*':
+                    dep_unknown[i] = True
                     continue
-                if depVec[i+1] > 0:
-                    maxW[i] = max(maxW[i], depVec[i+1])
-                if depVec[i+1] < 0:
-                    minW[i] = min(minW[i], depVec[i+1])
-        for i in range(0, len(depVec)-1):
-            minWidth[i] = minWidth[i] + minW[i]
-            maxWidth[i] = maxWidth[i] + maxW[i]
-        widths.append((list(minWidth), currh))
-        widths.append((list(maxWidth), currh))
+                if dep_vec[i+1] > 0:
+                    local_max_w[i] = max(local_max_w[i], dep_vec[i+1])
+                if dep_vec[i+1] < 0:
+                    local_min_w[i] = min(local_min_w[i], dep_vec[i+1])
+        for i in range(0, len(dep_vec)-1):
+            max_width[i] = max_width[i] + local_max_w[i]
+            min_width[i] = min_width[i] + local_min_w[i]
+        # remember the cumukated extent at each level
+        widths.append((list(min_width), currh))
+        widths.append((list(max_width), currh))
 
+    # use the level-specific extents to determine the slope
+    # (h will be descending, as 'widths' list was populated in that order)
     for width, h in widths:
-        scale = hmax - h 
-        for i in range(0, vecLen-1):
-            if ((Fraction(width[i], scale) < 
-                 Fraction(slopeMin[i][0], slopeMin[i][1])) and width[i] < 0):
-                slopeMin[i] = (width[i], scale)
-            if ((Fraction(width[i], scale) >  
-                 Fraction(slopeMax[i][0], slopeMax[i][1])) and width[i] > 0):
-                slopeMax[i] = (width[i], scale)
+        scale = hmax - h
+        for i in range(0, vec_len-1):
+            # be careful while constructing Fraction object
+            # min slope
+            if ((Fraction(width[i], scale) < Fraction(slope_min[i][0],
+                                                      slope_min[i][1])) and \
+                width[i] < 0):
+                slope_min[i] = (width[i], scale)
+            # max slope
+            if ((Fraction(width[i], scale) > Fraction(slope_max[i][0],
+                                                      slope_max[i][1])) and \
+                width[i] > 0):
+                slope_max[i] = (width[i], scale)
 
-    for i in range(0, vecLen-1):
-        if depUnknown[i]:
-            slopeMin[i] = '*'
-            slopeMax[i] = '*'
+    for i in range(0, vec_len-1):
+        if dep_unknown[i]:
+            slope_min[i] = '*'
+            slope_max[i] = '*'
 
-    return (slopeMin, slopeMax)
+    return (slope_min, slope_max)
 
 def mark_par_and_vec(poly_part, param_estimates):
     p = poly_part
@@ -658,12 +695,15 @@ def mark_par_and_vec(poly_part, param_estimates):
 
 def fused_schedule(pipeline, group, param_estimates):
     """Generate an optimized schedule for the stage."""
+
     g_poly_rep = group.polyRep
     g_poly_parts = g_poly_rep.poly_parts
     g_all_parts = []
     for comp in g_poly_parts:
         g_all_parts.extend(g_poly_parts[comp])
 
+    # get dependence vectors between each part of the group and each of its
+    # parents' part
     comp_deps = get_group_dep_vecs(group, g_all_parts)
 
     # No point in tiling a group that has no dependencies
@@ -673,6 +713,7 @@ def fused_schedule(pipeline, group, param_estimates):
         if dep[0] == 0:
             is_stencil = False
 
+    # threshold for parallelism
     if not is_stencil:
         for p in g_all_parts:
             part_size = p.get_size(param_estimates)
@@ -687,19 +728,19 @@ def fused_schedule(pipeline, group, param_estimates):
         #is_liveout = True
         p.is_liveout = p.is_liveout or is_liveout
 
-    return
-
     if is_stencil:
         assert(len(g_all_parts) > 1)
         hmax = max( [ p._level_no for p in g_all_parts ] )
         hmin = min( [ p._level_no for p in g_all_parts ] )
-        slope_min, slope_max = self.compute_tile_slope(comp_deps, hmax)
-        #print(slopeMin, slopeMax, hmax - hmin)
-        
+        slope_min, slope_max = compute_tile_slope(comp_deps, hmax)
+        #print(slope_min, slope_max, hmax - hmin)
+    return
+
+    '''
         #self.splitTile(stageGroups[gi], slopeMin, slopeMax)
         self.overlapTile(stageGroups[gi], slopeMin, slopeMax)
-        print(stageDeps[gi])
-        print(slopeMin, slopeMax, hmax, len(stageGroups[gi]))
+        #print(stageDeps[gi])
+        #print(slopeMin, slopeMax, hmax, len(stageGroups[gi]))
         #for p in stageGroups[gi]:
         #    print(p.scale, p.comp.name + ' = ' +  p.expr.__str__())
         #for p in stageGroups[gi]:
@@ -881,6 +922,7 @@ def fused_schedule(pipeline, group, param_estimates):
         #for p in stageGroups[gi]:
         #    print(p.sched)
         #assert False
+    '''
 
 
 def moveIndependentDim(self, dim, group, stageDim):
