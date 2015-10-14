@@ -525,8 +525,8 @@ class Reduce(object):
             assert False
 
         ret_str = 'Reduce [ ' + self._red_ref.__str__() + ' = ' + \
-                  op_str + '(' + \
-                  self._red_ref.__str__() + op_sep + self._expr.__str__() + ') ]'
+                  op_str + '(' + self._red_ref.__str__() + op_sep + \
+                  self._expr.__str__() + ') ]'
         return ret_str
 
 class Function(object):
@@ -646,11 +646,13 @@ class Function(object):
     def __str__(self):
         if (self._body):
             var_str = ", ".join([var.__str__() for var in self._variables])
-            dom_str = ', '.join([self._variables[i].__str__() + self._varDomain[i].__str__()\
-                                for i in range(len(self._varDomain))])
-            case_str = "{ " + "\n ".join([case.__str__() for case in self._body]) + " }"
-            return "Domain: " + dom_str + '\n' + self._name + "(" + var_str + ") = " +\
-                    case_str + '\n'
+            dom_str = ', '.join([self._variables[i].__str__() + \
+                                 self._varDomain[i].__str__()\
+                                   for i in range(len(self._varDomain))])
+            case_str = "{ " + "\n ".join([case.__str__() \
+                                            for case in self._body]) + " }"
+            return "Domain: " + dom_str + '\n' + self._name + \
+                   "(" + var_str + ") = " + case_str + '\n'
         else:
             return self._name
 
@@ -683,9 +685,9 @@ class Image(Function):
 class Reduction(Function):
     def __init__(self, _varDom, _redDom, _typ, _name):
         Function.__init__(self, _varDom, _typ, _name)
-        # Gives the domain of the reduction. Reduction domain of each variable is 
-        # expected to be over integers. Reduction evaluation in the lexicographic 
-        # order of the domain is assumed to be valid.
+        # Gives the domain of the reduction. Reduction domain of each variable
+        # is expected to be over integers. Reduction evaluation in the
+        # lexicographic order of the domain is assumed to be valid.
         assert(len(_redDom[0]) == len(_redDom[1]))
         for i in range(0, len(_redDom[0])):
             assert(isinstance(_redDom[0][i], Variable))
@@ -703,7 +705,7 @@ class Reduction(Function):
         self._redVariables = _redDom[0]
         self._redDomain = _redDom[1]
 
-        # Intial value of each accumulator cell. Default is set to zero of the 
+        # Intial value of each accumulator cell. Default is set to zero of the
         # given type
         self._default   = Value(0, _typ)
 
@@ -737,7 +739,8 @@ class Reduction(Function):
             # check if the Case and Expression constructs only use
             # function variables and global parameters
     
-            # Which way is better Case inside accumulate or accumulate inside Case
+            # Which way is better Case inside accumulate or accumulate inside
+            # Case
             
             # MOD -> if _def is not a Case, shouldnt it be disallowed after
             # the first definition?
@@ -788,13 +791,17 @@ class Reduction(Function):
     def __str__(self):
         if (self._body):
             varStr = ", ".join([var.__str__() for var in self._variables])
-            domStr = ', '.join([self._variables[i].__str__() + self._varDomain[i].__str__()\
-                                for i in range(len(self._varDomain))])
-            redDomStr = ', '.join([self._redVariables[i].__str__() + self._redDomain[i].__str__()\
-                                for i in range(len(self._redDomain))])
-            caseStr = "{ " + "\n ".join([case.__str__() for case in self._body]) + " }"
-            return "Domain: " + domStr + '\n' + "Reduction Domain: " + redDomStr + '\n' +\
-                    self._name + "(" + varStr + ") = " +\
+            domStr = ', '.join([self._variables[i].__str__() + \
+                                self._varDomain[i].__str__()\
+                                  for i in range(len(self._varDomain))])
+            redDomStr = ', '.join([self._redVariables[i].__str__() + \
+                                   self._redDomain[i].__str__()\
+                                     for i in range(len(self._redDomain))])
+            caseStr = "{ " + "\n ".join([case.__str__() \
+                                           for case in self._body]) + " }"
+            return "Domain: " + domStr + '\n' + \
+                   "Reduction Domain: " + redDomStr + '\n' +\
+                   self._name + "(" + varStr + ") = " +\
                     caseStr + '\n' + "Default: " + self._default.__str__()
         else:
             return self._name
