@@ -53,7 +53,7 @@ def isl_expr_to_cgen(expr, prologue_stmts = None):
             num_args = expr.get_op_n_arg()
             cmax = genc.CMax(isl_expr_to_cgen(expr.get_op_arg(0), prolog),
                              isl_expr_to_cgen(expr.get_op_arg(1), prolog))
-            for i in range(2, numArgs):
+            for i in range(2, num_args):
                 cmax = genc.CMax(cmax,
                                  isl_expr_to_cgen(expr.get_op_arg(i), prolog))
             if prolog is not None:
@@ -287,13 +287,13 @@ def generate_c_naive_from_expression_node(polyrep, node, body,
         if acc_scratch[i]:
             var_name = poly_part.comp.variables[i].name
             #dim = \
-            #    poly_part.sched.find_dim_by_name(opt.isl._isl.dim_type.in_,
+            #    poly_part.sched.find_dim_by_name(isl._isl.dim_type.in_,
             #                                     '_Acc_' + var_name)
             #dim_rem = \
-            #    poly_part.sched.find_dim_by_name(opt.isl._isl.dim_type.in_,
+            #    poly_part.sched.find_dim_by_name(isl._isl.dim_type.in_,
             #                                     '_Rem_' + var_name)
             mul_rem = \
-                poly_part.sched.find_dim_by_name(opt.isl._isl.dim_type.in_,
+                poly_part.sched.find_dim_by_name(isl._isl.dim_type.in_,
                                                  '_Mul_' + var_name)
             #org_var = Variable(Int, '_Acc_' + var_name)
             #rem_var = Variable(Int, '_Rem_' + var_name)
