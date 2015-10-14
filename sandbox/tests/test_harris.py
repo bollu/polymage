@@ -75,7 +75,6 @@ def test_harris_corner():
     # test boundary case
     harris.defn.append(Case(zeroCond, 0.0))
 
-    '''
     groups = [[Ix, Iy, Ixx, Iyy, Ixy], \
               [Sxx, Sxy, Syy], \
               [det, trace, harris]]
@@ -83,13 +82,14 @@ def test_harris_corner():
     groups = [[Ix, Iy], \
               [Sxx, Sxy, Syy], \
               [harris]]
+    '''
 
     p_est = [ (R, 1024), (C, 1024) ]
 
     # build the pipeline
     pipeline = buildPipeline([harris],
                              grouping = groups,
-                             inline_directives = [Ixx, Iyy, Ixy, det, trace],
+                             #inline_directives = [Ixx, Iyy, Ixy, det, trace],
                              param_estimates = p_est,
                              pipe_name = "harris")
 
