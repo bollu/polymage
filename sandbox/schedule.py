@@ -994,7 +994,7 @@ def overlap_tile(pipeline, group_parts, slope_min, slope_max):
                                               slope_max[i-1][1])))
                 # L and R are normals to the left and the right
                 # bounding hyperplanes of the uniform dependencies
-            
+
                 tile_size = pipeline._tile_sizes[num_tile_dims]
                 # Compute the overlap shift
                 #print(slope_max, slope_min, h, L, R, i-1)
@@ -1012,6 +1012,7 @@ def overlap_tile(pipeline, group_parts, slope_min, slope_max):
                 it_dim = comp_dim + no_tile_dims + 2*tile_dims + 2
                 tile_dim = comp_dim + tile_dims
                 time_dim = comp_dim + tile_dims + 1
+
                 coeff[('out', time_dim)] = -left
                 coeff[('out', it_dim)] = 1
                 coeff[('out', tile_dim)] = -tile_size
@@ -1055,6 +1056,8 @@ def overlap_tile(pipeline, group_parts, slope_min, slope_max):
                         assert j not in part.dim_tile_info
                         part.dim_tile_info[j] = ('none', name)
             no_tile_dims += 1
+
+    return
 
 def splitTile(self, group, slopeMin, slopeMax):
     stageDim = 0

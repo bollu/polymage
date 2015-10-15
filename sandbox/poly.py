@@ -88,7 +88,6 @@ def add_constraints_from_list(obj, local_space, constraint_list,
                 # handling with an isl function, if any, to test for the
                 # existence of a dimension in that part.
                 pass
-
         obj = obj.add_constraint(c)
     return obj
 
@@ -458,9 +457,6 @@ class PolyRep(object):
         # For now, let this be. Compilation optimizations can come later.
 
         self.extract_polyrep_from_group(_param_constraints)
-
-        #self.fusedSchedule(_param_estimates)
-        #self.simpleSchedule(_param_estimates)
 
     def extract_polyrep_from_group(self, param_constraints):
         # dict: comp_obj -> level_no
@@ -1002,7 +998,7 @@ def format_schedule_constraints(dim_in, dim_out, align, scale, level_no):
     # Setting the leading schedule dimension to level
     level_coeff = {}
     level_coeff[('out', 0)] = -1
-    level_coeff[('constant', 0)] = level_no
+    level_coeff[('constant', 0)] = level_no-1
     eq_coeff.append(level_coeff)
 
     # Setting the remaining dimensions to zero
