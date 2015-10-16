@@ -652,16 +652,61 @@ def compute_tile_slope(dep_vecs, hmax):
 
     return (slope_min, slope_max)
 
+def mark_par_and_vec_for_tile(poly_part):
+    p = poly_part
+    # -- Mark parallel dimensions and vector dimensions for tiles
+    #    -- Find the outer most parallel dimension which can generate "enough"
+    #       tasks for the given number of threads.
+    #    -- Partial and full tile separation to enable better vectorization.
+    outer_parallel_dim = None
+    inner_vec_dim = None
+    for dim in p.dim_tile_info:
+        if p.dim_tile_info[dim][0] == 'none':
+            # Either the dimension is too small to be parallelized or
+            # is skewed. In both cases the dimension cannot be parallel.
+            # This can change when we choose to not tile a dimension.
+            continue
+        elif p.dim_tile_info[dim][0] == 'overlap':
+            dim_name = p.dim_tile_info[dim][1]
+            tile_dim_name = p.dim_tile_info[dim][2]
+            sched_dim = p.sched.find_dim_by_name(isl._isl.dim_type.out,
+                                                 dim_name)
+            tile_dim = p.sched.find_dim_by_name(isl._isl.dim_type.out,
+                                                tile_dim_name)
+            # update outermost parallel dim
+            if outer_parallel_dim is not None:
+                outer_parallel_dim = min(tile_dim, outer_parallel_dim)
+            else:
+                outer_parallel_dim = tile_dim
+            # update outermost vector dim
+            if inner_vec_dim is not None:
+                inner_vec_dim = max(sched_dim, inner_vec_dim)
+            else:
+                inner_vec_dim = sched_dim
+
+    # mark parallel
+    if outer_parallel_dim is not None:
+        p_dim_name = p.sched.get_dim_name(isl._isl.dim_type.out,
+                                          outer_parallel_dim)
+        p.parallel_sched_dims.append(p_dim_name)
+    # mark vector
+    if inner_vec_dim is not None:
+        v_dim_name = p.sched.get_dim_name(isl._isl.dim_type.out,
+                                        inner_vec_dim)
+        p.vector_sched_dim.append(v_dim_name)
+
+    return
+
 def mark_par_and_vec(poly_part, param_estimates):
     p = poly_part
     # Determine the outer most dim and mark it parallel,
     # the inner most dim and mark it as vector
     parallel_dim = None
     vec_dim = None
-    for dom in range(0, len(p.align)):
-        interval = p.comp.domain[dom]
+    for dim in range(0, len(p.align)):
+        interval = p.comp.domain[dim]
         if isinstance(p.comp, Reduction):
-            interval = p.comp.reductionDomain[dom]
+            interval = p.comp.reductionDomain[dim]
         # Since size could be estimated so can interval size be
         intr_size = \
             get_dim_size(interval, param_estimates)
@@ -669,16 +714,16 @@ def mark_par_and_vec(poly_part, param_estimates):
         # outer parallel dim
         if(get_constant_from_expr(intr_size) >= 32):
             if parallel_dim is not None:
-                parallel_dim = min(p.align[dom], parallel_dim)
+                parallel_dim = min(p.align[dim], parallel_dim)
             else:
-                parallel_dim = p.align[dom]
+                parallel_dim = p.align[dim]
 
         # inner vector dim
         if(get_constant_from_expr(intr_size) >= 8):
             if vec_dim is not None:
-                vec_dim = max(p.align[dom], vec_dim)
+                vec_dim = max(p.align[dim], vec_dim)
             else:
-                vec_dim = p.align[dom]
+                vec_dim = p.align[dim]
 
     # mark parallel
     if parallel_dim is not None:
@@ -782,7 +827,7 @@ def fused_schedule(pipeline, group, param_estimates):
         overlap_tile(pipeline, g_all_parts, slope_min, slope_max)
 
         enable_tile_scratchpad(g_all_parts)
-    '''
+
         # Second level storage savings can be achieved by utilizing modulo buffers
         # in the non-vector dimension. The fastest varying dimension is considered
         # the vector dimension and by this point should be the inner-most dimension.
@@ -834,46 +879,11 @@ def fused_schedule(pipeline, group, param_estimates):
                     p.sched = p.sched.set_dim_name(isl._isl.dim_type.out, 
                                                     timeDim, '_shift' + dimName)
         """
-        # -- Mark parallel dimensions and vector dimensions in each group
-        #    -- Find the outer most parallel dimension which can generate "enough"
-        #       tasks for the given number of threads.
-        #    -- Partial and full tile separation to enable better vectorization.
-        #    -- We currently rely on compiler vectorization. This is quite unreliable.
-        #       We need to revisit the vectorization strategy.
-        for p in stageGroups[gi]:
-            outerParallelDim = None
-            innerVecDim = None
-            for dom in p.dimTileInfo:
-                if p.dimTileInfo[dom][0] == 'none':
-                    # Either the dimension is too small to be parallelized or 
-                    # is skewed. In both cases the dimension cannot be parallel.
-                    # This can change when we choose to not tile a dimension.
-                    continue
-                elif p.dimTileInfo[dom][0] == 'overlap':
-                    dimName = p.dimTileInfo[dom][1]
-                    tileDimName = p.dimTileInfo[dom][2]
-                    schedDim = p.sched.find_dim_by_name(isl._isl.dim_type.out, 
-                                                        dimName)
-                    tileDim = p.sched.find_dim_by_name(isl._isl.dim_type.out, 
-                                                        tileDimName)
-                    if outerParallelDim is not None:
-                        outerParallelDim = min(tileDim, outerParallelDim)
-                    else:
-                        outerParallelDim = tileDim
-                    if innerVecDim is not None:
-                        innerVecDim = max(schedDim, innerVecDim)
-                    else:
-                        innerVecDim = schedDim
 
-            if outerParallelDim is not None:
-                pDimName = p.sched.get_dim_name(isl._isl.dim_type.out,
-                                                outerParallelDim)
-                p.parallelSchedDims.append(pDimName)
-            if innerVecDim is not None:
-                vDimName = p.sched.get_dim_name(isl._isl.dim_type.out,
-                                                innerVecDim)
-                p.vectorSchedDim.append(vDimName)
+        for p in g_all_parts:
+            mark_par_and_vec_for_tile(p)
 
+    '''
         # Computations which have different scale but map to the same time
         # generate a lot of conditionals which can hinder performance. This
         # step separates all computations in a time step by adding an additional 
