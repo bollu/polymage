@@ -486,7 +486,7 @@ def generate_c_expr(exp, cparam_map, cvar_map, cfunc_map,
                            exp.objectRef.domain[i].lowerBound)
             # TESTME
             if scratch and scratch[i]:
-                scratch_arg = substituteVars(exp.arguments[i], scratch_map)
+                scratch_arg = substitute_vars(exp.arguments[i], scratch_map)
             shifted_args.append(simplify_expr(scratch_arg))
         args = [ generate_c_expr(arg, cparam_map, cvar_map, cfunc_map,
                                  scratch_map, prologue_stmts)

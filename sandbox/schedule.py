@@ -693,6 +693,50 @@ def mark_par_and_vec(poly_part, param_estimates):
 
     return
 
+def enable_tile_scratchpad(group_parts):
+    # Determine the buffer sizes for stages in each dimension
+    for p in group_parts:
+        for dim in p.dim_tile_info:
+            if p.dim_tile_info[dim][0] == 'none':
+                continue
+            dim_name = p.dim_tile_info[dim][1]
+            tile_dim_name = p.dim_tile_info[dim][2]
+            extent = p.dim_tile_info[dim][3]
+            if p.dim_tile_info[dim][0] == 'overlap':
+                # Accounting for the overlap region
+                left = p.dim_tile_info[dim][4]
+                right = p.dim_tile_info[dim][5]
+                h = p.dim_tile_info[dim][6]
+                extent += abs(left * h) + abs(right * h)
+            p.dim_scratch_size[dim] = \
+                int(math.ceil(Fraction(extent, p.scale[dim])))
+            mul_name = \
+              '_Mul_'+p.sched.get_dim_name(isl._isl.dim_type.in_, dim)
+            dim_in = p.sched.dim(isl._isl.dim_type.in_)
+            dim_id =  p.sched.get_tuple_id(isl._isl.dim_type.in_)
+            p.sched = p.sched.insert_dims(isl._isl.dim_type.in_, dim_in, 1)
+            p.sched = p.sched.set_tuple_id(isl._isl.dim_type.in_, dim_id)
+            p.sched = \
+              p.sched.set_dim_name(isl._isl.dim_type.in_, dim_in, mul_name)
+            sched_dim = \
+              p.sched.find_dim_by_name(isl._isl.dim_type.out, dim_name)
+            tile_dim = \
+              p.sched.find_dim_by_name(isl._isl.dim_type.out, tile_dim_name)
+
+            eqs = []
+            coeff = {}
+            coeff[('in', dim_in)] = p.scale[dim]
+            coeff[('out', sched_dim)] = -1
+            coeff[('out', tile_dim)] = p.dim_tile_info[dim][3]
+            eqs.append(coeff)
+
+            ineqs = []
+
+            p.sched = add_constraints(p.sched, ineqs, eqs)
+
+    return
+
+
 def fused_schedule(pipeline, group, param_estimates):
     """Generate an optimized schedule for the stage."""
 
@@ -733,75 +777,12 @@ def fused_schedule(pipeline, group, param_estimates):
         hmax = max( [ p._level_no for p in g_all_parts ] )
         hmin = min( [ p._level_no for p in g_all_parts ] )
         slope_min, slope_max = compute_tile_slope(comp_deps, hmax)
-        #print(slope_min, slope_max, hmax - hmin)
 
         #splitTile(stageGroups[gi], slopeMin, slopeMax)
         overlap_tile(pipeline, g_all_parts, slope_min, slope_max)
-        #print(stageDeps[gi])
-        #print(slopeMin, slopeMax, hmax, len(stageGroups[gi]))
-        #for p in stageGroups[gi]:
-        #    print(p.scale, p.comp.name + ' = ' +  p.expr.__str__())
-        #for p in stageGroups[gi]:
-        #    print(p.dimTileInfo)
 
-    return
+        enable_tile_scratchpad(g_all_parts)
     '''
-        # Determine the buffer sizes for stages in each dimension
-        for p in stageGroups[gi]:
-            for dom in p.dimTileInfo:
-                if p.dimTileInfo[dom][0] != 'none': 
-                    dimName = p.dimTileInfo[dom][1]
-                    tileDimName = p.dimTileInfo[dom][2]
-                    extent = p.dimTileInfo[dom][3]
-                    if p.dimTileInfo[dom][0] == 'overlap':
-                        # Accounting for the overlap region
-                        L = p.dimTileInfo[dom][4]
-                        R = p.dimTileInfo[dom][5]
-                        h = p.dimTileInfo[dom][6]
-                        extent += abs(L * h) + abs(R * h)
-                        baseWidth = h - p._level_no
-                        #extent += abs(L * h) + abs(R * baseWidth) 
-                    p.dimScratchSize[dom] = \
-                        int(math.ceil(Fraction(extent, p.scale[dom])))
-                    #accName = '_Acc_' + p.sched.get_dim_name(isl._isl.dim_type.in_, dom)
-                    #remName = '_Rem_' + p.sched.get_dim_name(isl._isl.dim_type.in_, dom)
-                    mulName = '_Mul_' + p.sched.get_dim_name(isl._isl.dim_type.in_, dom)
-                    dimIn = p.sched.dim(isl._isl.dim_type.in_)
-                    domId =  p.sched.get_tuple_id(isl._isl.dim_type.in_)
-                    p.sched = p.sched.insert_dims(isl._isl.dim_type.in_, dimIn, 1)
-                    p.sched = p.sched.set_tuple_id(isl._isl.dim_type.in_, domId)
-                    #p.sched = p.sched.set_dim_name(isl._isl.dim_type.in_, dimIn, accName)
-                    #p.sched = p.sched.set_dim_name(isl._isl.dim_type.in_, dimIn+1, remName)
-                    p.sched = p.sched.set_dim_name(isl._isl.dim_type.in_, dimIn, mulName)
-                    schedDim = p.sched.find_dim_by_name(isl._isl.dim_type.out, dimName)
-                    tileDim = p.sched.find_dim_by_name(isl._isl.dim_type.out, tileDimName)
-                    
-                    eqs = []
-                    coeff = {}
-                    coeff[('in', dimIn)] = p.scale[dom]
-                    coeff[('out', schedDim)] = -1
-                    coeff[('out', tileDim)] = p.dimTileInfo[dom][3]
-                    eqs.append(coeff)
-                   
-                    ineqs = []
-                    #coeff = {}
-                    #coeff[('in', dimIn+2)] = p.scale[dom]
-                    #coeff[('in', dimIn+1)] = 1
-                    #coeff[('in', dimIn)] = -1
-                    #eqs.append(coeff)
-
-                    #coeff = {}
-                    #coeff[('in', dimIn+1)] = 1
-                    #coeff[('constant', 0)] = 0
-                    #ineqs.append(coeff)
-
-                    #coeff = {}
-                    #coeff[('in', dimIn+1)] = -1
-                    #coeff[('constant', 0)] = p.scale[dom] - 1
-                    #ineqs.append(coeff)
-
-                    p.sched = addConstriants(p.sched, ineqs, eqs)
-        
         # Second level storage savings can be achieved by utilizing modulo buffers
         # in the non-vector dimension. The fastest varying dimension is considered
         # the vector dimension and by this point should be the inner-most dimension.
