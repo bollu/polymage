@@ -335,13 +335,14 @@ def generate_c_naive_from_expression_node(polyrep, node, body,
         #incr = genc.CAssign(var, var + 1)
         #body.add(inc)
 
-def generate_c_naive_from_isl_ast(polyrep, node, body, cparam_map, cfunc_map):
+def generate_c_naive_from_isl_ast(polyrep, node, body,
+                                  cparam_map, cfunc_map, pooled):
     if node.get_type() == isl._isl.ast_node_type.block:
         num_nodes = (node.block_get_children().n_ast_node())
         for i in range(0, num_nodes):
             child = node.block_get_children().get_ast_node(i)
             generate_c_naive_from_isl_ast(polyrep, child, body,
-                                          cparam_map, cfunc_map)
+                                          cparam_map, cfunc_map, pooled)
     else:
         if node.get_type() == isl._isl.ast_node_type.for_:
             # Convert lb and ub expressions to C expressions
@@ -392,14 +393,15 @@ def generate_c_naive_from_isl_ast(polyrep, node, body, cparam_map, cfunc_map):
                             array_ptr = genc.CPointer(array.typ, 1)
                             array_decl = genc.CDeclaration(array_ptr, array)
                             lbody.add(array_decl)
-                            array.allocate_contigous(lbody)
+                            array.allocate_contiguous(lbody)
                             freelist.append(array)
             with loop.body as lbody:
                 generate_c_naive_from_isl_ast(polyrep, node.for_get_body(),
-                                              lbody, cparam_map, cfunc_map)
+                                              lbody, cparam_map, cfunc_map,
+                                              pooled)
                 # Deallocate storage
                 for array in freelist:
-                    array.deallocate(lbody)
+                    array.deallocate(lbody, pooled)
 
         if node.get_type() == isl._isl.ast_node_type.if_:
             if_cond = isl_cond_to_cgen(node.if_get_cond())
@@ -408,18 +410,18 @@ def generate_c_naive_from_isl_ast(polyrep, node, body, cparam_map, cfunc_map):
                 with cif_else.if_block as ifblock:
                     generate_c_naive_from_isl_ast(node.if_get_then(),
                                                   ifblock,
-                                                  cparam_map, cfunc_map)
+                                                  cparam_map, cfunc_map, pooled)
                 with cif_else.else_block as elseblock:
                     generate_c_naive_from_isl_ast(node.if_get_else(),
                                                   else_block,
-                                                  cparam_map, cfunc_map)
+                                                  cparam_map, cfunc_map, pooled)
                 body.add(cif_else)
             else:
                 cif = genc.CIfThen(if_cond)
                 with cif.if_block as ifblock:
                     generate_c_naive_from_isl_ast(polyrep, node.if_get_then(),
                                                   ifblock,
-                                                  cparam_map, cfunc_map)
+                                                  cparam_map, cfunc_map, pooled)
                 body.add(cif)
 
         if node.get_type() == isl._isl.ast_node_type.user:
@@ -850,7 +852,7 @@ def generate_code_for_group(pipeline, g, body, options,
     if polyrep.polyast != []:
         for ast in polyrep.polyast:
             generate_c_naive_from_isl_ast(polyrep, ast, body,
-                                          cparam_map, cfunc_map)
+                                          cparam_map, cfunc_map, pooled)
             pass
 
     return group_freelist
