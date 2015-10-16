@@ -781,7 +781,6 @@ def enable_tile_scratchpad(group_parts):
 
     return
 
-
 def fused_schedule(pipeline, group, param_estimates):
     """Generate an optimized schedule for the stage."""
 
@@ -828,61 +827,13 @@ def fused_schedule(pipeline, group, param_estimates):
 
         enable_tile_scratchpad(g_all_parts)
 
-        # Second level storage savings can be achieved by utilizing modulo buffers
-        # in the non-vector dimension. The fastest varying dimension is considered
-        # the vector dimension and by this point should be the inner-most dimension.
-
-        # Disabling this for two reasons
-        # 1) The code generator generates awful code. There is no reason to expect
-        #    it to generate anything nice.
-        # 2) The dimension that has skewing applied to it need not be tiled. This 
-        #    has to be integrated into scheduling itself.
-        """
-        for p in stageGroups[gi]:
-            oneDim = True
-            for dom in p.dimTileInfo:
-                if p.dimTileInfo[dom][0] == 'overlap' and oneDim:
-                    oneDim = False
-                    dimName = p.dimTileInfo[dom][1]
-                    
-                    # Skewing the dimension
-                    schedDim = p.sched.find_dim_by_name(isl._isl.dim_type.out, dimName)
-                    p.sched = p.sched.insert_dims(isl._isl.dim_type.out, schedDim  + 1, 1)
-                    p.sched = p.sched.set_dim_name(isl._isl.dim_type.out, 
-                                                    schedDim + 1, '_shift' + dimName)
-                    timeDim = p.sched.find_dim_by_name(isl._isl.dim_type.out, '_t')
-
-                    R = p.dimTileInfo[dom][5]
-                    eqs = []
-                    coeff = {}
-                    coeff[('out', schedDim)] = 1
-                    coeff[('out', timeDim)] = abs(R)
-                    coeff[('out', schedDim + 1)] = -1
-                    eqs.append(coeff)
-                    p.sched = addConstriants(p.sched, [], eqs)
-                    p.sched = p.sched.remove_dims(isl._isl.dim_type.out, schedDim, 1)
-                    
-                    # Moving time inside
-                    timeDim = p.sched.find_dim_by_name(isl._isl.dim_type.out, '_t')
-                    p.sched = p.sched.insert_dims(isl._isl.dim_type.out, timeDim, 1)
-                    p.sched = p.sched.set_dim_name(isl._isl.dim_type.out, 
-                                                    timeDim, '_tmp' + dimName)
-                    schedDim = p.sched.find_dim_by_name(isl._isl.dim_type.out, '_shift' + dimName)
-
-                    eqs = []
-                    coeff = {}
-                    coeff[('out', timeDim)] = 1
-                    coeff[('out', schedDim)] = -1
-                    eqs.append(coeff)
-                    p.sched = addConstriants(p.sched, [], eqs)
-                    p.sched = p.sched.remove_dims(isl._isl.dim_type.out, schedDim, 1)
-                    p.sched = p.sched.set_dim_name(isl._isl.dim_type.out, 
-                                                    timeDim, '_shift' + dimName)
-        """
-
         for p in g_all_parts:
             mark_par_and_vec_for_tile(p)
 
+        '''
+        for p in g_all_parts:
+            skewed_schedule(p)
+        '''
     '''
         # Computations which have different scale but map to the same time
         # generate a lot of conditionals which can hinder performance. This
@@ -1151,6 +1102,63 @@ def splitTile(self, group, slopeMin, slopeMax):
             numTileDims += 1
         else:
             stageDim = self.moveIndependentDim(i, group, stageDim)
+
+def skewed_schedule(poly_part):
+    # Second level storage savings can be achieved by utilizing modulo buffers
+    # in the non-vector dimension. The fastest varying dimension is considered
+    # the vector dimension and by this point should be the inner-most dimension.
+
+    # Disabling this for two reasons
+    # 1) The code generator generates awful code. There is no reason to expect
+    #    it to generate anything nice.
+    # 2) The dimension that has skewing applied to it need not be tiled. This
+    #    has to be integrated into scheduling itself.
+    p = poly_part
+    one_dim = True
+    for dim in p.dim_tile_info:
+        if p.dim_tile_info[dim][0] == 'overlap' and one_dim:
+            one_dim = False
+            dim_name = p.dim_tile_info[dim][1]
+
+            # Skewing the dimension
+            sched_dim = \
+              p.sched.find_dim_by_name(isl._isl.dim_type.out, dim_name)
+            p.sched = \
+              p.sched.insert_dims(isl._isl.dim_type.out, sched_dim  + 1, 1)
+            p.sched = p.sched.set_dim_name(isl._isl.dim_type.out,
+                                           sched_dim + 1, '_shift' + dim_name)
+            time_dim = p.sched.find_dim_by_name(isl._isl.dim_type.out, '_t')
+            right = p.dim_tile_info[dim][5]
+
+            eqs = []
+            coeff = {}
+            coeff[('out', sched_dim)] = 1
+            coeff[('out', time_dim)] = abs(right)
+            coeff[('out', sched_dim + 1)] = -1
+            eqs.append(coeff)
+            p.sched = add_constraints(p.sched, [], eqs)
+
+            p.sched = p.sched.remove_dims(isl._isl.dim_type.out, sched_dim, 1)
+
+            # Moving time inside
+            time_dim = p.sched.find_dim_by_name(isl._isl.dim_type.out, '_t')
+            p.sched = p.sched.insert_dims(isl._isl.dim_type.out, time_dim, 1)
+            p.sched = p.sched.set_dim_name(isl._isl.dim_type.out,
+                                           time_dim, '_tmp' + dim_name)
+            sched_dim = p.sched.find_dim_by_name(isl._isl.dim_type.out,
+                                                 '_shift' + dim_name)
+
+            eqs = []
+            coeff = {}
+            coeff[('out', time_dim)] = 1
+            coeff[('out', sched_dim)] = -1
+            eqs.append(coeff)
+            p.sched = add_constraints(p.sched, [], eqs)
+            p.sched = p.sched.remove_dims(isl._isl.dim_type.out, sched_dim, 1)
+            p.sched = p.sched.set_dim_name(isl._isl.dim_type.out,
+                                           time_dim, '_shift' + dim_name)
+
+    return
 
 def getDomainDimCoeffs(self, sched, arg):
     domDimCoeff = {}
