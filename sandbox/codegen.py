@@ -385,8 +385,8 @@ def generate_c_naive_from_isl_ast(polyrep, node, body,
             if dim_parallel:
                 with loop.body as lbody:
                     for array in arrays:
-                        if array.is_constant_size() and False:
-                        #if array.is_constant_size():
+                        #if array.is_constant_size() and False:
+                        if array.is_constant_size():
                             array_decl = genc.CArrayDecl(array)
                             lbody.add(array_decl)
                         else:
