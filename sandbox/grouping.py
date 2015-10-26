@@ -19,19 +19,6 @@ def get_group_dep_vecs(group, parts_list=[], scale_map = None):
                     dep_vecs.append(dep_vec)
     return dep_vecs
 
-def createGroupScaleMap(self, group):
-    groupScaleMap = {}
-    for part in group:
-        groupScaleMap[part] = list(part.scale)
-    return groupScaleMap
-
-def isStencilGroup(self, group):
-    depVecsGroup = self.getGroupDependenceVectors(group)
-    for depVec, h in depVecsGroup:
-        if '*' in depVec:
-            return False
-    return True    
-
 def isGroupDependentOnPart(self, group, parentPart):
     for part in group:
         refs = part.refs
@@ -41,13 +28,6 @@ def isGroupDependentOnPart(self, group, parentPart):
         if len(objRefs) > 0:
             return True
     return False
-
-def estimateReuse(self, part1, part2):
-        """Gives an estimate of data reuse between the two poly parts."""
-        # A very naive cost model
-        if self.isParent(part1, part2):
-            return 1
-        return 0
 
 def findLeafGroups(self, groups):
     leafGroups = []
@@ -61,121 +41,15 @@ def findLeafGroups(self, groups):
             leafGroups.append(groups[i])
     return leafGroups
 
-def groupStages(self, param_estimates):
-    compObjs = self.stage.orderComputeObjs()
+def auto_group(pipeline, param_estimates):
+    comps = pipeline._comp_objs
     sortedCompObjs = sorted(compObjs.items(), key=lambda s: (s[1], s[0].name))
     # Create a reuse matrix among the poly parts
     parts = []
     for comp in [item[0] for item in sortedCompObjs]:
         parts = parts + self.poly_parts[comp]
-    reuse = {}
-    relScaleFactors = {}
-    for i in range(0, len(parts)):
-        for j in range(0, len(parts)):
-            reuse[(parts[i], parts[j])] = self.estimateReuse(parts[i], parts[j])
-            # Skip scaling factor computation for reductions
-            isReduction = isinstance(parts[i].comp, Accumulator) or \
-                          isinstance(parts[j].comp, Accumulator)
-            if (reuse[(parts[i], parts[j])] > 0) and (parts[j] != parts[i]) and \
-                    not isReduction:
-                relScaleFactors[(parts[i], parts[j])] = \
-                    self.computeRelativeScalingFactors(parts[i], parts[j])
 
-    def scaleToParentGroup(part, group):
-        refs = part.refs
-        # Avoiding Input references this should be revisited at some point
-        parentRefs = [ ref for ref in refs \
-                       if ref.objectRef in self.poly_parts ]
-        dimIn = part.sched.dim(isl._isl.dim_type.in_)
-        newScale = [ '-' for i in range(0, dimIn)]
-        for ref in parentRefs:
-            parentParts = self.poly_parts[ref.objectRef]
-            groupParentParts = [ pp for pp in parentParts \
-                                 if pp in group ]
-            if not groupParentParts:
-                continue
-            for gpp in groupParentParts:
-                relScale, offset = relScaleFactors[(gpp, part)]
-                for i in range(0, dimIn):
-                    # Check if the dimension can be scaled
-                    if relScale[i] == '*':
-                        newScale[i] = '*'
-                    else:
-                        # Get the current scaling of the dimension
-                        # aligned to.
-                        alignDim = None
-                        for j in range(0, len(gpp.align)):
-                            if gpp.align[j] == part.align[i]:
-                                if alignDim is None:
-                                    alignDim = j
-                                else:
-                                    # A dimension cannot be aligned to 
-                                    # multiple schedule dimensions.
-                                    assert False
-                        if alignDim is not None:
-                            currScale = Fraction(gpp.scale[alignDim],
-                                                 part.scale[i])
-                            if newScale[i] == '-':
-                                newScale[i] = relScale[i] * currScale
-                            elif newScale[i] != currScale * relScale[i]:
-                                newScale[i] = '*'
-        for i in range(0, dimIn):
-            if newScale[i] == '-':
-                newScale[i] = 1
-        return newScale                
-
-    def getScale(sMap, p, i):
-        if sMap is not None:
-            return sMap[p][i]
-        return p.scale[i]
-
-    def setScale(sMap, p, i, val):
-        if sMap is not None:
-            sMap[p][i] = val
-        else:
-            p.scale[i] = val
-
-    def scaleGroupToPart(group, part, scale, scaleMap = None):
-        for g in group:
-            dimIn = g.sched.dim(isl._isl.dim_type.in_)
-            for j in range(0, len(scale)):
-                if scale[j] != '*':
-                    scaled = False
-                    for i in range(0, dimIn):
-                        if g.align[i] == part.align[j]:
-                            assert not scaled
-                            scaled = True
-                            s = Fraction(getScale(scaleMap, g, i), 
-                                         scale[j])
-                            setScale(scaleMap, g, i, s)
-    
-    def normalizeGroupScaling(group, scaleMap = None):
-        dimOut = group[0].sched.dim(isl._isl.dim_type.out)
-        norm = [ 1 for i in range(0, dimOut)]
-        for g in group:
-            dimIn = g.sched.dim(isl._isl.dim_type.in_)
-            for j in range(0, dimOut):
-                scaled = False
-                for i in range(0, dimIn):
-                    if g.align[i] == j:
-                        assert not scaled
-                        scaled = True
-                        d = Fraction(getScale(scaleMap, g, i)).denominator
-                        norm[j] = lcm(norm[j], d)
-        # Normalizing the scales of the group
-        for g in group:
-            dimIn = g.sched.dim(isl._isl.dim_type.in_)
-            dimOut = g.sched.dim(isl._isl.dim_type.out)
-            for j in range(0, len(norm)):
-                for i in range(0, dimIn):
-                    if g.align[i] == j:
-                        s = getScale(scaleMap, g, i)
-                        setScale(scaleMap, g, i, s * norm[j])
-
-    def getGroupCost(group):
-        return 1
-
-    def estimateGroupCostWithBundle(group, bundle, scale, partSizeMap):
+    def get_group_cost(group):
         return 1
 
     # Progressive algorithm for grouping stages assigns groups level by 
@@ -213,17 +87,14 @@ def groupStages(self, param_estimates):
 
         return smallParts, part_size_map
 
-    smallParts, partSizeMap = getSmallComputations(parts, param_estimates)
+    small_parts, part_size_map = \
+        get_small_computations(parts, param_estimates, size_threshold)
 
     # All the parts of a computation which has self dependencies should be
     # in the same group. Bundle such parts together.
-    smallGroups = []
+    small_groups = []
     optGroups = self.simpleGroup(param_estimates, single=False)
-    #print("intial groups begin")
-    #for g in optGroups:
-    #    for p in g:
-    #        print(p.comp.name)
-    #print("intial groups end")
+
     initialParts = 0
     for g in optGroups:
         initialParts += len(g)
@@ -250,7 +121,6 @@ def groupStages(self, param_estimates):
                     isSmall = False
                 if isinstance(p.comp, Accumulator):
                     isReduction = True
-            #print(len(children[gi]), isSmall)
             if not isSmall and not isReduction and len(optGroups[gi]) < self.groupSize:
                 if (len(children[gi]) > 1) and False:
                     newGroup = [ p for p in optGroups[gi] ]
@@ -307,14 +177,11 @@ def groupStages(self, param_estimates):
                     opt = True
                     break
         optGroups = newGroups         
-    #print("final groups begin")
-    #for g in optGroups:
-    #    for p in g:
-    #        print(p.comp.name)
-    #print("final groups end")
-    #print(optGroups)
     #bundles = [ b for b in bundles if b not in smallGroups ]
     """
+    def estimateGroupCostWithBundle(group, bundle, scale, partSizeMap):
+        return 1
+
     for b in bundles:
         parentGroups = []
         # Find the leaf parents in the parent groups. This avoids cycles
