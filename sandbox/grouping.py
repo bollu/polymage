@@ -124,21 +124,6 @@ def groupStages(self, param_estimates):
                 newScale[i] = 1
         return newScale                
 
-    def isGroupWithPartStencil(group, part, scale):
-        if '*' in scale:
-            return False
-        sm = self.createGroupScaleMap(group)            
-        scaleGroupToPart(group, part, scale, sm)
-        sm[part] = list(part.scale)
-        assert part not in group           
-        normalizeGroupScaling(group + [part], sm)
-        depVecs = self.getGroupDependenceVectors(group + [part], sm)
-
-        for vec, h in depVecs:
-            if '*' in vec:
-                return False
-        return True
-
     def getScale(sMap, p, i):
         if sMap is not None:
             return sMap[p][i]
@@ -200,33 +185,33 @@ def groupStages(self, param_estimates):
     # small when the domains of parents and the computation itself is 
     # small to benefit from tiling or parallelization. The parents are
     # included so that we do not miss out on storage optimzations.
-    def getSmallComputations(pts, estimates):
-        smallParts = []
+    def get_small_computations(parts, estimates, size_thresh):
+        small_parts = []
         # This can be more precise but for now just estimating the 
         # size of the part by the size of the computation object.
 
         # Currentlty the size is just being estimated by the number
         # of points in the domain. It can be more accurately done 
         # by considering the arithmetic intensity in the expressions.
-        partSizeMap = {}
-        for p in pts:
-            partSizeMap[p] = self.getPartSize(p, estimates)
+        part_size_map = {}
+        for p in parts:
+            part_size_map[p] = p.get_size(estimates)
 
-        for i in range(0, len(pts)):
-            smallPart = False
-            if partSizeMap[pts[i]] != '*':
-                smallPart = partSizeMap[pts[i]] <= self.sizeThreshold
-            for j in range(i+1, len(pts)):
-                if self.isParent(pts[j], pts[i]):
-                    if partSizeMap[pts[j]] != '*':
-                        smallPart = smallPart and \
-                                    (partSizeMap[pts[j]] > self.sizeThreshold)
+        for i in range(0, len(parts)):
+            is_small_part = False
+            if part_size_map[parts[i]] != '*':
+                is_small_part = (part_size_map[parts[i]] <= size_threshold)
+            for j in range(i+1, len(parts)):
+                if parts[j].is_parent_of(parts[i]):
+                    if part_size_map[parts[j]] != '*':
+                        is_small_part = is_small_part and \
+                            (part_size_map[parts[j]] > size_threshold)
                     else:
-                        smallPart = False
-            if smallPart:
-                smallParts.append(pts[i])
-        
-        return smallParts, partSizeMap 
+                        is_small_part = False
+            if is_small_part:
+                small_parts.append(parts[i])
+
+        return smallParts, part_size_map
 
     smallParts, partSizeMap = getSmallComputations(parts, param_estimates)
 

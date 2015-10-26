@@ -223,10 +223,10 @@ class PolyPart(object):
         for interval in domain:
             subs_size = get_dim_size(interval, param_estimates)
             if is_constant_expr(subs_size):
-                if size is None:
-                    size = get_constant_from_expr(subs_size)
-                else:
+                if size is not None:
                     size = size * get_constant_from_expr(subs_size)
+                else:
+                    size = get_constant_from_expr(subs_size)
             else:
                 size = '*'
                 break
