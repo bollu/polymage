@@ -408,11 +408,11 @@ def generate_c_naive_from_isl_ast(polyrep, node, body,
             if node.if_has_else():
                 cif_else = genc.CIfThenElse(if_cond)
                 with cif_else.if_block as ifblock:
-                    generate_c_naive_from_isl_ast(node.if_get_then(),
+                    generate_c_naive_from_isl_ast(polyrep, node.if_get_then(),
                                                   ifblock,
                                                   cparam_map, cfunc_map, pooled)
                 with cif_else.else_block as elseblock:
-                    generate_c_naive_from_isl_ast(node.if_get_else(),
+                    generate_c_naive_from_isl_ast(polyrep, node.if_get_else(),
                                                   else_block,
                                                   cparam_map, cfunc_map, pooled)
                 body.add(cif_else)
