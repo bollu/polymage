@@ -216,6 +216,7 @@ class PolyPart(object):
         return False
 
     def get_size(self, param_estimates):
+        # returns the size of the computation that contains this poly part
         size = None
         domain = self.comp.domain
         if isinstance(self.comp, Reduction):

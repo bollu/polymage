@@ -10,6 +10,7 @@ def buildPipeline(outputs,
                   param_estimates = [],
                   param_constraints = [],
                   grouping = [],
+                  group_size = None,
                   inline_directives = [],
                   tile_sizes = [],
                   size_threshold = None,
@@ -20,6 +21,9 @@ def buildPipeline(outputs,
     # operations during compilation.
     ctx = poly.isl.Context()
 
+    if group_size == None:
+        group_size = 5
+
     if tile_sizes == []:
         tile_sizes = [16, 16, 16]
 
@@ -28,6 +32,7 @@ def buildPipeline(outputs,
                          _param_estimates = param_estimates,
                          _param_constraints = param_constraints,
                          _grouping = grouping,
+                         _group_size = group_size,
                          _inline_directives = inline_directives,
                          _tile_sizes = tile_sizes,
                          _size_threshold = size_threshold,

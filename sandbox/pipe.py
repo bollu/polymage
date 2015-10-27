@@ -9,6 +9,8 @@ except ImportError:
 #import pygraphviz as pgv
 import targetc as genc
 
+from grouping import *
+
 from constructs import *
 from expression import *
 from codegen import *
@@ -149,7 +151,7 @@ class Group:
 class Pipeline:
     def __init__(self, _ctx, _outputs,
                  _param_estimates, _param_constraints,
-                 _grouping, _inline_directives,
+                 _grouping, _group_size, _inline_directives,
                  _tile_sizes, _size_threshold,
                  _options, _name = None):
         # Name of the pipleline is a concatenation of the names of the 
@@ -164,6 +166,7 @@ class Pipeline:
         self._param_estimates = _param_estimates
         self._param_constraints = _param_constraints
         self._grouping = _grouping
+        self._group_size = _group_size
         self._inline_directives = _inline_directives
         self._options = _options
         if _size_threshold == None:
@@ -237,7 +240,7 @@ class Pipeline:
 
         ''' GROUPING '''
         # TODO check grouping validity
-        if self._grouping:
+        if self._grouping and False:
             # for each group
             for g in self._grouping:
                 # get clones of all functions
@@ -250,6 +253,7 @@ class Pipeline:
                             self.merge_groups(merged, merge_group_list[i])
         else:
             # Run the grouping algorithm
+            auto_group(self)
             pass
 
         # ***
