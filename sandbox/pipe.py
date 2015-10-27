@@ -248,9 +248,6 @@ class Pipeline:
                      for i in range(1, len(merge_group_list)):
                         merged = \
                             self.merge_groups(merged, merge_group_list[i])
-                        # to be done after each merge, to know if the merging
-                        # was valid.
-                        align_and_scale_parts(self, merged)
         else:
             # Run the grouping algorithm
             pass
@@ -456,6 +453,9 @@ class Pipeline:
         self.drop_group(g1)
         self.drop_group(g2)
         self.add_group(merged)
+
+        # also checks if the merging was valid
+        align_and_scale_parts(self, merged)
 
         return merged
 
