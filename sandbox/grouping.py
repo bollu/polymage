@@ -1,5 +1,7 @@
 from __future__ import absolute_import, division, print_function
 
+from constructs import *
+
 def get_group_dep_vecs(group, parts_list=[], scale_map = None):
     dep_vecs = []
     g_poly_rep = group.polyRep
@@ -55,7 +57,7 @@ def auto_group(pipeline):
     # creating this to be used in get_size() for a comp
     parts = {}
     for comp in comps:
-        parts[comp] = groups[comp].polyRep.poly_parts[comp][0]
+        parts[comp] = group_map[comp].polyRep.poly_parts[comp][0]
 
     def get_group_cost(group):
         return 1
@@ -79,6 +81,8 @@ def auto_group(pipeline):
         comp_size_map = {}
         for comp in comps:
             comp_size_map[comp] = parts[comp].get_size(estimates)
+
+        for comp in comps:
             is_small_comp = False
             if comp_size_map[comp] != '*':
                 is_small_comp = (comp_size_map[comp] <= threshold)
@@ -100,6 +104,7 @@ def auto_group(pipeline):
     # loop termination boolean
     opt = True
     while opt:
+        opt = False
         for group in g_par_child_map:
             is_small_grp = True
             is_reduction_grp = False
@@ -120,7 +125,7 @@ def auto_group(pipeline):
                len(group._comp_objs) < grp_size:
                 all_children_of_g = g_par_child_map[group]
                 # - if group has many children
-                if (len(all_children_of_g) > 1) and False:
+                if (len(all_children_of_g) > 1):
                     merge = True
                     # collect all the parents of all children of group
                     all_parents = []
