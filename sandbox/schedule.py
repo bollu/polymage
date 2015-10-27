@@ -428,6 +428,10 @@ def align_and_scale_parts(pipeline, group):
         # ***
 
         refs = part.refs
+        # filter out refs whose compute object is not present in this group
+        refs = [ ref for ref in refs
+                        if ref.objectRef in group._comp_objs ]
+
         if not refs:
             part.set_align(base_align)
             part.set_scale(base_scale)
