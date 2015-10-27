@@ -413,7 +413,7 @@ def generate_c_naive_from_isl_ast(polyrep, node, body,
                                                   cparam_map, cfunc_map, pooled)
                 with cif_else.else_block as elseblock:
                     generate_c_naive_from_isl_ast(polyrep, node.if_get_else(),
-                                                  else_block,
+                                                  elseblock,
                                                   cparam_map, cfunc_map, pooled)
                 body.add(cif_else)
             else:
