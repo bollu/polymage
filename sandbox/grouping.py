@@ -41,218 +41,108 @@ def findLeafGroups(self, groups):
             leafGroups.append(groups[i])
     return leafGroups
 
-def auto_group(pipeline, param_estimates):
+def auto_group(pipeline):
+    param_est = pipeline._param_estimates
+    size_thresh = pipeline._size_threshold
+    grp_size = pipeline._group_size
+
     comps = pipeline._comp_objs
-    sortedCompObjs = sorted(compObjs.items(), key=lambda s: (s[1], s[0].name))
-    # Create a reuse matrix among the poly parts
-    parts = []
-    for comp in [item[0] for item in sortedCompObjs]:
-        parts = parts + self.poly_parts[comp]
+    group_map = pipeline._groups
+    g_child_par_map = pipeline._group_parents
+    g_par_child_map = pipeline._group_children
+    groups = list(set([group_map[comp] for comp in group_map]))
+
+    # creating this to be used in get_size() for a comp
+    parts = {}
+    for comp in comps:
+        parts[comp] = groups[comp].polyRep.poly_parts[comp][0]
 
     def get_group_cost(group):
         return 1
 
-    # Progressive algorithm for grouping stages assigns groups level by 
-    # level trying to maximze reuse and size of stencil groups.
+    # Progressive algorithm for grouping stages assigns groups level by level
+    # trying to maximze reuse and size of stencil groups.
 
-    # Filter out small computations. We characterize a computation as 
-    # small when the domains of parents and the computation itself is 
-    # small to benefit from tiling or parallelization. The parents are
-    # included so that we do not miss out on storage optimzations.
-    def get_small_computations(parts, estimates, size_thresh):
-        small_parts = []
-        # This can be more precise but for now just estimating the 
-        # size of the part by the size of the computation object.
+    # Filter out small computations. We characterize a computation as small
+    # when the domains of parents and the computation itself is too small to
+    # benefit from tiling or parallelization. The parents are included so that
+    # we do not miss out on storage optimzations.
+    def get_small_comps(pipeline, comps, parts):
+        estimates = pipeline._param_estimates
+        threshold = pipeline._size_threshold
+        comp_parents = pipeline._comp_objs_parents
 
-        # Currentlty the size is just being estimated by the number
-        # of points in the domain. It can be more accurately done 
-        # by considering the arithmetic intensity in the expressions.
-        part_size_map = {}
-        for p in parts:
-            part_size_map[p] = p.get_size(estimates)
+        small_comps = []
+        # Currentlty the size is just being estimated by the number of points
+        # in the domain. It can be more accurately done by considering the
+        # arithmetic intensity in the expressions.
+        comp_size_map = {}
+        for comp in comps:
+            comp_size_map[comp] = parts[comp].get_size(estimates)
+            is_small_comp = False
+            if comp_size_map[comp] != '*':
+                is_small_comp = (comp_size_map[comp] <= threshold)
+            # iterate over parents of comp
+            for pcomp in comp_parents:
+                if comp_size_map[pcomp] != '*':
+                    is_small_comp = is_small_comp and \
+                        (comp_size_map[pcomp] > threshold)
+                else:
+                    is_small_comp = False
+            if is_small_comp:
+                small_comps.append(comp)
 
-        for i in range(0, len(parts)):
-            is_small_part = False
-            if part_size_map[parts[i]] != '*':
-                is_small_part = (part_size_map[parts[i]] <= size_threshold)
-            for j in range(i+1, len(parts)):
-                if parts[j].is_parent_of(parts[i]):
-                    if part_size_map[parts[j]] != '*':
-                        is_small_part = is_small_part and \
-                            (part_size_map[parts[j]] > size_threshold)
-                    else:
-                        is_small_part = False
-            if is_small_part:
-                small_parts.append(parts[i])
+        return small_comps, comp_size_map
 
-        return smallParts, part_size_map
 
-    small_parts, part_size_map = \
-        get_small_computations(parts, param_estimates, size_threshold)
+    small_comps, comp_size_map = get_small_comps(pipeline, comps, parts)
 
-    # All the parts of a computation which has self dependencies should be
-    # in the same group. Bundle such parts together.
-    small_groups = []
-    optGroups = self.simpleGroup(param_estimates, single=False)
-
-    initialParts = 0
-    for g in optGroups:
-        initialParts += len(g)
-    for g in optGroups:
-        smallGroup = True
-        for p in g:
-            if not p in smallParts:
-                smallGroup = False
-        if smallGroup:
-            smallGroups.append(g)
-
+    # loop termination boolean
     opt = True
     while opt:
-        children = {}
-        opt = False
-        for gi in range(0, len(optGroups)):
-            children[gi] = self.findChildGroups(optGroups[gi], optGroups)
-        newGroups = [ group for group in optGroups ]
-        for gi in children:
-            isSmall = True
-            isReduction = False
-            for p in optGroups[gi]:
-                if not p in smallParts:
-                    isSmall = False
-                if isinstance(p.comp, Accumulator):
-                    isReduction = True
-            if not isSmall and not isReduction and len(optGroups[gi]) < self.groupSize:
-                if (len(children[gi]) > 1) and False:
-                    newGroup = [ p for p in optGroups[gi] ]
+        for group in g_par_child_map:
+            is_small_grp = True
+            is_reduction_grp = False
+            for comp in group._comp_objs:
+                if not comp in small_comps:
+                    is_small_grp = False
+                if isinstance(comp, Reduction):
+                    is_reduction_grp = True
+            for g_child in g_par_child_map[group]:
+                for comp in g_child._comp_objs:
+                    if isinstance(comp, Reduction):
+                        is_reduction_grp = True
+            # merge if
+            # 1. big enough
+            # 2. does not contain reduction
+            # 3. number of comps in group < grp_size
+            if not is_small_grp and not is_reduction_grp and \
+               len(group._comp_objs) < grp_size:
+                all_children_of_g = g_par_child_map[group]
+                # - if group has many children
+                if (len(all_children_of_g) > 1) and False:
                     merge = True
-                    for childGroup in children[gi]:
-                        # Check if all the children can be fused
-                        parentGroups = []
-                        for cp in childGroup:
-                            pgs = self.findParentGroups(cp, newGroups)
-                            for pg in pgs:
-                                if pg not in parentGroups:
-                                    parentGroups.append(pg)
-                        for pg in parentGroups:
-                            if pg not in children[gi] and pg != optGroups[gi]:
-                                merge = False
+                    # collect all the parents of all children of group
+                    all_parents = []
+                    for g_child in all_children_of_g:
+                        all_parents += g_child_par_map[g_child]  # of g_child
+                    all_parents = list(set(all_parents))
+                    all_parents.remove(group)
+
+                    # if all_parents are children of group => OK to merge
+                    if not set(all_parents).issubset(set(all_children_of_g)):
+                        merge = False
+
                     if merge:
-                        print("parent group begin")
-                        for p in optGroups[gi]:
-                            print(p.comp.name)
-                        print("parent groups end")
-                        print("adding groups begin")
-                        for g in children[gi]:
-                            for p in g:
-                                print(p.comp.name)
-                        print("adding groups end")
-                        for childGroup in children[gi]:
-                            for p in childGroup:
-                                scale = scaleToParentGroup(p, newGroup)
-                                scaleGroupToPart(newGroup, p, scale)
-                            newGroup = newGroup + childGroup
-                            newGroups.remove(childGroup)
-                        newGroups.remove(optGroups[gi])
-                        newGroups.append(newGroup)
+                        new_grp = group
+                        for g_child in all_children_of_g:
+                            new_grp = pipeline.merge_groups(new_grp, g_child)
                         opt = True
                         break
-                elif (len(children[gi]) == 1):
-                    print("parent group begin")
-                    for p in optGroups[gi]:
-                        print(p.comp.name)
-                    print("parent groups end")
-                    print("adding groups begin")
-                    for g in children[gi]:
-                        for p in g:
-                            print(p.comp.name)
-                    print("adding groups end")
-                    newGroup = [ p for p in optGroups[gi] ]
-                    for p in children[gi][0]:
-                        scale = scaleToParentGroup(p, newGroup)
-                        scaleGroupToPart(newGroup, p, scale)
-                    newGroup = newGroup + children[gi][0]
-                    newGroups.remove(children[gi][0])
-                    newGroups.remove(optGroups[gi])
-                    newGroups.append(newGroup)
+                # - if group has only one child
+                elif (len(all_children_of_g) == 1):
+                    pipeline.merge_groups(group, all_children_of_g[0])
                     opt = True
                     break
-        optGroups = newGroups         
-    #bundles = [ b for b in bundles if b not in smallGroups ]
-    """
-    def estimateGroupCostWithBundle(group, bundle, scale, partSizeMap):
-        return 1
 
-    for b in bundles:
-        parentGroups = []
-        # Find the leaf parents in the parent groups. This avoids cycles
-        # by construction. The fact that a there are two separate dependent
-        # parent groups means that fusing them was deemed suboptimal. They
-        # are not considered for fusion again. This would leave only the 
-        # leaf group as a choice for fusion.
-
-        #Filter out non leaf groups
-        leafGroups = self.findLeafGroups(optGroups + smallGroups)
-        for p in b:
-            parents = self.findParentGroups(p, leafGroups)
-            parentGroups = parentGroups + parents
-
-        # Filter out the small groups from the parent groups. Since they
-        # are not considered for fusion.
-        parentGroups = [ g for g in parentGroups \
-                         if g not in smallGroups] 
-        otherGroups = [ g for g in optGroups \
-                        if g not in parentGroups ]
-        scales = {}
-
-        for i in range(0, len(parentGroups)):
-            scaleList = []
-            for p in b:
-                scaleList.append(scaleToParentGroup(p, parentGroups[i]))
-            scales[i] = scaleList    
-        
-        # Compute the cost of adding the bundle to each of the candidate
-        # groups. The approach we take now is to either add the bundle to
-        # one of the groups or to merge all of the groups. Parital merging 
-        # is not explored. 
-
-        # The characteristics of a group are captured in the following 
-        # structure - (tile dims, storage, overlap)
-        # (tile dims) indicates the number of dimensions that can be tiled 
-        # profitably. Fusion which reduces the number of tile dims is avoided. 
-        # (storage) gives an estimate of the storage savings original function
-        # sizes vs scratch or modulo buffer sizes.
-        # (overlap) gives an estimate of the fraction of redundant computation
-        # relative to tile sizes that will be done in the group.
-       
-        def isProfitable(cCost, nCost):
-            return True
-
-        candGroups = []
-        for i in range(0, len(parentGroups)):
-            currCost = getGroupCost(parentGroups[i])
-            newCost = estimateGroupCostWithBundle(parentGroups[i], b,
-                                                  scales[i], partSizeMap)
-            if isProfitable(currCost, newCost):
-                candGroups.append(i)
-        
-        mergedGroup = []
-        for i in candGroups:
-            for j in range(0, len(b)):
-                scaleGroupToPart(parentGroups[i], b[j], scales[i][j])
-            mergedGroup = mergedGroup + parentGroups[i]
-        parentGroups = [i for j, i in enumerate(parentGroups)\
-                        if j not in candGroups ]
-        
-        mergedGroup = mergedGroup + b
-        parentGroups.append(mergedGroup)
-        optGroups = parentGroups + otherGroups
-    """ 
-    for group in optGroups:
-        normalizeGroupScaling(group)
-   
-    finalParts = 0
-    for group in optGroups:
-        finalParts += len(group)
-    
-    assert initialParts == finalParts
-    return optGroups
+    return
