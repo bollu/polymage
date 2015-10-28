@@ -105,7 +105,8 @@ def auto_group(pipeline):
     opt = True
     while opt:
         opt = False
-        for group in g_par_child_map:
+
+        for group in pipeline._group_children:
             is_small_grp = True
             is_reduction_grp = False
             for comp in group._comp_objs:
@@ -113,7 +114,7 @@ def auto_group(pipeline):
                     is_small_grp = False
                 if isinstance(comp, Reduction):
                     is_reduction_grp = True
-            for g_child in g_par_child_map[group]:
+            for g_child in pipeline._group_children[group]:
                 for comp in g_child._comp_objs:
                     if isinstance(comp, Reduction):
                         is_reduction_grp = True
@@ -123,20 +124,34 @@ def auto_group(pipeline):
             # 3. number of comps in group < grp_size
             if not is_small_grp and not is_reduction_grp and \
                len(group._comp_objs) < grp_size:
-                all_children_of_g = g_par_child_map[group]
+                merge = True
+
+                all_children_of_g = pipeline._group_children[group]
+
+                # check if group and its children are merged the total
+                # group size exceeds grp_size
+                child_comps_count = 0
+                for g_child in all_children_of_g:
+                    child_comps_count += len(g_child._comp_objs)
+
+                merge_count = len(group._comp_objs)+child_comps_count
+                if merge_count >= grp_size:
+                    merge = False
+
                 # - if group has many children
                 if (len(all_children_of_g) > 1):
-                    merge = True
-                    # collect all the parents of all children of group
-                    all_parents = []
-                    for g_child in all_children_of_g:
-                        all_parents += g_child_par_map[g_child]  # of g_child
-                    all_parents = list(set(all_parents))
-                    all_parents.remove(group)
+                    if merge:
+                        # check if its possible to group with all children.
+                        # collect all the parents of all children of group
+                        all_parents = []
+                        for g_child in all_children_of_g:
+                            all_parents += pipeline._group_parents[g_child]
+                        all_parents = list(set(all_parents))
+                        all_parents.remove(group)
 
-                    # if all_parents are children of group => OK to merge
-                    if not set(all_parents).issubset(set(all_children_of_g)):
-                        merge = False
+                        # if all_parents are children of group => OK to merge
+                        if not set(all_parents).issubset(set(all_children_of_g)):
+                            merge = False
 
                     if merge:
                         new_grp = group
@@ -146,8 +161,9 @@ def auto_group(pipeline):
                         break
                 # - if group has only one child
                 elif (len(all_children_of_g) == 1):
-                    pipeline.merge_groups(group, all_children_of_g[0])
-                    opt = True
-                    break
+                    if merge:
+                        pipeline.merge_groups(group, all_children_of_g[0])
+                        opt = True
+                        break
 
     return
