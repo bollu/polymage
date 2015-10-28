@@ -2,6 +2,7 @@ from __future__ import absolute_import, division, print_function
 
 from collections import OrderedDict
 
+import time
 import pipe
 from constructs import *
 from expression import *
@@ -67,7 +68,7 @@ def isl_expr_to_cgen(expr, prologue_stmts = None):
             assert("Division must have exactly 2 arguments!" and \
                    expr.get_op_n_arg() == 2)
             return \
-                genc.CMacroFloord(isl_expr_to_cgen(expr.get_op_arg(0), prolog),
+                genc.c_macro_floord(isl_expr_to_cgen(expr.get_op_arg(0), prolog),
                                   isl_expr_to_cgen(expr.get_op_arg(1), prolog))
         if op_typ == isl._isl.ast_op_type.add:
             assert("Addition must have exactly 2 arguments!" and \
