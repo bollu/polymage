@@ -83,7 +83,8 @@ def buildMGCycle(impipeDict, dataDict):
                            options=opts)
     '''
 
-    mgPipe = buildPipeline(liveOuts)
+    mgPipe = buildPipeline(liveOuts, param_estimates=pEstimates,
+                           param_constraints=pConstraints)
 
     return mgPipe
 
