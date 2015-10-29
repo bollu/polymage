@@ -1,7 +1,7 @@
 from __future__ import absolute_import, division, print_function
 
 import math
-
+import time
 import islpy as isl
 
 from constructs import *
@@ -325,10 +325,6 @@ class PolyPart(object):
                             dep_vec[pvar_sched_dim] = \
                                (int(math.floor(dep_vec[pvar_sched_dim] *
                                                access_scale)))
-                            #print(parent_part.sched)
-                            #print(self.sched)
-                            #print(self.expr)
-                            #print(dep_vec, ref)
                     else:
                         dep_vec[pvar_sched_dim] = '*'
                 elif len(dom_dim_coeff) == 0 and len(param_coeff) > 0:
@@ -389,9 +385,6 @@ class PolyPart(object):
         #for i in range(0, dim_out):
         #    if (dep_vec[i] == '-'):
         #        dep_vec[i] = '*'
-        #        #print(parent_part.sched)
-        #        #print(self.sched)
-        #        #print(i, ref)
         #        p_lower_bound = parent_part.sched.range().dim_min(i)
         #        p_upper_bound = parent_part.sched.range().dim_max(i)
 
@@ -850,7 +843,7 @@ class PolyRep(object):
         parts = []
         for plist in self.poly_parts.values():
             parts.extend(plist)
-       
+
         # TODO figure out a way to create the correct parameter context
         # since the parameters for all the parts may not be the same
         astbld = isl.AstBuild.from_context(parts[0].sched.params())
@@ -889,14 +882,7 @@ class PolyRep(object):
             id_ = isl.Id.alloc(self.ctx, sched_name, None)
             ids = ids.add(id_)
         astbld = astbld.set_iterators(ids)
-
-        def printer(arg):
-            #print(arg)
-            pass
-
-        sched_map.foreach_map(printer)
         self.polyast.append(astbld.ast_from_schedule(sched_map))
-
 
     def is_comp_self_dependent(self, comp):
         parts = self.poly_parts[comp]
