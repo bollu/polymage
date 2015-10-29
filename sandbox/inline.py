@@ -99,6 +99,7 @@ def inline_and_update_graph(pipeline, group, child_group, inline_map):
                            pipeline._param_constraints)
     pipeline._group_parents[new_group] = []
     pipeline._group_children[new_group] = []
+
     pipeline.replace_group(child_group, new_group)
 
     return

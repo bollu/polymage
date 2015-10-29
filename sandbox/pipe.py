@@ -106,6 +106,9 @@ class Group:
     @property
     def inputs(self):
         return self._inputs
+    @property
+    def name(self):
+        return [comp.name for comp in self.compute_objs]
 
     def is_fused(self):
         return len(self.compute_objs) > 1
@@ -482,8 +485,9 @@ class Pipeline:
                     if assgn[0] in child_groups:
                         assgn[1] -= 1
             level = level + 1
-        
-        return sorted(group_order.items(), key=lambda x: x[1])
+        sorted_groups = sorted(group_order.items(), key=lambda x: x[1])
+
+        return sorted_groups
 
     def replace_group(self, old_group, new_group):
         # if old_group has any child
@@ -496,6 +500,7 @@ class Pipeline:
             for parent in self._group_parents[old_group]:
                 self._group_children[parent].append(new_group)
                 self._group_parents[new_group].append(parent)
+
         # replace old_group with new_group in groups list
         comp = old_group.compute_objs[0]
         self.drop_group(old_group)
@@ -510,25 +515,39 @@ class Pipeline:
         [ assumes that comp_b is a child of comp_a, and that comp_a is inlined
         into comp_b ]
         """
+        group_a = self._groups[comp_a]
+        group_b = self._groups[comp_b]
         # if parent_comp has any parent
         if comp_a in self._comp_objs_parents:
             parents_of_a = self._comp_objs_parents[comp_a]
             parents_of_b = self._comp_objs_parents[comp_b]
+            parents_of_grp_a = self._group_parents[group_a]
+            parents_of_grp_b = self._group_parents[group_b]
 
             # remove relation between a and b
             self._comp_objs_children[comp_a].remove(comp_b)
+            self._group_children[group_a].remove(group_b)
             parents_of_b.remove(comp_a)
+            parents_of_grp_b.remove(group_a)
 
             # new parents list for b
             parents_of_b.extend(parents_of_a)
             parents_of_b = list(set(parents_of_b))
+            parents_of_grp_b.extend(parents_of_grp_a)
+            parents_of_grp_b = list(set(parents_of_grp_b))
+
             self._comp_objs_parents[comp_b] = parents_of_b
+            self._group_parents[group_b] = parents_of_grp_b
 
             # new children list for parents_of_b
             for p in parents_of_b:
                 children_of_p = self._comp_objs_children[p]
                 children_of_p.append(comp_b)
                 self._comp_objs_children[p] = list(set(children_of_p))
+            for gp in parents_of_grp_b:
+                children_of_gp = self._group_children[gp]
+                children_of_gp.append(group_b)
+                self._group_children[gp] = list(set(children_of_gp))
 
         return
 
