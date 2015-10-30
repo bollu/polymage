@@ -27,6 +27,9 @@ def buildPipeline(outputs,
     if tile_sizes == []:
         tile_sizes = [16, 16, 16]
 
+    if size_threshold == None:
+        size_threshold = 5
+
     return pipe.Pipeline(_ctx = ctx,
                          _outputs = outputs,
                          _param_estimates = param_estimates,

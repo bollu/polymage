@@ -172,8 +172,7 @@ class Pipeline:
         self._group_size = _group_size
         self._inline_directives = _inline_directives
         self._options = _options
-        if _size_threshold == None:
-            self._size_threshold = 5
+        self._size_threshold = _size_threshold
         self._tile_sizes = _tile_sizes
 
         ''' CONSTRUCT DAG '''

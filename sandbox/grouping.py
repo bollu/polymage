@@ -135,7 +135,7 @@ def auto_group(pipeline):
                     child_comps_count += len(g_child._comp_objs)
 
                 merge_count = len(group._comp_objs)+child_comps_count
-                if merge_count >= grp_size:
+                if merge_count > grp_size:
                     merge = False
 
                 # - if group has many children

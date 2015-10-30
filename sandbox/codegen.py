@@ -28,12 +28,11 @@ def isl_expr_to_cgen(expr, prologue_stmts = None):
         # short hand
         op_typ = expr.get_op_type()
 
-        if (op_typ == isl._isl.ast_op_type.access or
-            op_typ == isl._isl.ast_op_type.call or
-            op_typ == isl._isl.ast_op_type.cond or
-            op_typ == isl._isl.ast_op_type.member or
-            op_typ == isl._isl.ast_op_type.cond or
-            op_typ == isl._isl.ast_op_type.select):
+        if (op_typ == isl._isl.ast_op_type.access or  # 23
+            op_typ == isl._isl.ast_op_type.call or  # 22
+            op_typ == isl._isl.ast_op_type.cond or  # 15
+            op_typ == isl._isl.ast_op_type.member or  # 24
+            op_typ == isl._isl.ast_op_type.select):  # 16
             assert ("Unexpected isl ast_expr op_type:"+str(op_typ) \
                     and False)
         if op_typ == isl._isl.ast_op_type.min:
