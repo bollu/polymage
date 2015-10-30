@@ -6,9 +6,6 @@ from loader          import loadLib
 from polymage_vcycle import vCycle
 from polymage_wcycle import wCycle
 
-sys.path.insert(0, '../../../../optimizer')
-sys.path.insert(0, '../../../../frontend')
-
 from compiler   import *
 from constructs import *
 
@@ -99,9 +96,6 @@ def createLib(buildFunc, pipeName, impipeDict, dataDict, mode):
 
             # draw the pipeline graph to a png file
             #graphGen(pipe, pipeName, dataDict)
-
-            #print("STOP HERE FOR NOW")
-            #assert(False)
 
             # generate pipeline cpp source
             codeGen(pipe, pipeSrc, dataDict)

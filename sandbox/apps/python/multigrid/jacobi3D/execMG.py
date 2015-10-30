@@ -82,7 +82,7 @@ def multigrid(dataDict):
 
     timer = dataDict['timer']
     if timer == True:
-        t1 = time.clock()
+        t1 = time.time()
 
     while it < nit :
         it += 1
@@ -99,10 +99,10 @@ def multigrid(dataDict):
             printErrors(it, dataDict)
 
     if timer == True:
-        t2 = time.clock()
+        t2 = time.time()
 
         timeTaken = float(t2) - float(t1)
         print("")
-        print("[execMG] : time taken to execute = ", timeTaken*1000, " ms")
+        print("[execMG] : time taken to execute = ", timeTaken, " ms")
 
     return
