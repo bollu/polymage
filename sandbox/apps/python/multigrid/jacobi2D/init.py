@@ -173,6 +173,9 @@ def initParams(dataDict):
     # problem type
     dataDict['problem'] = 1
 
+    # pool allocate option
+    dataDict['pool_alloc'] = False
+
     assert not (dataDict['nu1'] == 0 and \
                 dataDict['nu2'] == 0 and
                 dataDict['nuc'] == 0)

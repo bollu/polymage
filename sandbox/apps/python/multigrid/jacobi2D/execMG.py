@@ -12,6 +12,21 @@ sys.path.insert(0, '../../../../frontend')
 from compiler   import *
 from constructs import *
 
+def minimalExecMG(dataDict, pipeLib, pipeLibFunc, funcArgs, _pm_argDict):
+    it = 0
+    itMax = 100
+
+    pool_alloc = dataDict['pool_alloc']  # bool
+
+    if pool_alloc:
+        pipeLib.pool_init()
+    while it < itMax:
+        pipeLibFunc(*funcArgs)
+        it += 1
+
+    if pool_alloc:
+        pipeLib.pool_destroy()
+
 def calcNorm(U_, dataDict):
     N = dataDict['N']
 
