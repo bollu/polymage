@@ -69,8 +69,8 @@ def callMGCycle(U_, W_, dataDict):
     F_       = gridDict['F_']
 
     # lib function name
-    cycleName = "pipeline_"+dataDict['cycle']+"cycle"
-    mgCycleFunc = dataDict[cycleName]
+    func_name = 'pipeline_'+dataDict['cycle_name']
+    mgCycleFunc = dataDict[func_name]
 
     # lib function args
     mgCycleArgs = []

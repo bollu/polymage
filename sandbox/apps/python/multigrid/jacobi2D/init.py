@@ -191,6 +191,9 @@ def getInput(dataDict):
         printUsage()
         sys.exit(1)
 
+    cycle_name = dataDict['cycle']+"cycle"
+    dataDict['cycle_name'] = cycle_name
+
     dataDict['timer'] = os.path.isfile("timer.flag")
 
     return
