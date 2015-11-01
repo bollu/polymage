@@ -8,6 +8,9 @@ all: new
 new:
 	python3.4 main.py 'new' 'V' 10
 
+tune:
+	python3.4 main.py 'tune' 'V' 10
+
 existing:
 	python3.4 main.py 'existing' 'V' 10
 

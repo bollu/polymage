@@ -110,7 +110,7 @@ def vCycle(impipeDict, dataDict):
 
             ''' INTERPOLATION & CORRECTION '''
             if l == L and nu2 <= 0:
-                fname = "Vcycle"
+                fname = dataDict['cycle_name']
             else:
                 fname = "interp_correct_L"+str(l)
 
@@ -132,7 +132,7 @@ def vCycle(impipeDict, dataDict):
             for t in range(0, nu2):
                 fname = "T"+str(t)+"_post_L"+str(l)
                 if l == L and t == nu2-1:
-                    fname = "Vcycle"
+                    fname = dataDict['cycle_name']
 
                 if t == 0:
                     inFunc = ec[l]

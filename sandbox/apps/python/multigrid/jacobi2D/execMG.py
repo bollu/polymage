@@ -6,13 +6,10 @@ import time
 
 from printer import printLine, printLayout, printErrors
 
-sys.path.insert(0, '../../../../optimizer')
-sys.path.insert(0, '../../../../frontend')
-
 from compiler   import *
 from constructs import *
 
-def minimalExecMG(dataDict, pipeLib, pipeLibFunc, funcArgs, _pm_argDict):
+def minimal_exec_mg(dataDict, pipeLib, pipeLibFunc, funcArgs, _pm_argDict):
     it = 0
     itMax = 100
 

@@ -71,16 +71,6 @@ def buildMGCycle(impipeDict, dataDict):
     if dataDict['pool_alloc'] == True:
         opts += ['pool_alloc']
 
-    '''
-    mgPipe = buildPipeLine(liveOuts,
-                           paramEstimates=pEstimates,
-                           paramConstraints=pConstraints,
-                           tileSizes=tSize,
-                           groupSize=gSize,
-                           inlineDirectives=[],
-                           options=opts)
-    '''
-
     mgPipe = buildPipeline(liveOuts,
                            param_estimates=pEstimates,
                            param_constraints=pConstraints,
