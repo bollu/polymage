@@ -58,8 +58,6 @@ def buildMGCycle(impipeDict, dataDict):
         mg = wCycle(impipeDict, dataDict)
 
     n = impipeDict['n']
-    N = dataDict['N']
-    L = dataDict['L']
 
     liveOuts = [mg]
     pipeName = dataDict['cycle_name']

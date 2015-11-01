@@ -32,15 +32,17 @@ def main():
     initAll(impipeDict, dataDict)
 
     printConfig(dataDict)
-    #-------------------------------------------------------------------
     cycleName = dataDict['cycle']+"cycle"
-    createLib(        None,    "norm", impipeDict, dataDict, dataDict['mode'])
-    createLib(buildMGCycle, cycleName, impipeDict, dataDict, dataDict['mode'])
-    #-------------------------------------------------------------------
-    initNorm(dataDict)
-    multigrid(dataDict)
-
-    #-------------------------------------------------------------------
+    if dataDict['mode'] == tune:
+        app_tuner(impipeDict, dataDict)
+    else:
+        #-------------------------------------------------------------------
+        createLib(        None,    "norm", impipeDict, dataDict, dataDict['mode'])
+        createLib(buildMGCycle, cycleName, impipeDict, dataDict, dataDict['mode'])
+        #-------------------------------------------------------------------
+        initNorm(dataDict)
+        multigrid(dataDict)
+        #-------------------------------------------------------------------
 
     return
 
