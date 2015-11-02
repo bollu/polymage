@@ -122,8 +122,8 @@ def generate(_tuner_arg_dict):
         # for now, using a random string of length 10 
         # as subdir name
         return ''.join(random.SystemRandom().choice(
-                    string.lowercase + \
-                    string.uppercase + \
+                    string.ascii_lowercase + \
+                    string.ascii_uppercase + \
                     string.digits) \
                     for _ in range(10))
  
