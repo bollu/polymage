@@ -9,6 +9,9 @@ import random
 import sys
 import os
 
+from compiler import *
+from utils import *
+
 # print to multiple files
 def print_to(s, to_file, _end="\n"):
     for f in to_file:
@@ -104,10 +107,10 @@ def generate(_tuner_arg_dict):
         print_to("\nParameter Estimates     :", to_file, " ")
         for estimate in _tuner_param_estimates:
             print_to((estimate[0].name, estimate[1]), to_file, " ")
-        print_to("\nTile Sizes              :", to_file, " ")
+        print_to("\nTile Sizes              :", to_file)
         for tile_sizes in _tuner_tile_size_configs:
-            print_to(tile_sizes, to_file,  " ")
-        print_to("\nGroup Sizes             :", to_file, " ")
+            print_to(tile_sizes, to_file,)
+        print_to("\nGroup Sizes             :", to_file)
         for group_sizes in _tuner_group_size_configs:
             print_to(group_sizes, to_file, " ")
         '''
@@ -115,6 +118,7 @@ def generate(_tuner_arg_dict):
         for func in _tuner_inline_directives:
             print_to("\""+func.name+"\",", to_file, " ")
         '''
+        print("")
 
     app_name = _tuner_app_name+'_polymage_'
 
@@ -146,8 +150,10 @@ def generate(_tuner_arg_dict):
     opt_flags='-openmp -xhost -O3 -ansi-alias'
     #opt_flags='-fopenmp -march=native -O3'
     shared_lib_flags='-fPIC -shared'
-    include_flags='-I ../../memory_allocation/'
-    other_CXX='../../memory_allocation/simple_pool_allocator.cpp'
+    #include_flags='-I ../../memory_allocation/'
+    include_flags=''
+    #other_CXX='../../memory_allocation/simple_pool_allocator.cpp'
+    other_CXX=''
 
     # Generate group sizes automatically, if none is specified by the user.
     # TODO:
@@ -181,7 +187,7 @@ def generate(_tuner_arg_dict):
             config_file = open(config_file_name, 'a')
             dump_files.append(config_file)
 
-            print_line([dump_files])
+            print_line(dump_files)
             print_to("Config     : #"+str(_tuner_config), dump_files)
             print_to("Tile Sizes : "+str(_tuner_tile_size), dump_files)
             print_to("Group Size : "+str(_tuner_group_size), dump_files)
@@ -195,6 +201,16 @@ def generate(_tuner_arg_dict):
 
             # building the pipeline :
             _tuner_build_error = False
+
+            _tuner_pipe = buildPipeline(
+                             _tuner_live_outs,
+                             param_constraints=_tuner_param_constraints,
+                             param_estimates=_tuner_param_estimates,
+                             tile_sizes=_tuner_tile_size,
+                             group_size=_tuner_group_size,
+                             options=_tuner_opts)
+
+            '''
             try:
                 _tuner_pipe = impipe.buildPipeline(
                             _tuner_live_outs,
@@ -207,15 +223,16 @@ def generate(_tuner_arg_dict):
                 _tuner_build_error = True
             finally:
                 pass
+            '''
 
             # code generation :
             if _tuner_build_error is True:
                 print_to("[ERROR] Build fail ...", dump_files)
             else:
                 c_file = open(c_file_name, 'a')
-                c_file.write(_tuner_pipe.generate_c_naive(is_extern_alloc=True, \
-                                                    is_extern_func=True, \
-                                                    are_params_void_ptrs=True).__str__())
+                c_file.write(_tuner_pipe.generate_code(outputs_no_alloc=True, \
+                                                       is_extern_c_func=True, \
+                                                       are_io_void_ptrs=True).__str__())
                 c_file.close()
 
                 '''
@@ -356,76 +373,18 @@ def execute(_tuner_arg_dict):
         print_to("OMP_NUM_THREADS       :"+str(_tuner_omp_threads), to_file)
         print_to("Number of Tuning Runs :"+str(_tuner_nruns), to_file)
 
-    # Parameters
-    _tuner_pipe_params = _tuner_pipe.get_parameters()
-    _tuner_pipe_params.sort(key=lambda x: x.name)
+    # Parameters, Inputs (Images), Outputs
+    _tuner_pipe_params, _tuner_pipe_inputs, _tuner_pipe_outputs = \
+        get_ordered_cfunc_params(_tuner_pipe)
 
-    # Inputs (Images)
-    _tuner_pipe_inputs = _tuner_pipe.inputs
-    _tuner_pipe_inputs.sort(key=lambda x: x.name)
-
-    # Outputs
-    _tuner_pipe_outputs = _tuner_pipe.outputs
-    _tuner_pipe_outputs.sort(key=lambda x: x.name)
-
-    # construct shared library function properties
-
-    def convert_to_c_type(inp_type, inp_value):
-        if inp_type == 'void':
-            return ctypes.c_void(inp_value)
-
-        if inp_type == 'char':
-            return ctypes.c_char(inp_value)
-        if inp_type == 'unsigned char':
-            return ctypes.c_ubyte(inp_value)
-
-        if inp_type == 'short' or \
-            inp_type == 'short int':
-            return ctypes.c_short(inp_value)
-        if inp_type == 'unsigned short' or \
-            inp_type == 'unsigned short int':
-            return ctypes.c_ushort(inp_value)
-
-        if inp_type == 'int':
-            return ctypes.c_int(inp_value)
-        if inp_type == 'unsigned' or \
-            inp_type == 'unsigned int':
-            return ctypes.c_uint(inp_value)
-
-        if inp_type == 'long' or \
-            inp_type == 'long int':
-            return ctypes.c_long(inp_value)
-        if inp_type == 'unsigned long' or \
-            inp_type == 'unsigned long int':
-            return ctypes.c_ulong(inp_value)
-
-        if inp_type == 'long long' or \
-            inp_type == 'long long int':
-            return ctypes.c_longlong(inp_value)
-        if inp_type == 'unsigned long long' or \
-            inp_type == 'unsigned long long int':
-            return ctypes.c_ulonglong(inp_value)
-
-        if inp_type == 'float':
-            return ctypes.c_float(inp_value)
-        if inp_type == 'double':
-            return ctypes.c_double(inp_value)
-        if inp_type == 'long double':
-            return ctypes.c_double(inp_value)
-
+    # shared library function name
     lib_function_name = 'pipeline_'+_tuner_pipe.name
 
-    pipe_func_args = []
-
-    for param in _tuner_pipe_params:
-        pipe_func_args += [convert_to_c_type(param.typ().c_name(), _tuner_pipe_arg_dict[param.name])]
-
-    for inp in _tuner_pipe_inputs:
-        pipe_func_args += [ctypes.c_void_p(_tuner_pipe_arg_dict[inp.name].ctypes.data)]
-
-    for out in _tuner_pipe_outputs:
-        pipe_func_args += [ctypes.c_void_p(_tuner_pipe_arg_dict[out.name].ctypes.data)]
-
+    # map function arguments to function parameters
+    pipe_func_args = map_cfunc_args(_tuner_pipe_params,
+                                    _tuner_pipe_inputs,
+                                    _tuner_pipe_outputs,
+                                    _tuner_pipe_arg_dict)
 
     # set other variables
     app_name = _tuner_app_name+'_polymage_'

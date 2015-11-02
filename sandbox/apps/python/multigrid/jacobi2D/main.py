@@ -2,10 +2,11 @@ import numpy as np
 import time
 import sys
 
-from init    import initAll, initNorm
-from printer import printHeader, printConfig, printLine
-from builder import createLib, buildMGCycle
-from execMG  import multigrid
+from init      import initAll, initNorm
+from printer   import printHeader, printConfig, printLine
+from builder   import createLib, buildMGCycle
+from execMG    import multigrid
+from app_tuner import auto_tune
 
 app = "jacobi-2d"
 
@@ -33,8 +34,8 @@ def main():
 
     printConfig(dataDict)
     cycleName = dataDict['cycle']+"cycle"
-    if dataDict['mode'] == tune:
-        app_tuner(impipeDict, dataDict)
+    if dataDict['mode'] == 'tune':
+        auto_tune(impipeDict, dataDict)
     else:
         #-------------------------------------------------------------------
         createLib(        None,    "norm", impipeDict, dataDict, dataDict['mode'])
