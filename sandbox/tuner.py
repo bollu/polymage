@@ -6,13 +6,21 @@ import subprocess
 import time
 import string
 import random
+import sys
 import os
 
+# print to multiple files
+def print_to(s, to_file, _end="\n"):
+    for f in to_file:
+        print(s, file=f, end=_end)
+
+# print a line
+def print_line(to_file):
+    print_to("--------------------------------------------------", to_file)
+
 # TODO:
-# 1. Design in a robust way to handle encompassing of various search    ( )
-#    spaces.
-# 2. Introduce parallelism in code generation and compilation           ( )
-# 3. Make the search configurations in each space a Set before 
+# 1. Introduce parallelism in code generation and compilation           ( )
+# 2. Make the search configurations in each space a Set before
 #    enumerating                                                        ( )
 #
 def generate(_tuner_arg_dict):
@@ -21,14 +29,14 @@ def generate(_tuner_arg_dict):
     try:
         _tuner_app_name = _tuner_arg_dict['_tuner_app_name']
     except KeyError:
-        print 'tuner : generator : \'_tuner_app_name\' - \
-                not an optional parameter'
+        print('tuner : generator : \'_tuner_app_name\' - \
+               not an optional parameter')
 
     try:
         _tuner_live_outs = _tuner_arg_dict['_tuner_live_outs']
     except KeyError:
-        print 'tuner : generator : \'_tuner_live_outs\' - \
-                not an optional parameter'
+        print('tuner : generator : \'_tuner_live_outs\' - \
+                not an optional parameter')
 
     try:
         _tuner_param_constraints = _tuner_arg_dict['_tuner_param_constraints']
@@ -72,57 +80,41 @@ def generate(_tuner_arg_dict):
         _tuner_should_debug = _tuner_arg_dict['_tuner_should_debug']
     except KeyError:
         _tuner_should_debug = False
-   
 
+    # make a list of files to which the strings are to be broadcasted
+    dump_files = []
 
-    # TODO:
-    # 1. write a neat printer                   ( )
-    #
-    def print_params(to_file):
-        if to_file:
-            print_line(to_file)
-            print >>to_file, "App name                : \""+_tuner_app_name+"\""
-            print >>to_file, "Code Path               : \""+_tuner_dst_path+"\""
-            print >>to_file, "Live-out Functions      :",
-            for func in _tuner_live_outs:
-                print >>to_file, "\""+func.name+"\",",
-            print >>to_file, "\nParameter Constraints   :"
-            for constraint in _tuner_param_constraints:
-                print >>to_file, constraint
-            print >>to_file, "\nParameter Estimates     :"
-            for estimate in _tuner_param_estimates:
-                print >>to_file, (estimate[0].name, estimate[1])
-            print >>to_file, "\nTile Sizes              :"
-            for tile_sizes in _tuner_tile_size_configs:
-                print >>to_file, tile_sizes
-            print >>to_file, "\nGroup Sizes             :"
-            for group_sizes in _tuner_group_size_configs:
-                print >>to_file, group_sizes
-        if _tuner_should_debug:
-            print_line()
-            print "App name                : \""+_tuner_app_name+"\""
-            print "Code Path               : \""+_tuner_dst_path+"\""
-            print "Live-out Functions      :",
-            for func in _tuner_live_outs:
-                print "\""+func.name+"\",",
-            print
-            print "\nParameter Constraints :"
-            for constraint in _tuner_param_constraints:
-                print constraint
-            print "\nParameter Estimates   :"
-            for estimate in _tuner_param_estimates:
-                print (estimate[0].name, estimate[1])
-            print "\nTile Sizes            :"
-            for tile_sizes in _tuner_tile_size_configs:
-                print tile_sizes
-            print "\nGroup Sizes           :"
-            for group_sizes in _tuner_group_size_configs:
-                print group_sizes
-            '''
-            print "\nfunctions to be inlined:"
-            for func in _tuner_inline_directives:
-                print "\""+func.name+"\",",
-            '''
+    if _tuner_should_debug:
+        dump_files.append(sys.stdout)
+
+    def print_params(to_file=[]):
+        if to_file.__len__() == 0:
+            return
+
+        # print the details of the args
+        print_line(to_file)
+        print_to("App name                : \""+_tuner_app_name+"\"", to_file)
+        print_to("Code Path               : \""+_tuner_dst_path+"\"", to_file)
+        print_to("Live-out Functions      :", to_file, " ")
+        for func in _tuner_live_outs:
+            print_to("\""+func.name+"\",", to_file, " ")
+        print_to("\nParameter Constraints   :", to_file, " ")
+        for constraint in _tuner_param_constraints:
+            print_to(constraint, to_file, " ")
+        print_to("\nParameter Estimates     :", to_file, " ")
+        for estimate in _tuner_param_estimates:
+            print_to((estimate[0].name, estimate[1]), to_file, " ")
+        print_to("\nTile Sizes              :", to_file, " ")
+        for tile_sizes in _tuner_tile_size_configs:
+            print_to(tile_sizes, to_file,  " ")
+        print_to("\nGroup Sizes             :", to_file, " ")
+        for group_sizes in _tuner_group_size_configs:
+            print_to(group_sizes, to_file, " ")
+        '''
+        print_to("\nfunctions to be inlined:", to_file, " ")
+        for func in _tuner_inline_directives:
+            print_to("\""+func.name+"\",", to_file, " ")
+        '''
 
     app_name = _tuner_app_name+'_polymage_'
 
@@ -146,6 +138,7 @@ def generate(_tuner_arg_dict):
     prog_prefix = str(dst_sub_dir)+str(app_name)
     config_file_name = str(dst_sub_dir)+'configurations.txt'
     config_file = open(config_file_name, 'a')
+    dump_files.append(config_file)
 
     # Compile String parts
     cxx='icpc'
@@ -169,13 +162,10 @@ def generate(_tuner_arg_dict):
         # this maximum, include a "group-all"
         _tuner_group_size_configs.append(200)
 
-    print_params(config_file)
+    print_params(dump_files)
+    dump_files.remove(config_file)
     config_file.close()
 
-    # TODO:
-    # 1. modify this whole looping, when 'thresholding' is implemented
-    #    in the DSL compiler                                            ( )
-    #
     _tuner_config = 0
 
     total_t1 = clock()
@@ -187,10 +177,12 @@ def generate(_tuner_arg_dict):
 
             # Update configs file:
             config_file = open(config_file_name, 'a')
-            print_line(config_file)
-            print >>config_file, "Config     : #"+str(_tuner_config)
-            print >>config_file, "Tile Sizes : "+str(_tuner_tile_size)
-            print >>config_file, "Group Size : "+str(_tuner_group_size)
+            dump_files.append(config_file)
+
+            print_line([dump_files])
+            print_to("Config     : #"+str(_tuner_config), dump_files)
+            print_to("Tile Sizes : "+str(_tuner_tile_size), dump_files)
+            print_to("Group Size : "+str(_tuner_group_size), dump_files)
 
             # .cpp and .so files
             c_file_name = str(prog_prefix)+str(_tuner_config)+'.cpp'
@@ -218,8 +210,7 @@ def generate(_tuner_arg_dict):
 
             # code generation :
             if _tuner_build_error is True:
-                print >>config_file, "[ERROR] Build fail ..."
-                print "[ERROR] Build fail ..."
+                print_to("[ERROR] Build fail ...", dump_files)
             else:
                 c_file = open(c_file_name, 'a')
                 c_file.write(_tuner_pipe.generate_c_naive(is_extern_alloc=True, \
@@ -228,7 +219,8 @@ def generate(_tuner_arg_dict):
                 c_file.close()
 
                 codegen_time = float(t2) - float(t1)
-                print >>config_file, "Code Generation Time   : "+str(codegen_time*1000)
+                print_to("Code Generation Time   : "+str(codegen_time*1000),
+                          dump_files)
 
                 '''
                 g = _tuner_pipe.draw_pipeline_graph_with_groups()
@@ -236,15 +228,8 @@ def generate(_tuner_arg_dict):
                 '''
 
             # TODO:
-            # 1. Currently inline_directives changes the whole DAG
-            #    of the pipeline without cloning. Add this parameter
-            #    after the compiler facilitates modification.           ( )
-            #
-  
-            # TODO:
             # 1. Handle other CXX flags                                 ( )
-            # 2. Include g++ support                                    ( )
-            # 3. Should this be using just a 'make'?                    ( )
+            # 2. Include g++ support                                    (X)
             #
             compile_string = cxx+' '+ \
                             opt_flags+' '+ \
@@ -252,7 +237,7 @@ def generate(_tuner_arg_dict):
                             include_flags+' '+ \
                             other_CXX+' '+ \
                             c_file_name+' -o'+ \
-                            so_file_name\
+                            so_file_name
 
             t1 = clock()
 
@@ -269,25 +254,31 @@ def generate(_tuner_arg_dict):
             t2 = clock()
 
             if _tuner_compile_error is True:
-                print >>config_file, "[ERROR] Compilation aborted ..."
-                print "[ERROR] Compilation aborted ..."
+                print_to("[ERROR] Compilation aborted ...",
+                         [config_file, sys.stderr])
             else:
                 compile_time = float(t2) - float(t1)
-                print >>config_file, "Compilation Time       : "+str(compile_time*1000)
+                print_to("Compilation Time       : "+str(compile_time*1000),
+                          dump_files)
                 # total time for this variant:
-                print >>config_file, "Total                  : "+str((codegen_time+compile_time)*1000)
+                print_to("Total                  : "+\
+                          str((codegen_time+compile_time)*1000),
+                          dump_files)
 
+            dump_files.remove(config_file)
             config_file.close()
 
     total_t2 = clock()
     total_time = float(total_t2) - float(total_t1)
 
     config_file = open(config_file_name, 'a')
-    print_line(config_file)
-    print >>config_file, "Time taken to generate all variants : "
-    print >>config_file, str(total_time*1000)
+    dump_files.append(config_file)
+    print_line(dump_files)
+    print_to("Time taken to generate all variants : ", dump_files)
+    print_to(str(total_time*1000), dump_files)
 
-    print_line(config_file)
+    print_line(dump_files)
+    dump_files.remove(config_file)
     config_file.close()
 
     return dst_sub_dir, _tuner_config, _tuner_pipe
@@ -298,20 +289,20 @@ def execute(_tuner_arg_dict):
     try:
         _tuner_pipe_arg_dict = _tuner_arg_dict['_tuner_pipe_arg_dict']
     except KeyError:
-        print 'tuner : executer : \'_tuner_pipe_arg_dict\' - \
-                not an optional parameter'
+        print('tuner : executer : \'_tuner_pipe_arg_dict\' - \
+               not an optional parameter')
 
     try:
         _tuner_app_name = _tuner_arg_dict['_tuner_app_name']
     except KeyError:
-        print 'tuner : executer : \'_tuner_app_name\' - \
-                not an optional parameter'
+        print('tuner : executer : \'_tuner_app_name\' - \
+               not an optional parameter')
 
     try:
         _tuner_pipe = _tuner_arg_dict['_tuner_pipe']
     except KeyError:
-        print 'tuner : executer : \'_tuner_pipe\' - \
-                not an optional parameter'
+        print('tuner : executer : \'_tuner_pipe\' - \
+               not an optional parameter')
 
     try:
         _tuner_src_path = _tuner_arg_dict['_tuner_src_path']
@@ -343,19 +334,19 @@ def execute(_tuner_arg_dict):
     except KeyError:
         _tuner_custom_executor = None
 
-    def print_params(to_file=None):
-        if to_file:
-            print_line(to_file)
-            print >>to_file, "App Name              : \""+_tuner_app_name+"\""
-            print >>to_file, "Total Configurations  :", _tuner_configs_count
-            print >>to_file, "OMP_NUM_THREADS       :",_tuner_omp_threads
-            print >>to_file, "Number of Tuning Runs :",_tuner_nruns
-        if _tuner_should_debug:
-            print_line()
-            print "app name              : \""+_tuner_app_name+"\""
-            print "Total Configurations  :", _tuner_configs_count
-            print "OMP_NUM_THREADS       :",_tuner_omp_threads
-            print "Number of tuning runs :",_tuner_nruns
+    # make a list of files to which the strings are to be broadcasted
+    dump_files = []
+    if _tuner_should_debug:
+        dump_files.append(sys.stdout)
+
+    def print_params(to_file=[]):
+        if to_file.__len__() == 0:
+            return
+        print_line(to_file)
+        print_to("App Name              : \""+_tuner_app_name+"\"", to_file)
+        print_to("Total Configurations  :"+str(_tuner_configs_count), to_file)
+        print_to("OMP_NUM_THREADS       :"+str(_tuner_omp_threads), to_file)
+        print_to("Number of Tuning Runs :"+str(_tuner_nruns), to_file)
 
     # Parameters
     _tuner_pipe_params = _tuner_pipe.get_parameters()
@@ -436,7 +427,9 @@ def execute(_tuner_arg_dict):
     tuning_report_file_name = str(_tuner_src_path)+'tuning_report'+'_'+str(date_time_now)+'.txt'
 
     tuning_report_file = open(tuning_report_file_name, 'a')
+    dump_files.append(tuning_report_file)
     print_params(tuning_report_file)
+    dump_files.remove(tuning_report_file)
     tuning_report_file.close()
 
     _tuner_max_time = 1000000
@@ -452,13 +445,12 @@ def execute(_tuner_arg_dict):
     global_min_config = 0
     global_min_time = _tuner_max_time
     for _tuner_config in range(1, _tuner_configs_count+1):
-        print_line()
-        print "config #"+str(_tuner_config),": ",
-
         # log to file
         tuning_report_file = open(tuning_report_file_name, 'a')
-        print_line(tuning_report_file)
-        print >>tuning_report_file, "Config #"+str(_tuner_config),": ",
+        dump_files.append(tuning_report_file)
+
+        print_line(dump_files)
+        print_to("Config #"+str(_tuner_config),": ", dump_files, " ")
 
         # load shared library, name the function
         so_file_name = str(prog_prefix)+str(_tuner_config)+'.so'
@@ -471,8 +463,8 @@ def execute(_tuner_arg_dict):
             _tuner_load_error = True
 
         if _tuner_load_error :
-            print >>tuning_report_file, "[ERROR] in loading shared library ..."
-            print "[ERROR] in loading shared library ..."
+            print_to("[ERROR] in loading shared library ...",
+                      dump_files)
         else:
             pipeline_func = lib_pipeline[lib_function_name]
 
@@ -506,66 +498,54 @@ def execute(_tuner_arg_dict):
                     _tuner_runtime_error = True
                 t2 = clock()
                 t_total = float(t2) - float(t1)
-                #print "time taken: ", t2*1000 - t1*1000, "ms"
 
                 # local minima
                 if float(t_total) < float(local_min_time):
                     local_min_time = t_total
 
             if _tuner_runtime_error:
-                print >>tuning_report_file, "[ERROR] Execution Aborted ..."
-                print "[ERROR] Execution Aborted ..."
+                print_to("[ERROR] Execution Aborted ...",
+                         dump_files)
             else:
                 # global minima
                 if float(local_min_time) < float(global_min_time):
                     global_min_time = local_min_time
                     global_min_config = _tuner_config
 
-                print local_min_time*1000, \
-                      "(", global_min_time*1000, ")"
-                # write the same to log file
-                # FIXME: fuse this with stdout dump, to work like 'tee'         ( )
-                print >>tuning_report_file, local_min_time*1000
+                print_to(str(local_min_time*1000)+\
+                         "("+str(global_min_time*1000)+")",
+                         dump_files)
 
                 # FIXME:
-                # Unloading the shared lib is almost impossible. Nevertheless, try to
-                # dispose off the loaded lib object
+                # Unloading the shared lib is almost impossible.
+                # Nevertheless, try to dispose off the loaded lib object
                 del pipeline_func
                 _ctypes.dlclose(lib_pipeline._handle)
                 del lib_pipeline
 
+        dump_files.remove(tuning_report_file)
         tuning_report_file.close()
 
     tuning_report_file = open(tuning_report_file_name, 'a')
+    dump_files.append(tuning_report_file)
 
     tuning_time_t2 = clock()
     tuning_time = float(tuning_time_t2) - float(tuning_time_t1)
 
-    print_line()
-    print "Best Config :"
-    print "Config #"+str(global_min_config)," -- ",
-    print global_min_time*1000
-    print "Src Path    : \""+_tuner_src_path+"\""
+    print_line(dump_files)
+    print_to("Best Config :", dump_files)
+    print_to("Config #"+str(global_min_config)+" -- ",
+             dump_files, " ")
+    print_to(global_min_time*1000, dump_files)
+    print_to("Src Path    : \""+_tuner_src_path+"\"", dump_files)
 
-    print_line()
-    print "Tuning Time :"
-    print tuning_time*1000
+    print_line(dump_files)
+    print_to("Tuning Time :", dump_files)
+    print_to(tuning_time*1000, dump_files)
 
-    print_line()
+    print_line(dump_files)
 
-    # write the same to log file
-    # FIXME: fuse this with stdout dump, to work like 'tee'             ( )
-    print_line(tuning_report_file)
-    print >>tuning_report_file, "Best Config :"
-    print >>tuning_report_file, "Config #"+str(global_min_config)," -- ",
-    print >>tuning_report_file, global_min_time*1000
-    print >>tuning_report_file, "Src Path    : \""+_tuner_src_path+"\""
-
-    print_line(tuning_report_file)
-    print >>tuning_report_file, "Tuning Time :"
-    print >>tuning_report_file, tuning_time*1000
-
-    print_line(tuning_report_file)
+    dump_files.remove(tuning_report_file)
     tuning_report_file.close()
 
     return
