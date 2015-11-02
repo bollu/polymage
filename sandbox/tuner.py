@@ -125,7 +125,7 @@ def generate(_tuner_arg_dict):
                     string.lowercase + \
                     string.uppercase + \
                     string.digits) \
-                    for _ in xrange(10))
+                    for _ in range(10))
  
     # ensure that a subdirectory is created, with a name not conflicting with
     # existing ones
@@ -551,7 +551,7 @@ def execute(_tuner_arg_dict):
     print_line(dump_files)
     # print the toal time taken by the tuner to execute all configs
     print_to("Tuning Time :", dump_files)
-    print_to((tuning_time+"ms", dump_files)
+    print_to(tuning_time+"ms", dump_files)
     print_line(dump_files)
 
     dump_files.remove(tuning_report_file)
