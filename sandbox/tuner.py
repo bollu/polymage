@@ -163,12 +163,14 @@ def generate(_tuner_arg_dict):
         _tuner_group_size_configs.append(200)
 
     print_params(dump_files)
+
+    # file close
     dump_files.remove(config_file)
     config_file.close()
 
     _tuner_config = 0
 
-    total_t1 = clock()
+    total_t1 = time.time()
     # iterate over tile_sizes
     for _tuner_tile_size in _tuner_tile_size_configs:
         # iterate over group_sizes
@@ -189,7 +191,7 @@ def generate(_tuner_arg_dict):
             so_file_name = str(prog_prefix)+str(_tuner_config)+'.so'
             #dot_file_name = str(prog_prefix)+str(_tuner_config)+'.dot'
 
-            t1 = clock()
+            t1 = time.time()
 
             # building the pipeline :
             _tuner_build_error = False
@@ -206,8 +208,6 @@ def generate(_tuner_arg_dict):
             finally:
                 pass
 
-            t2 = clock()
-
             # code generation :
             if _tuner_build_error is True:
                 print_to("[ERROR] Build fail ...", dump_files)
@@ -218,14 +218,17 @@ def generate(_tuner_arg_dict):
                                                     are_params_void_ptrs=True).__str__())
                 c_file.close()
 
-                codegen_time = float(t2) - float(t1)
-                print_to("Code Generation Time   : "+str(codegen_time*1000),
-                          dump_files)
-
                 '''
                 g = _tuner_pipe.draw_pipeline_graph_with_groups()
                 g.write(dot_file_name)
                 '''
+
+            t2 = time.time()
+
+            # print the polymage code compilation and cpp code generation time
+            codegen_time = float(t2) - float(t1)
+            print_to("Code Generation Time   : "+str(codegen_time)+"ms",
+                      dump_files)
 
             # TODO:
             # 1. Handle other CXX flags                                 ( )
@@ -239,7 +242,7 @@ def generate(_tuner_arg_dict):
                             c_file_name+' -o'+ \
                             so_file_name
 
-            t1 = clock()
+            t1 = time.time()
 
             # compilation :
             _tuner_compile_error = False
@@ -251,33 +254,38 @@ def generate(_tuner_arg_dict):
             finally:
                 pass
 
-            t2 = clock()
+            t2 = time.time()
 
             if _tuner_compile_error is True:
                 print_to("[ERROR] Compilation aborted ...",
-                         [config_file, sys.stderr])
+                         dump_files)
             else:
                 compile_time = float(t2) - float(t1)
-                print_to("Compilation Time       : "+str(compile_time*1000),
+                print_to("Compilation Time       : "+str(compile_time)+"ms",
                           dump_files)
                 # total time for this variant:
                 print_to("Total                  : "+\
-                          str((codegen_time+compile_time)*1000),
+                          str(codegen_time+compile_time)+"ms",
                           dump_files)
 
+            # file close
             dump_files.remove(config_file)
             config_file.close()
 
-    total_t2 = clock()
+    total_t2 = time.time()
     total_time = float(total_t2) - float(total_t1)
 
+    # file open
     config_file = open(config_file_name, 'a')
     dump_files.append(config_file)
-    print_line(dump_files)
-    print_to("Time taken to generate all variants : ", dump_files)
-    print_to(str(total_time*1000), dump_files)
 
     print_line(dump_files)
+    # print the time taken by the tuner to generate and compile all variants
+    print_to("Time taken to generate all variants : ", dump_files)
+    print_to(str(total_time)+"ms", dump_files)
+    print_line(dump_files)
+
+    # file close
     dump_files.remove(config_file)
     config_file.close()
 
@@ -440,7 +448,7 @@ def execute(_tuner_arg_dict):
     # set the thread-count
     os.environ["OMP_NUM_THREADS"] = str(_tuner_omp_threads)
 
-    tuning_time_t1 = clock()
+    tuning_time_t1 = time.time()
 
     global_min_config = 0
     global_min_time = _tuner_max_time
@@ -484,7 +492,7 @@ def execute(_tuner_arg_dict):
 
             # run
             for run in range(1, _tuner_nruns+1):
-                t1 = clock()
+                t1 = time.time()
                 _tuner_runtime_error = False
                 try:
                     if _tuner_custom_executor == None:
@@ -496,7 +504,7 @@ def execute(_tuner_arg_dict):
                                            _tuner_arg_dict)
                 except:
                     _tuner_runtime_error = True
-                t2 = clock()
+                t2 = time.time()
                 t_total = float(t2) - float(t1)
 
                 # local minima
@@ -512,8 +520,8 @@ def execute(_tuner_arg_dict):
                     global_min_time = local_min_time
                     global_min_config = _tuner_config
 
-                print_to(str(local_min_time*1000)+\
-                         "("+str(global_min_time*1000)+")",
+                print_to(str(local_min_time)+"ms"\
+                         "("+str(global_min_time)+"ms)",
                          dump_files)
 
                 # FIXME:
@@ -529,20 +537,21 @@ def execute(_tuner_arg_dict):
     tuning_report_file = open(tuning_report_file_name, 'a')
     dump_files.append(tuning_report_file)
 
-    tuning_time_t2 = clock()
+    tuning_time_t2 = time.time()
     tuning_time = float(tuning_time_t2) - float(tuning_time_t1)
 
+    # print the best config and time taken by it
     print_line(dump_files)
     print_to("Best Config :", dump_files)
     print_to("Config #"+str(global_min_config)+" -- ",
              dump_files, " ")
-    print_to(global_min_time*1000, dump_files)
+    print_to(str(global_min_time)+"ms", dump_files)
     print_to("Src Path    : \""+_tuner_src_path+"\"", dump_files)
 
     print_line(dump_files)
+    # print the toal time taken by the tuner to execute all configs
     print_to("Tuning Time :", dump_files)
-    print_to(tuning_time*1000, dump_files)
-
+    print_to((tuning_time+"ms", dump_files)
     print_line(dump_files)
 
     dump_files.remove(tuning_report_file)
