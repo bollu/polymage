@@ -294,7 +294,7 @@ class Pipeline:
     def originalGraph(self):
         return self._initialGraph
 
-    def getParameters(self):
+    def get_parameters(self):
         params=[]
         for group in self._groups.values():
             params = params + group.getParameters()

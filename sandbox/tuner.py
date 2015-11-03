@@ -316,11 +316,13 @@ def execute(_tuner_arg_data):
         _tuner_custom_executor = None
 
     try:
-        if not _tuner_custom_executor:
-            _tuner_pipe_arg_data = _tuner_arg_data['_tuner_pipe_arg_data']
+        _tuner_pipe_arg_data = _tuner_arg_data['_tuner_pipe_arg_data']
     except KeyError:
-        print('tuner : executer : \'_tuner_pipe_arg_data\' - \
-               not an optional parameter')
+        if _tuner_custom_executor:
+            _tuner_pipe_arg_data = None
+        else:
+            print('tuner : executer : \'_tuner_pipe_arg_data\' - \
+                   not an optional parameter')
 
     try:
         _tuner_app_name = _tuner_arg_data['_tuner_app_name']
@@ -365,7 +367,7 @@ def execute(_tuner_arg_data):
         dump_files.append(sys.stdout)
 
     def print_params(to_file=[]):
-        if to_file.__len__() == 0:
+        if len(to_file) == 0:
             return
         print_line(to_file)
         print_to("App Name              : \""+_tuner_app_name+"\"", to_file)
@@ -375,14 +377,14 @@ def execute(_tuner_arg_data):
 
     # set other variables
     app_name = _tuner_app_name+'_polymage_'
-    prog_prefix = str(_tuner_src_path)+'/'+str(app_name)
+    prog_prefix = str(_tuner_src_path)+str(app_name)
 
     date_time_now = time.strftime("%d-%m-%Y_%H.%M.%S")
     tuning_report_file_name = str(_tuner_src_path)+'tuning_report'+'_'+str(date_time_now)+'.txt'
 
     tuning_report_file = open(tuning_report_file_name, 'a')
     dump_files.append(tuning_report_file)
-    print_params(tuning_report_file)
+    print_params(dump_files)
     dump_files.remove(tuning_report_file)
     tuning_report_file.close()
 
@@ -404,8 +406,9 @@ def execute(_tuner_arg_data):
                         _tuner_pipe_outputs]
 
     # map function arguments to function parameters
-    pipe_func_args = map_cfunc_args(pipe_func_params,
-                                    _tuner_pipe_arg_data)
+    if _tuner_pipe_arg_data:
+        pipe_func_args = map_cfunc_args(pipe_func_params,
+                                        _tuner_pipe_arg_data)
 
     tuning_time_t1 = time.time()
 
@@ -417,15 +420,16 @@ def execute(_tuner_arg_data):
         dump_files.append(tuning_report_file)
 
         print_line(dump_files)
-        print_to("Config #"+str(_tuner_config),": ", dump_files, " ")
+        print_to("Config #"+str(_tuner_config)+" : ", dump_files, " ")
 
         # load shared library, name the function
         so_file_name = str(prog_prefix)+str(_tuner_config)+'.so'
 
         # load shared library
         _tuner_load_error = False
+
         try:
-            lib_pipeline = ctypes.cdll.Load_library(so_file_name)
+            lib_pipeline = ctypes.cdll.LoadLibrary(so_file_name)
         except:
             _tuner_load_error = True
 
@@ -475,7 +479,7 @@ def execute(_tuner_arg_data):
                     global_min_time = local_min_time
                     global_min_config = _tuner_config
 
-                print_to(str(local_min_time)+"ms"\
+                print_to(str(local_min_time)+"ms "+\
                          "("+str(global_min_time)+"ms)",
                          dump_files)
 
@@ -506,7 +510,7 @@ def execute(_tuner_arg_data):
     print_line(dump_files)
     # print the toal time taken by the tuner to execute all configs
     print_to("Tuning Time :", dump_files)
-    print_to(tuning_time+"ms", dump_files)
+    print_to(str(tuning_time)+"ms", dump_files)
     print_line(dump_files)
 
     dump_files.remove(tuning_report_file)
