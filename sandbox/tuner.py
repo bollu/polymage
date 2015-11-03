@@ -373,19 +373,6 @@ def execute(_tuner_arg_dict):
         print_to("OMP_NUM_THREADS       :"+str(_tuner_omp_threads), to_file)
         print_to("Number of Tuning Runs :"+str(_tuner_nruns), to_file)
 
-    # Parameters, Inputs (Images), Outputs
-    _tuner_pipe_params, _tuner_pipe_inputs, _tuner_pipe_outputs = \
-        get_ordered_cfunc_params(_tuner_pipe)
-
-    # shared library function name
-    lib_function_name = 'pipeline_'+_tuner_pipe.name
-
-    # map function arguments to function parameters
-    pipe_func_args = map_cfunc_args(_tuner_pipe_params,
-                                    _tuner_pipe_inputs,
-                                    _tuner_pipe_outputs,
-                                    _tuner_pipe_arg_dict)
-
     # set other variables
     app_name = _tuner_app_name+'_polymage_'
     prog_prefix = str(_tuner_src_path)+'/'+str(app_name)
@@ -401,11 +388,23 @@ def execute(_tuner_arg_dict):
 
     _tuner_max_time = 1000000
 
-
     # TODO: iterate over thread count for tuning                ( )
 
     # set the thread-count
     os.environ["OMP_NUM_THREADS"] = str(_tuner_omp_threads)
+
+    # Parameters, Inputs (Images), Outputs
+    _tuner_pipe_params, _tuner_pipe_inputs, _tuner_pipe_outputs = \
+        get_ordered_cfunc_params(_tuner_pipe)
+
+    # shared library function name
+    lib_function_name = 'pipeline_'+_tuner_pipe.name
+
+    # map function arguments to function parameters
+    pipe_func_args = map_cfunc_args(_tuner_pipe_params,
+                                    _tuner_pipe_inputs,
+                                    _tuner_pipe_outputs,
+                                    _tuner_pipe_arg_dict)
 
     tuning_time_t1 = time.time()
 
@@ -441,11 +440,6 @@ def execute(_tuner_arg_dict):
             # 2. Graphics plots                                     ( )
             #
 
-            # TODO:
-            # 1. Use compiler info to get the correct prototype
-            #    of the pipeline function to be called.             (X)
-            # 2. Handle errors and dump them to log file            ( )
-
             # start timer
             local_min_time = _tuner_max_time
 
@@ -458,9 +452,9 @@ def execute(_tuner_arg_dict):
                         pipeline_func(*pipe_func_args)
                     else:
                         _tuner_custom_executor(lib_pipeline, \
-                                           pipeline_func, \
-                                           pipe_func_args, \
-                                           _tuner_arg_dict)
+                                               pipeline_func, \
+                                               pipe_func_args, \
+                                               _tuner_arg_dict)
                 except:
                     _tuner_runtime_error = True
                 t2 = time.time()
