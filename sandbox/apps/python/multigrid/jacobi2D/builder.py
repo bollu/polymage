@@ -9,7 +9,7 @@ from polymage_wcycle import wCycle
 from compiler   import *
 from constructs import *
 
-def codeGen(pipe, fileName, dataDict):
+def codeGen(pipe, fileName, appData):
     print("")
     print("[builder]: writing the code to", fileName, "...")
 
@@ -24,7 +24,7 @@ def codeGen(pipe, fileName, dataDict):
     return
 
 '''
-def graphGen(pipe, fileName, dataDict):
+def graphGen(pipe, fileName, appData):
     graphFile = fileName+".dot"
     pngGraph = fileName+".png"
 
@@ -47,26 +47,26 @@ def graphGen(pipe, fileName, dataDict):
     return
 '''
 
-def buildMGCycle(impipeDict, dataDict):
-    cycleType = dataDict['cycle']
+def buildMGCycle(impipeData, appData):
+    cycleType = appData['cycle']
 
     if cycleType == 'V':
         # construct the multigrid v-cycle pipeline
-        mg = vCycle(impipeDict, dataDict)
+        mg = vCycle(impipeData, appData)
     elif cycleType == 'W':
         # construct the multigrid w-cycle pipeline
-        mg = wCycle(impipeDict, dataDict)
+        mg = wCycle(impipeData, appData)
 
-    n = impipeDict['n']
+    n = impipeData['n']
 
     liveOuts = [mg]
-    pipeName = dataDict['cycle_name']
-    pEstimates = [(n, dataDict['n'])]
-    pConstraints = [ Condition(n, "==", dataDict['n']) ]
+    pipeName = appData['cycle_name']
+    pEstimates = [(n, appData['n'])]
+    pConstraints = [ Condition(n, "==", appData['n']) ]
     tSize = [16, 16, 16]
     gSize = 10
     opts = []
-    if dataDict['pool_alloc'] == True:
+    if appData['pool_alloc'] == True:
         opts += ['pool_alloc']
 
     mgPipe = buildPipeline(liveOuts,
@@ -79,20 +79,20 @@ def buildMGCycle(impipeDict, dataDict):
 
     return mgPipe
 
-def createLib(buildFunc, pipeName, impipeDict, dataDict, mode):
+def createLib(buildFunc, pipeName, impipeData, appData, mode):
     pipeSrc  = pipeName+".cpp"
     pipeSo   = pipeName+".so"
 
     if buildFunc != None:
         if mode == 'new':
             # build the polymage pipeline
-            pipe = buildFunc(impipeDict, dataDict)
+            pipe = buildFunc(impipeData, appData)
 
             # draw the pipeline graph to a png file
-            #graphGen(pipe, pipeName, dataDict)
+            #graphGen(pipe, pipeName, appData)
 
             # generate pipeline cpp source
-            codeGen(pipe, pipeSrc, dataDict)
+            codeGen(pipe, pipeSrc, appData)
         #fi
     #fi
 
@@ -103,6 +103,6 @@ def createLib(buildFunc, pipeName, impipeDict, dataDict, mode):
 
     # load the shared library
     pipeFuncName = "pipeline_"+pipeName
-    loadLib(pipeSo, pipeFuncName, dataDict)
+    loadLib(pipeSo, pipeFuncName, appData)
 
     return
