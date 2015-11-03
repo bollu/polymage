@@ -71,17 +71,10 @@ def auto_tune(impipe_data, app_data):
         tuner.generate(gen_config)
 
 
-    pipe_arg_data = {}
-    pipe_arg_data['n'] = app_data['n']
-    pipe_arg_data['U_'] = app_data['input_list'][0]
-    pipe_arg_data['F_'] = app_data['input_list'][1]
-    pipe_arg_data['W_'] = app_data['output_list'][2]
-
     # Execute the generated variants
     # ==============================
 
-    exec_config = {"_tuner_pipe_arg_data": pipe_arg_data,
-                   "_tuner_app_name": app_name,
+    exec_config = {"_tuner_app_name": app_name,
                    "_tuner_pipe": _tuner_pipe,
                    "_tuner_src_path": _tuner_src_path, # optional
                    "_tuner_configs_count": _tuner_configs_count, # optional

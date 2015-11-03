@@ -310,9 +310,14 @@ def generate(_tuner_arg_data):
 
 def execute(_tuner_arg_data):
 
-    # unpack the arguments from the arg dictionary
     try:
-        _tuner_pipe_arg_data = _tuner_arg_data['_tuner_pipe_arg_data']
+        _tuner_custom_executor = _tuner_arg_data['_tuner_custom_executor']
+    except KeyError:
+        _tuner_custom_executor = None
+
+    try:
+        if not _tuner_custom_executor:
+            _tuner_pipe_arg_data = _tuner_arg_data['_tuner_pipe_arg_data']
     except KeyError:
         print('tuner : executer : \'_tuner_pipe_arg_data\' - \
                not an optional parameter')
@@ -353,11 +358,6 @@ def execute(_tuner_arg_data):
         _tuner_debug_flag = _tuner_arg_data['_tuner_debug_flag']
     except KeyError:
         _tuner_debug_flag = True
-
-    try:
-        _tuner_custom_executor = _tuner_arg_data['_tuner_custom_executor']
-    except KeyError:
-        _tuner_custom_executor = None
 
     # make a list of files to which the strings are to be broadcasted
     dump_files = []
