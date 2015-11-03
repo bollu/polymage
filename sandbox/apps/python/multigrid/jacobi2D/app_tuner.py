@@ -24,11 +24,11 @@ def auto_tune(impipe_data, app_data):
     dst_path = "/tmp"
 
     #group_size_configs = [3, 5, 7, 9, 11, 13, 15]
-    group_size_configs = [3, 5]
+    group_size_configs = [3]
 
     tile_size_configs = []
     tile_size_configs.append([64, 256])
-    tile_size_configs.append([64, 128])
+    #tile_size_configs.append([64, 128])
 
     '''
     tile_size_configs.append([32, 512])
@@ -63,7 +63,7 @@ def auto_tune(impipe_data, app_data):
                   "_tuner_group_size_configs": group_size_configs, #optional
                   "_tuner_opts": opts, #optional
                   "_tuner_dst_path" : dst_path, # optional
-                  "_tuner_should_debug": True, # optional
+                  "_tuner_debug_flag": True, # optional
                   "_tuner_opt_datadict": app_data
                  }
 
@@ -78,10 +78,11 @@ def auto_tune(impipe_data, app_data):
                    "_tuner_pipe": _tuner_pipe,
                    "_tuner_src_path": _tuner_src_path, # optional
                    "_tuner_configs_count": _tuner_configs_count, # optional
-                   "_tuner_omp_threads": 16, # optional
+                   "_tuner_omp_threads": 4, # optional
                    "_tuner_nruns": 1, # optional
-                   "_tuner_should_debug": True, # optional
-                   "_tuner_custom_executor": minimal_exec_mg
+                   "_tuner_debug_flag": True, # optional
+                   "_tuner_custom_executor": minimal_exec_mg,
+                   "_tuner_app_data": app_data
                   }
 
     tuner.execute(exec_config)

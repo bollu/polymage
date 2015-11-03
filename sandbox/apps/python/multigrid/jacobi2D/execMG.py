@@ -8,15 +8,15 @@ from printer import printLine, printLayout, printErrors
 
 from compiler   import *
 from constructs import *
+from utils import *
 
 def minimal_exec_mg(pipe_lib, pipe_lib_func, func_params,
-                    func_args, tuner_data, app_data=None):
-    pipe_arg_data = tuner_dict['_tuner_pipe_arg_data']
-
+                    func_args, tuner_data, app_data):
     it = 0
     it_max = app_data['nit']
 
-    pool_alloc = dataDict['pool_alloc']  # bool
+    pool_alloc = app_data['pool_alloc']  # bool
+    grid_data = app_data['grid_data']
 
     # build function argument list based on the iteration,
     # even : in = U_ : out = W_
@@ -25,35 +25,41 @@ def minimal_exec_mg(pipe_lib, pipe_lib_func, func_params,
 
     arg_data = {}
     arg_data['n'] = app_data['n']
-    arg_data['F_'] = app_data['F_']
+    arg_data['F_'] = grid_data['F_']
 
-    arg_data['U_'] = app_data['U_']
-    arg_data['W_'] = app_data['W_']
-    func_args.append(map_c_func_args(func_params, arg_data))
+    arg_data['V_'] = grid_data['U_']
+    arg_data['Vcycle'] = grid_data['W_']
+    func_args.append(map_cfunc_args(func_params, arg_data))
 
-    arg_data['U_'] = app_data['W_']
-    arg_data['W_'] = app_data['U_']
-    func_args.append(map_c_func_args(func_params, arg_data))
+    arg_data['V_'] = grid_data['W_']
+    arg_data['Vcycle'] = grid_data['U_']
+    func_args.append(map_cfunc_args(func_params, arg_data))
 
+    '''
     if pool_alloc:
         pipe_lib.pool_init()
+    '''
 
-    while it < itMax:
+    while it < it_max:
         pipe_lib_func(*(func_args[it%2]))
         it += 1
 
+    '''
     if pool_alloc:
         pipe_lib.pool_destroy()
+    '''
 
-def calcNorm(U_, dataDict):
-    N = dataDict['N']
+    return
 
-    gridDict = dataDict['gridDict']
-    F_       = gridDict['F_']
-    U_EXACT_ = gridDict['U_EXACT_']
+def calcNorm(U_, app_data):
+    N = app_data['N']
+
+    grid_data = app_data['grid_data']
+    F_       = grid_data['F_']
+    U_EXACT_ = grid_data['U_EXACT_']
 
     # lib function name
-    norm = dataDict['pipeline_norm']
+    norm = app_data['pipeline_norm']
 
     resid = np.zeros((1), np.float64)
     err   = np.zeros((1), np.float64)
@@ -71,24 +77,24 @@ def calcNorm(U_, dataDict):
     norm(*normArgs)
 
     # save the old norm values
-    dataDict['oldResidual'] = dataDict['resid']
-    dataDict['oldErr']      = dataDict['err']
+    app_data['oldResidual'] = app_data['resid']
+    app_data['oldErr']      = app_data['err']
 
     # register the norm values in the data dictionary
-    dataDict['resid'] = resid[0]
-    dataDict['err']   = err[0]
+    app_data['resid'] = resid[0]
+    app_data['err']   = err[0]
 
     return
 
-def callMGCycle(U_, W_, dataDict):
-    n = dataDict['n']
+def callMGCycle(U_, W_, app_data):
+    n = app_data['n']
 
-    gridDict = dataDict['gridDict']
-    F_       = gridDict['F_']
+    grid_data = app_data['grid_data']
+    F_       = grid_data['F_']
 
     # lib function name
-    func_name = 'pipeline_'+dataDict['cycle_name']
-    mgCycleFunc = dataDict[func_name]
+    func_name = 'pipeline_'+app_data['cycle_name']
+    mgCycleFunc = app_data[func_name]
 
     # lib function args
     mgCycleArgs = []
@@ -102,34 +108,34 @@ def callMGCycle(U_, W_, dataDict):
 
     return
 
-def multigrid(dataDict):
-    gridDict = dataDict['gridDict']
-    U_ = gridDict['U_']
-    W_ = gridDict['W_']
+def multigrid(app_data):
+    grid_data = app_data['grid_data']
+    U_ = grid_data['U_']
+    W_ = grid_data['W_']
 
-    nit = dataDict['nit']
+    nit = app_data['nit']
     it  = 0
 
-    printLayout(dataDict)
-    printErrors(it, dataDict)
+    printLayout(app_data)
+    printErrors(it, app_data)
 
-    timer = dataDict['timer']
+    timer = app_data['timer']
     if timer == True:
         t1 = time.time()
 
     while it < nit :
         it += 1
         if it%2 == 1:
-            callMGCycle(U_, W_, dataDict)
+            callMGCycle(U_, W_, app_data)
             if timer == False:
-                calcNorm(W_, dataDict)
+                calcNorm(W_, app_data)
         else:
-            callMGCycle(W_, U_, dataDict)
+            callMGCycle(W_, U_, app_data)
             if timer == False:
-                calcNorm(U_, dataDict)
+                calcNorm(U_, app_data)
 
         if timer == False:
-            printErrors(it, dataDict)
+            printErrors(it, app_data)
 
     if timer == True:
         t2 = time.time()

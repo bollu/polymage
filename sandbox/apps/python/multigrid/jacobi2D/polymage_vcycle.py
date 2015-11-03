@@ -53,7 +53,7 @@ def vCycle(impipeData, appData):
             smoothP1[l] = {}
             for t in range(0, nuc):
                 if l == L and t == nuc-1:
-                    fname = "vcycle"
+                    fname = appData['cycle_name']
                 else:
                     fname = "T"+str(t)+"_coarse"
 

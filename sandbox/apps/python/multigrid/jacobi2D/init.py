@@ -8,8 +8,8 @@ from polymage_common import setVars, setCases
 from execMG          import calcNorm
 
 def initNorm(appData):
-    gridData = appData['gridData']
-    U_ = gridData['U_']
+    grid_data = appData['grid_data']
+    U_ = grid_data['U_']
 
     appData['resid'] = 0.0
     appData['err']   = 0.0
@@ -137,13 +137,13 @@ def initGrids(appData):
             # initialize u
             U_ = xx_yy
 
-    gridData = {}
-    gridData['U_']       = U_
-    gridData['W_']       = W_
-    gridData['F_']       = F_
-    gridData['U_EXACT_'] = U_EXACT_
+    grid_data = {}
+    grid_data['U_']       = U_
+    grid_data['W_']       = W_
+    grid_data['F_']       = F_
+    grid_data['U_EXACT_'] = U_EXACT_
 
-    appData['gridData'] = gridData
+    appData['grid_data'] = grid_data
 
     return 
 
