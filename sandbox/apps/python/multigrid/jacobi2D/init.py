@@ -7,16 +7,16 @@ from printer         import printHeader, printUsage, \
 from polymage_common import setVars, setCases
 from execMG          import calcNorm
 
-def initNorm(dataDict):
-    gridDict = dataDict['gridDict']
-    U_ = gridDict['U_']
+def initNorm(appData):
+    gridData = appData['gridData']
+    U_ = gridData['U_']
 
-    dataDict['resid'] = 0.0
-    dataDict['err']   = 0.0
+    appData['resid'] = 0.0
+    appData['err']   = 0.0
 
     # calculate the initial residual norm and error
     print("[init]: calculating the initial norm and error ...")
-    calcNorm(U_, dataDict)
+    calcNorm(U_, appData)
     print("[init]: ... DONE")
 
     return
@@ -61,11 +61,11 @@ def initBorderPiecewise(grid, borderWidth, borderValues):
 
     return
 
-def initGrids(dataDict):
+def initGrids(appData):
     print("[init_mg.py] : grids")
 
-    N = dataDict['N']
-    problem = dataDict['problem']
+    N = appData['N']
+    problem = appData['problem']
 
     # working grid (even step)
     U_ = np.ones((N+2, N+2), np.float64)
@@ -137,17 +137,17 @@ def initGrids(dataDict):
             # initialize u
             U_ = xx_yy
 
-    gridDict = {}
-    gridDict['U_']       = U_
-    gridDict['W_']       = W_
-    gridDict['F_']       = F_
-    gridDict['U_EXACT_'] = U_EXACT_
+    gridData = {}
+    gridData['U_']       = U_
+    gridData['W_']       = W_
+    gridData['F_']       = F_
+    gridData['U_EXACT_'] = U_EXACT_
 
-    dataDict['gridDict'] = gridDict
+    appData['gridData'] = gridData
 
     return 
 
-def initParams(dataDict):
+def initParams(appData):
     print("[init_mg.py] : parameters")
 
     # size of each dimension of the coarsest grid
@@ -160,55 +160,55 @@ def initParams(dataDict):
     for l in range(0,L):
         N = 2*N+1
 
-    dataDict['n'] = n
-    dataDict['N'] = N
-    dataDict['L'] = L
+    appData['n'] = n
+    appData['N'] = N
+    appData['L'] = L
 
     # pre-smoother, post-smoother and
     # coarse-grid relaxation steps
-    dataDict['nu1'] = 10
-    dataDict['nuc'] = 0
-    dataDict['nu2'] = 0
+    appData['nu1'] = 10
+    appData['nuc'] = 0
+    appData['nu2'] = 0
 
     # problem type
-    dataDict['problem'] = 1
+    appData['problem'] = 1
 
     # pool allocate option
-    dataDict['pool_alloc'] = False
+    appData['pool_alloc'] = False
 
-    assert not (dataDict['nu1'] == 0 and \
-                dataDict['nu2'] == 0 and
-                dataDict['nuc'] == 0)
+    assert not (appData['nu1'] == 0 and \
+                appData['nu2'] == 0 and
+                appData['nuc'] == 0)
 
-    return dataDict
+    return appData
 
-def getInput(dataDict):
+def getInput(appData):
     if len(sys.argv) > 3:
-        dataDict['mode'] = sys.argv[1]
-        dataDict['cycle'] = sys.argv[2]
-        dataDict['nit']  = int(sys.argv[3])
+        appData['mode'] = sys.argv[1]
+        appData['cycle'] = sys.argv[2]
+        appData['nit']  = int(sys.argv[3])
     else:
         printUsage()
         sys.exit(1)
 
-    cycle_name = dataDict['cycle']+"cycle"
-    dataDict['cycle_name'] = cycle_name
+    cycle_name = appData['cycle']+"cycle"
+    appData['cycle_name'] = cycle_name
 
-    dataDict['timer'] = os.path.isfile("timer.flag")
+    appData['timer'] = os.path.isfile("timer.flag")
 
     return
 
-def initAll(impipeDict, dataDict):
+def initAll(impipeData, appData):
     # TODO init cycle type {V, W, S}
 
-    getInput(dataDict)
+    getInput(appData)
 
-    initParams(dataDict)
+    initParams(appData)
 
-    initGrids(dataDict)
+    initGrids(appData)
 
-    setVars(impipeDict, dataDict)
+    setVars(impipeData, appData)
 
-    setCases(impipeDict, dataDict)
+    setCases(impipeData, appData)
 
     return

@@ -23,26 +23,26 @@ def main():
     printHeader()
     printLine()
     #-------------------------------------------------------------------
-    dataDict = {}
-    impipeDict = {}
+    appData = {}
+    impipeData = {}
 
     print("[main]: initializing...")
     print("")
 
     # init all the required data
-    initAll(impipeDict, dataDict)
+    initAll(impipeData, appData)
 
-    printConfig(dataDict)
-    cycleName = dataDict['cycle']+"cycle"
-    if dataDict['mode'] == 'tune':
-        auto_tune(impipeDict, dataDict)
+    printConfig(appData)
+    cycleName = appData['cycle']+"cycle"
+    if appData['mode'] == 'tune':
+        auto_tune(impipeData, appData)
     else:
         #-------------------------------------------------------------------
-        createLib(        None,    "norm", impipeDict, dataDict, dataDict['mode'])
-        createLib(buildMGCycle, cycleName, impipeDict, dataDict, dataDict['mode'])
+        createLib(        None,    "norm", impipeData, appData, appData['mode'])
+        createLib(buildMGCycle, cycleName, impipeData, appData, appData['mode'])
         #-------------------------------------------------------------------
-        initNorm(dataDict)
-        multigrid(dataDict)
+        initNorm(appData)
+        multigrid(appData)
         #-------------------------------------------------------------------
 
     return

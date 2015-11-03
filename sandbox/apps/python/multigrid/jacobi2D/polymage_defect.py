@@ -7,18 +7,18 @@ sys.path.insert(0, '../../../../')
 from compiler   import *
 from constructs import *
 
-def defect(U_, F_, l, name, impipeDict):
+def defect(U_, F_, l, name, impipeData):
     if U_ == None:
         return F_
 
-    y = impipeDict['y']
-    x = impipeDict['x']
+    y = impipeData['y']
+    x = impipeData['x']
 
-    invhh = impipeDict['invhh']
+    invhh = impipeData['invhh']
 
-    extent = impipeDict['extent']
-    interior = impipeDict['interior']
-    ghosts = impipeDict['ghosts']
+    extent = impipeData['extent']
+    interior = impipeData['interior']
+    ghosts = impipeData['ghosts']
 
     innerBox = interior[l]['innerBox']
 

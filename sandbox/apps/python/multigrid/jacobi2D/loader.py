@@ -1,7 +1,7 @@
 import ctypes
 import numpy as np
 
-def loadLib(libFile, libFuncName, dataDict):
+def loadLib(libFile, libFuncName, appData):
     print("")
     print("[loader]: loading the shared library", libFile, "...")
 
@@ -15,7 +15,7 @@ def loadLib(libFile, libFuncName, dataDict):
     libFunc = lib[libFuncName]
 
     # register the library and the function in the data dictionary
-    dataDict[str(libFile)] = lib
-    dataDict[str(libFuncName)] = libFunc
+    appData[str(libFile)] = lib
+    appData[str(libFuncName)] = libFunc
 
     return

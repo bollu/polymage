@@ -59,8 +59,11 @@ def get_ordered_cfunc_params(pipe_object):
 
     return params, inputs, outputs
 
-def map_cfunc_args(params, inputs, outputs, arg_dict):
+def map_cfunc_args(func_params, arg_dict):
     func_args = []
+    params = func_params[0]
+    inputs = func_params[1]
+    outputs = func_params[2]
 
     for param in params:
         func_args += [convert_to_ctype(param.typ().c_name(), arg_dict[param.name])]

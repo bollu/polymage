@@ -8,27 +8,29 @@ from constructs import *
 from compiler import *
 import tuner
 
-def auto_tune(impipe_dict, data_dict):
+def auto_tune(impipe_data, app_data):
 
-    cycle_type = data_dict['cycle']
+    cycle_type = app_data['cycle']
     if cycle_type == 'V':
-        mg = vCycle(impipe_dict, data_dict)
+        mg = vCycle(impipe_data, app_data)
     elif cycle_type == 'W':
-        mg = wCycle(impipe_dict, data_dict)
+        mg = wCycle(impipe_data, app_data)
 
-    app_name = data_dict['cycle_name']
+    app_name = app_data['cycle_name']
     live_outs = [mg]
-    n = impipe_dict['n']
-    param_estimates = [(n, data_dict['n'])]
-    param_constraints = [ Condition(n, '==', data_dict['n']) ]
+    n = impipe_data['n']
+    param_estimates = [(n, app_data['n'])]
+    param_constraints = [ Condition(n, '==', app_data['n']) ]
     dst_path = "/tmp"
 
-    group_size_configs = [3, 5, 7, 9, 11, 13, 15]
+    #group_size_configs = [3, 5, 7, 9, 11, 13, 15]
+    group_size_configs = [3, 5]
 
     tile_size_configs = []
     tile_size_configs.append([64, 256])
     tile_size_configs.append([64, 128])
 
+    '''
     tile_size_configs.append([32, 512])
     tile_size_configs.append([32, 256])
     tile_size_configs.append([32, 128])
@@ -44,8 +46,10 @@ def auto_tune(impipe_dict, data_dict):
     tile_size_configs.append([8, 128])
     tile_size_configs.append([8, 64])
     tile_size_configs.append([8, 32])
+    '''
 
-    opts = ['pool_alloc']
+    #opts = ['pool_alloc']
+    opts = []
 
 
     # Generate Variants for Tuning
@@ -60,23 +64,23 @@ def auto_tune(impipe_dict, data_dict):
                   "_tuner_opts": opts, #optional
                   "_tuner_dst_path" : dst_path, # optional
                   "_tuner_should_debug": True, # optional
-                  "_tuner_opt_datadict": data_dict
+                  "_tuner_opt_datadict": app_data
                  }
 
     _tuner_src_path, _tuner_configs_count, _tuner_pipe = \
         tuner.generate(gen_config)
 
 
-    pipe_arg_dict = {}
-    pipe_arg_dict['n'] = data_dict['n']
-    pipe_arg_dict['U_'] = data_dict['input_list'][0]
-    pipe_arg_dict['F_'] = data_dict['input_list'][1]
-    pipe_arg_dict['U_EXACT_'] = data_dict['output_list'][2]
+    pipe_arg_data = {}
+    pipe_arg_data['n'] = app_data['n']
+    pipe_arg_data['U_'] = app_data['input_list'][0]
+    pipe_arg_data['F_'] = app_data['input_list'][1]
+    pipe_arg_data['W_'] = app_data['output_list'][2]
 
     # Execute the generated variants
     # ==============================
 
-    exec_config = {"_tuner_pipe_arg_dict": pipe_arg_dict,
+    exec_config = {"_tuner_pipe_arg_data": pipe_arg_data,
                    "_tuner_app_name": app_name,
                    "_tuner_pipe": _tuner_pipe,
                    "_tuner_src_path": _tuner_src_path, # optional

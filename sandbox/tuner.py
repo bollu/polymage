@@ -26,68 +26,68 @@ def print_line(to_file):
 # 2. Make the search configurations in each space a Set before
 #    enumerating                                                        ( )
 #
-def generate(_tuner_arg_dict):
+def generate(_tuner_arg_data):
 
     # unpack the arguments from the arg dictionary
     try:
-        _tuner_app_name = _tuner_arg_dict['_tuner_app_name']
+        _tuner_app_name = _tuner_arg_data['_tuner_app_name']
     except KeyError:
         print('tuner : generator : \'_tuner_app_name\' - \
                not an optional parameter')
 
     try:
-        _tuner_live_outs = _tuner_arg_dict['_tuner_live_outs']
+        _tuner_live_outs = _tuner_arg_data['_tuner_live_outs']
     except KeyError:
         print('tuner : generator : \'_tuner_live_outs\' - \
                 not an optional parameter')
 
     try:
-        _tuner_param_constraints = _tuner_arg_dict['_tuner_param_constraints']
+        _tuner_param_constraints = _tuner_arg_data['_tuner_param_constraints']
     except KeyError:
         _tuner_param_constraints = None
 
     try:
-        _tuner_param_estimates = _tuner_arg_dict['_tuner_param_estimates']
+        _tuner_param_estimates = _tuner_arg_data['_tuner_param_estimates']
     except KeyError:
         _tuner_param_estimates = None
 
     try:
-        _tuner_tile_size_configs = _tuner_arg_dict['_tuner_tile_size_configs']
+        _tuner_tile_size_configs = _tuner_arg_data['_tuner_tile_size_configs']
     except KeyError:
         _tuner_tile_size_configs = None
 
     try:
-        _tuner_group_size_configs = _tuner_arg_dict['_tuner_group_size_configs']
+        _tuner_group_size_configs = _tuner_arg_data['_tuner_group_size_configs']
     except KeyError:
         _tuner_group_size_configs = None
 
     try:
-        _tuner_opts = _tuner_arg_dict['_tuner_opts']
+        _tuner_opts = _tuner_arg_data['_tuner_opts']
     except KeyError:
         _tuner_opts = []
 
     # for now, assume the following option to be deprecated
     '''
     try:
-        _tuner_inline_directives = _tuner_arg_dict['_tuner_inline_directives']
+        _tuner_inline_directives = _tuner_arg_data['_tuner_inline_directives']
     except KeyError:
         _tuner_inline_directives = None
     '''
 
     try:
-        _tuner_dst_path = _tuner_arg_dict['_tuner_dst_path']
+        _tuner_dst_path = _tuner_arg_data['_tuner_dst_path']
     except KeyError:
         _tuner_dst_path = '/tmp'
 
     try:
-        _tuner_should_debug = _tuner_arg_dict['_tuner_should_debug']
+        _tuner_debug_flag = _tuner_arg_data['_tuner_debug_flag']
     except KeyError:
-        _tuner_should_debug = False
+        _tuner_debug_flag = False
 
     # make a list of files to which the strings are to be broadcasted
     dump_files = []
 
-    if _tuner_should_debug:
+    if _tuner_debug_flag:
         dump_files.append(sys.stdout)
 
     def print_params(to_file=[]):
@@ -308,60 +308,60 @@ def generate(_tuner_arg_dict):
 
     return dst_sub_dir, _tuner_config, _tuner_pipe
 
-def execute(_tuner_arg_dict):
+def execute(_tuner_arg_data):
 
     # unpack the arguments from the arg dictionary
     try:
-        _tuner_pipe_arg_dict = _tuner_arg_dict['_tuner_pipe_arg_dict']
+        _tuner_pipe_arg_data = _tuner_arg_data['_tuner_pipe_arg_data']
     except KeyError:
-        print('tuner : executer : \'_tuner_pipe_arg_dict\' - \
+        print('tuner : executer : \'_tuner_pipe_arg_data\' - \
                not an optional parameter')
 
     try:
-        _tuner_app_name = _tuner_arg_dict['_tuner_app_name']
+        _tuner_app_name = _tuner_arg_data['_tuner_app_name']
     except KeyError:
         print('tuner : executer : \'_tuner_app_name\' - \
                not an optional parameter')
 
     try:
-        _tuner_pipe = _tuner_arg_dict['_tuner_pipe']
+        _tuner_pipe = _tuner_arg_data['_tuner_pipe']
     except KeyError:
         print('tuner : executer : \'_tuner_pipe\' - \
                not an optional parameter')
 
     try:
-        _tuner_src_path = _tuner_arg_dict['_tuner_src_path']
+        _tuner_src_path = _tuner_arg_data['_tuner_src_path']
     except KeyError:
         _tuner_src_path = "/tmp"
 
     try:
-        _tuner_configs_count = _tuner_arg_dict['_tuner_configs_count']
+        _tuner_configs_count = _tuner_arg_data['_tuner_configs_count']
     except KeyError:
         _tuner_configs_count = 0
 
     try:
-        _tuner_omp_threads = _tuner_arg_dict['_tuner_omp_threads']
+        _tuner_omp_threads = _tuner_arg_data['_tuner_omp_threads']
     except KeyError:
         _tuner_omp_threads = 1
 
     try:
-        _tuner_nruns = _tuner_arg_dict['_tuner_nruns']
+        _tuner_nruns = _tuner_arg_data['_tuner_nruns']
     except KeyError:
         _tuner_nruns = 1
 
     try:
-        _tuner_should_debug = _tuner_arg_dict['_tuner_should_debug']
+        _tuner_debug_flag = _tuner_arg_data['_tuner_debug_flag']
     except KeyError:
-        _tuner_should_debug = True
+        _tuner_debug_flag = True
 
     try:
-        _tuner_custom_executor = _tuner_arg_dict['_tuner_custom_executor']
+        _tuner_custom_executor = _tuner_arg_data['_tuner_custom_executor']
     except KeyError:
         _tuner_custom_executor = None
 
     # make a list of files to which the strings are to be broadcasted
     dump_files = []
-    if _tuner_should_debug:
+    if _tuner_debug_flag:
         dump_files.append(sys.stdout)
 
     def print_params(to_file=[]):
@@ -393,18 +393,19 @@ def execute(_tuner_arg_dict):
     # set the thread-count
     os.environ["OMP_NUM_THREADS"] = str(_tuner_omp_threads)
 
-    # Parameters, Inputs (Images), Outputs
-    _tuner_pipe_params, _tuner_pipe_inputs, _tuner_pipe_outputs = \
-        get_ordered_cfunc_params(_tuner_pipe)
-
     # shared library function name
     lib_function_name = 'pipeline_'+_tuner_pipe.name
 
+    # Parameters, Inputs (Images), Outputs
+    _tuner_pipe_params, _tuner_pipe_inputs, _tuner_pipe_outputs = \
+        get_ordered_cfunc_params(_tuner_pipe)
+    pipe_func_params = [_tuner_pipe_params,
+                        _tuner_pipe_inputs,
+                        _tuner_pipe_outputs]
+
     # map function arguments to function parameters
-    pipe_func_args = map_cfunc_args(_tuner_pipe_params,
-                                    _tuner_pipe_inputs,
-                                    _tuner_pipe_outputs,
-                                    _tuner_pipe_arg_dict)
+    pipe_func_args = map_cfunc_args(pipe_func_params,
+                                    _tuner_pipe_arg_data)
 
     tuning_time_t1 = time.time()
 
@@ -451,10 +452,11 @@ def execute(_tuner_arg_dict):
                     if _tuner_custom_executor == None:
                         pipeline_func(*pipe_func_args)
                     else:
-                        _tuner_custom_executor(lib_pipeline, \
-                                               pipeline_func, \
-                                               pipe_func_args, \
-                                               _tuner_arg_dict)
+                        _tuner_custom_executor(lib_pipeline,
+                                               pipeline_func,
+                                               pipe_func_params,
+                                               pipe_func_args,
+                                               _tuner_arg_data)
                 except:
                     _tuner_runtime_error = True
                 t2 = time.time()

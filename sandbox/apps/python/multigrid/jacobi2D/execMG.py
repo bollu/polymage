@@ -9,14 +9,18 @@ from printer import printLine, printLayout, printErrors
 from compiler   import *
 from constructs import *
 
-def minimal_exec_mg(dataDict, pipeLib, pipeLibFunc, funcArgs, _pm_argDict):
+def minimal_exec_mg(pipe_lib, pipe_lib_func, func_params,
+                    func_args, tuner_data, app_data=None):
+    pipe_arg_data = tuner_dict['_tuner_pipe_arg_data']
+
     it = 0
-    itMax = 100
+    it_max = app_data['nit']
 
     pool_alloc = dataDict['pool_alloc']  # bool
 
     if pool_alloc:
         pipeLib.pool_init()
+
     while it < itMax:
         pipeLibFunc(*funcArgs)
         it += 1

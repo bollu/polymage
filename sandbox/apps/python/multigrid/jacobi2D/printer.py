@@ -14,26 +14,26 @@ def printUsage():
     print("[main]: "+sys.argv[0]+" <mode> <#iters>")
     print("[main]: 'mode'  :: {'new', 'existing', 'tune'}")
 
-def printConfig(dataDict):
-    nx = ny = dataDict['N']
+def printConfig(appData):
+    nx = ny = appData['N']
     printLine()
     print("# Problem Settings #")
     print("")
-    print("[main]: multigrid levels =", dataDict['L'])
+    print("[main]: multigrid levels =", appData['L'])
     print("[main]: grid size        =", nx, "x", ny)
-    print("[main]: n-iterations     =", dataDict['nit'])
+    print("[main]: n-iterations     =", appData['nit'])
 
-    print("[main]: nu1              =", dataDict['nu1'])
-    print("[main]: nu2              =", dataDict['nu2'])
-    print("[main]: nuc              =", dataDict['nuc'])
+    print("[main]: nu1              =", appData['nu1'])
+    print("[main]: nu2              =", appData['nu2'])
+    print("[main]: nuc              =", appData['nuc'])
     printLine()
 
-def printLayout(dataDict):
-    L = dataDict['L']
-    n = dataDict['n']
-    nu1 = dataDict['nu1']
-    nu2 = dataDict['nu2']
-    nuc = dataDict['nuc']
+def printLayout(appData):
+    L = appData['L']
+    n = appData['n']
+    nu1 = appData['nu1']
+    nu2 = appData['nu2']
+    nuc = appData['nuc']
 
     print(": levels: 0.."+str(L)+" , coarse grid: "+str(n)+"x"+str(n))
     print("# pre-smoothing: ",nu1,", post-smoothing: ",nu2,", coarse relaxation: ",nuc)
@@ -42,12 +42,12 @@ def printLayout(dataDict):
     print("# ----------       ----       -----         --------       ---------    ------------")
 
 
-def printErrors(it, dataDict):
-    N = dataDict['N']
-    oldResidual = dataDict['oldResidual']
-    oldErr      = dataDict['oldErr']
-    resid       = dataDict['resid']
-    err         = dataDict['err']
+def printErrors(it, appData):
+    N = appData['N']
+    oldResidual = appData['oldResidual']
+    oldErr      = appData['oldErr']
+    resid       = appData['resid']
+    err         = appData['err']
 
     if it == 0:
         print("")

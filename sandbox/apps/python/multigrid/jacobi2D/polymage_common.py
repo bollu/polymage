@@ -15,17 +15,17 @@ def setGhosts(r, ghosts, value):
 
     return
 
-def setVars(impipeDict, dataDict):
-    L = dataDict['L']
+def setVars(impipeData, appData):
+    L = appData['L']
 
     y = Variable(Int, "y")
     x = Variable(Int, "x")
 
-    impipeDict['y'] = y
-    impipeDict['x'] = x
+    impipeData['y'] = y
+    impipeData['x'] = x
 
     n = Parameter(Int, "n")
-    impipeDict['n'] = n
+    impipeData['n'] = n
 
     # grid size at each level
     N = {}
@@ -51,26 +51,26 @@ def setVars(impipeDict, dataDict):
         jacobi_c[l] = omega * dinv
     #endfor
 
-    impipeDict['N'] = N
+    impipeData['N'] = N
 
-    impipeDict['invhh']    = invhh
-    impipeDict['jacobi_c'] = jacobi_c
+    impipeData['invhh']    = invhh
+    impipeData['jacobi_c'] = jacobi_c
 
     # extent in each dimension
     extent = {}
     for l in range(0, L+1):
         extent[l] = Interval(Int, 0, N[l]+1)
 
-    impipeDict['extent'] = extent
+    impipeData['extent'] = extent
 
     return
 
-def setCases(impipeDict, dataDict):
-    y = impipeDict['y']
-    x = impipeDict['x']
+def setCases(impipeData, appData):
+    y = impipeData['y']
+    x = impipeData['x']
 
-    N = impipeDict['N']
-    L = dataDict['L']
+    N = impipeData['N']
+    L = appData['L']
 
     interior = {}
     ghosts = {}
@@ -99,7 +99,7 @@ def setCases(impipeDict, dataDict):
         ghosts[l]['ghostRight']  = Condition(x, "==", N[l]+1) \
                                  & interior[l]['inY']
 
-    impipeDict['interior'] = interior
-    impipeDict['ghosts'] = ghosts
+    impipeData['interior'] = interior
+    impipeData['ghosts'] = ghosts
 
     return

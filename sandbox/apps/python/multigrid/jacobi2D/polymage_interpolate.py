@@ -10,21 +10,21 @@ sys.path.insert(0, '../../../../')
 from compiler   import *
 from constructs import *
 
-def interpolate(U_, correction, l, name, impipeDict):
+def interpolate(U_, correction, l, name, impipeData):
     if U_ == None:
         return correction
 
-    y = impipeDict['y']
-    x = impipeDict['x']
+    y = impipeData['y']
+    x = impipeData['x']
 
     if correction == None:
         correct = 0.0
     else:
         correct = correction(y, x)
 
-    extent = impipeDict['extent']
-    interior = impipeDict['interior']
-    ghosts = impipeDict['ghosts']
+    extent = impipeData['extent']
+    interior = impipeData['interior']
+    ghosts = impipeData['ghosts']
 
     innerBox = interior[l]['innerBox']
 
