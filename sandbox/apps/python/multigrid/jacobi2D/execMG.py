@@ -25,13 +25,13 @@ def minimal_exec_mg(pipe_lib, pipe_lib_func, func_params,
 
     arg_data = {}
     arg_data['n'] = app_data['n']
-    arg_data['U_'] = app_data['U_']
-
-    arg_data['W_'] = app_data['W_']
     arg_data['F_'] = app_data['F_']
+
+    arg_data['U_'] = app_data['U_']
+    arg_data['W_'] = app_data['W_']
     func_args.append(map_c_func_args(func_params, arg_data))
 
-    arg_data['U_'] = app_data['W__']
+    arg_data['U_'] = app_data['W_']
     arg_data['W_'] = app_data['U_']
     func_args.append(map_c_func_args(func_params, arg_data))
 
