@@ -24,7 +24,8 @@ def minimal_exec_mg(pipe_lib, pipe_lib_func, func_params,
     func_args = []
 
     arg_data = {}
-    arg_data['n'] = app_data['n']
+    n = app_data['n']
+    arg_data['n'] = n
     arg_data['F_'] = grid_data['F_']
 
     arg_data['V_'] = grid_data['U_']
@@ -35,19 +36,15 @@ def minimal_exec_mg(pipe_lib, pipe_lib_func, func_params,
     arg_data['Vcycle'] = grid_data['U_']
     func_args.append(map_cfunc_args(func_params, arg_data))
 
-    '''
     if pool_alloc:
         pipe_lib.pool_init()
-    '''
 
     while it < it_max:
         pipe_lib_func(*(func_args[it%2]))
         it += 1
 
-    '''
     if pool_alloc:
         pipe_lib.pool_destroy()
-    '''
 
     return
 

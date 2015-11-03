@@ -201,29 +201,19 @@ def generate(_tuner_arg_data):
 
             # building the pipeline :
             _tuner_build_error = False
-
-            _tuner_pipe = buildPipeline(
-                             _tuner_live_outs,
-                             param_constraints=_tuner_param_constraints,
-                             param_estimates=_tuner_param_estimates,
-                             tile_sizes=_tuner_tile_size,
-                             group_size=_tuner_group_size,
-                             options=_tuner_opts)
-
-            '''
             try:
-                _tuner_pipe = impipe.buildPipeline(
-                            _tuner_live_outs,
-                            param_constraints=_tuner_param_constraints,
-                            param_estimates=_tuner_param_estimates,
-                            tile_sizes=_tuner_tile_size,
-                            group_size=_tuner_group_size,
-                            options=_tuner_opts)
+
+                _tuner_pipe = buildPipeline(
+                                 _tuner_live_outs,
+                                 param_constraints=_tuner_param_constraints,
+                                 param_estimates=_tuner_param_estimates,
+                                 tile_sizes=_tuner_tile_size,
+                                 group_size=_tuner_group_size,
+                                 options=_tuner_opts)
             except:
                 _tuner_build_error = True
             finally:
                 pass
-            '''
 
             # code generation :
             if _tuner_build_error is True:
@@ -325,6 +315,11 @@ def execute(_tuner_arg_data):
                    not an optional parameter')
 
     try:
+        _tuner_app_data = _tuner_arg_data['_tuner_app_data']
+    except KeyError:
+        _tuner_app_data = None
+
+    try:
         _tuner_app_name = _tuner_arg_data['_tuner_app_name']
     except KeyError:
         print('tuner : executer : \'_tuner_app_name\' - \
@@ -406,6 +401,7 @@ def execute(_tuner_arg_data):
                         _tuner_pipe_outputs]
 
     # map function arguments to function parameters
+    pipe_func_args = None
     if _tuner_pipe_arg_data:
         pipe_func_args = map_cfunc_args(pipe_func_params,
                                         _tuner_pipe_arg_data)
@@ -452,6 +448,7 @@ def execute(_tuner_arg_data):
             for run in range(1, _tuner_nruns+1):
                 t1 = time.time()
                 _tuner_runtime_error = False
+
                 try:
                     if _tuner_custom_executor == None:
                         pipeline_func(*pipe_func_args)
@@ -460,7 +457,8 @@ def execute(_tuner_arg_data):
                                                pipeline_func,
                                                pipe_func_params,
                                                pipe_func_args,
-                                               _tuner_arg_data)
+                                               _tuner_arg_data,
+                                               _tuner_app_data)
                 except:
                     _tuner_runtime_error = True
                 t2 = time.time()

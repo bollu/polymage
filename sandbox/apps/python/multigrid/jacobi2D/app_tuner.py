@@ -23,14 +23,12 @@ def auto_tune(impipe_data, app_data):
     param_constraints = [ Condition(n, '==', app_data['n']) ]
     dst_path = "/tmp"
 
-    #group_size_configs = [3, 5, 7, 9, 11, 13, 15]
-    group_size_configs = [3]
+    group_size_configs = [3, 5, 7, 9, 11, 13, 15]
 
     tile_size_configs = []
     tile_size_configs.append([64, 256])
-    #tile_size_configs.append([64, 128])
+    tile_size_configs.append([64, 128])
 
-    '''
     tile_size_configs.append([32, 512])
     tile_size_configs.append([32, 256])
     tile_size_configs.append([32, 128])
@@ -46,7 +44,6 @@ def auto_tune(impipe_data, app_data):
     tile_size_configs.append([8, 128])
     tile_size_configs.append([8, 64])
     tile_size_configs.append([8, 32])
-    '''
 
     #opts = ['pool_alloc']
     opts = []

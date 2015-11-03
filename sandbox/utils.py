@@ -5,43 +5,29 @@ def convert_to_ctype(inp_type, inp_value):
     if inp_type == 'void':
         return ctypes.c_void(inp_value)
 
-    if inp_type == 'char':
+    if inp_type == 'int8':
         return ctypes.c_char(inp_value)
-    if inp_type == 'unsigned char':
+    if inp_type == 'uint8':
         return ctypes.c_ubyte(inp_value)
 
-    if inp_type == 'short' or \
-        inp_type == 'short int':
+    if inp_type == 'int16':
         return ctypes.c_short(inp_value)
-    if inp_type == 'unsigned short' or \
-        inp_type == 'unsigned short int':
+    if inp_type == 'uint16':
         return ctypes.c_ushort(inp_value)
 
-    if inp_type == 'int':
+    if inp_type == 'int32':
         return ctypes.c_int(inp_value)
-    if inp_type == 'unsigned' or \
-        inp_type == 'unsigned int':
+    if inp_type == 'uint32':
         return ctypes.c_uint(inp_value)
 
-    if inp_type == 'long' or \
-        inp_type == 'long int':
-        return ctypes.c_long(inp_value)
-    if inp_type == 'unsigned long' or \
-        inp_type == 'unsigned long int':
-        return ctypes.c_ulong(inp_value)
-
-    if inp_type == 'long long' or \
-        inp_type == 'long long int':
+    if inp_type == 'int64':
         return ctypes.c_longlong(inp_value)
-    if inp_type == 'unsigned long long' or \
-        inp_type == 'unsigned long long int':
+    if inp_type == 'uint64':
         return ctypes.c_ulonglong(inp_value)
 
     if inp_type == 'float':
         return ctypes.c_float(inp_value)
     if inp_type == 'double':
-        return ctypes.c_double(inp_value)
-    if inp_type == 'long double':
         return ctypes.c_double(inp_value)
 
 def get_ordered_cfunc_params(pipe_object):
