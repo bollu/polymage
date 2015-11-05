@@ -64,7 +64,7 @@ def buildMGCycle(impipeData, appData):
     pEstimates = [(n, appData['n'])]
     pConstraints = [ Condition(n, "==", appData['n']) ]
     tSize = [16, 16, 16]
-    gSize = 10
+    gSize = 5
     opts = []
     if appData['pool_alloc'] == True:
         opts += ['pool_alloc']

@@ -24,22 +24,22 @@ def main():
     printLine()
     #-------------------------------------------------------------------
     appData = {}
-    impipeData = {}
+    pipeData = {}
 
     print("[main]: initializing...")
     print("")
 
     # init all the required data
-    initAll(impipeData, appData)
+    initAll(pipeData, appData)
 
     printConfig(appData)
     cycleName = appData['cycle']+"cycle"
     if appData['mode'] == 'tune':
-        auto_tune(impipeData, appData)
+        auto_tune(pipeData, appData)
     else:
         #-------------------------------------------------------------------
-        createLib(        None,    "norm", impipeData, appData, appData['mode'])
-        createLib(buildMGCycle, cycleName, impipeData, appData, appData['mode'])
+        createLib(        None,    "norm", pipeData, appData, appData['mode'])
+        createLib(buildMGCycle, cycleName, pipeData, appData, appData['mode'])
         #-------------------------------------------------------------------
         initNorm(appData)
         multigrid(appData)

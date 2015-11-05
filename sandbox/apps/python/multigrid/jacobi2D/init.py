@@ -70,7 +70,7 @@ def initGrids(appData):
     # working grid (even step)
     U_ = np.ones((N+2, N+2), np.float64)
     # working grid (odd step)
-    W_ = np.ones((N+2, N+2), np.float64)
+    W_ = np.zeros((N+2, N+2), np.float64)
 
     if problem == 1:
         initBorder(U_, borderWidth=1, borderValues=0.0)
@@ -199,7 +199,7 @@ def getInput(appData):
     return
 
 def initAll(impipeData, appData):
-    # TODO init cycle type {V, W, S}
+    # TODO init cycle type {V, W}
 
     getInput(appData)
 
