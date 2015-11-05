@@ -1,9 +1,6 @@
 import sys
 import subprocess
 
-sys.path.insert(0, '../../../../optimizer')
-sys.path.insert(0, '../../../../frontend')
-
 from compiler   import *
 from constructs import *
 

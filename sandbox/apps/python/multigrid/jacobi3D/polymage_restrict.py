@@ -10,14 +10,14 @@ sys.path.insert(0, '../../../../')
 from compiler   import *
 from constructs import *
 
-def restrict(U_, l, name, impipeDict):
-    z = impipeDict['z']
-    y = impipeDict['y']
-    x = impipeDict['x']
+def restrict(U_, l, name, pipeData):
+    z = pipeData['z']
+    y = pipeData['y']
+    x = pipeData['x']
 
-    extent = impipeDict['extent']
-    interior = impipeDict['interior']
-    ghosts = impipeDict['ghosts']
+    extent = pipeData['extent']
+    interior = pipeData['interior']
+    ghosts = pipeData['ghosts']
 
     innerBox = interior[l-1]['innerBox']
 

@@ -6,6 +6,7 @@ from init    import initAll, initNorm
 from printer import printHeader, printConfig, printLine
 from builder import createLib, buildMGCycle
 from execMG  import multigrid
+from app_tuner import auto_tune
 
 app = "jacobi-3d"
 
@@ -22,25 +23,27 @@ def main():
     printHeader()
     printLine()
     #-------------------------------------------------------------------
-    dataDict = {}
-    impipeDict = {}
+    appData = {}
+    pipeData = {}
 
     print("[main]: initializing...")
     print("")
 
     # init all the required data
-    initAll(impipeDict, dataDict)
+    initAll(pipeData, appData)
 
-    printConfig(dataDict)
-    #-------------------------------------------------------------------
-    cycleName = dataDict['cycle']+"cycle"
-    createLib(        None,    "norm", impipeDict, dataDict, dataDict['mode'])
-    createLib(buildMGCycle, cycleName, impipeDict, dataDict, dataDict['mode'])
-    #-------------------------------------------------------------------
-    initNorm(dataDict)
-    multigrid(dataDict)
-
-    #-------------------------------------------------------------------
+    printConfig(appData)
+    cycleName = appData['cycle']+"cycle"
+    if appData['mode'] == 'tune':
+        auto_tune(pipeData, appData)
+    else:
+        #-------------------------------------------------------------------
+        createLib(        None,    "norm", pipeData, appData, appData['mode'])
+        createLib(buildMGCycle, cycleName, pipeData, appData, appData['mode'])
+        #-------------------------------------------------------------------
+        initNorm(appData)
+        multigrid(appData)
+        #-------------------------------------------------------------------
 
     return
 

@@ -15,19 +15,19 @@ def setGhosts(r, ghosts, value):
 
     return
 
-def setVars(impipeDict, dataDict):
-    L = dataDict['L']
+def setVars(pipeData, appData):
+    L = appData['L']
 
     z = Variable(Int, "z")
     y = Variable(Int, "y")
     x = Variable(Int, "x")
 
-    impipeDict['z'] = z
-    impipeDict['y'] = y
-    impipeDict['x'] = x
+    pipeData['z'] = z
+    pipeData['y'] = y
+    pipeData['x'] = x
 
     n = Parameter(Int, "n")
-    impipeDict['n'] = n
+    pipeData['n'] = n
 
     # grid size at each level
     N = {}
@@ -53,27 +53,27 @@ def setVars(impipeDict, dataDict):
         jacobi_c[l] = omega * dinv
     #endfor
 
-    impipeDict['N'] = N
+    pipeData['N'] = N
 
-    impipeDict['invhh']    = invhh
-    impipeDict['jacobi_c'] = jacobi_c
+    pipeData['invhh']    = invhh
+    pipeData['jacobi_c'] = jacobi_c
 
     # extent in each dimension
     extent = {}
     for l in range(0, L+1):
         extent[l] = Interval(Int, 0, N[l]+1)
 
-    impipeDict['extent'] = extent
+    pipeData['extent'] = extent
 
     return
 
-def setCases(impipeDict, dataDict):
-    z = impipeDict['z']
-    y = impipeDict['y']
-    x = impipeDict['x']
+def setCases(pipeData, appData):
+    z = pipeData['z']
+    y = pipeData['y']
+    x = pipeData['x']
 
-    N = impipeDict['N']
-    L = dataDict['L']
+    N = pipeData['N']
+    L = appData['L']
 
     interior = {}
     ghosts = {}
@@ -113,7 +113,7 @@ def setCases(impipeDict, dataDict):
                                  & interior[l]['inY'] \
                                  & interior[l]['inZ']
 
-    impipeDict['interior'] = interior
-    impipeDict['ghosts'] = ghosts
+    pipeData['interior'] = interior
+    pipeData['ghosts'] = ghosts
 
     return

@@ -7,19 +7,19 @@ sys.path.insert(0, '../../../../')
 from compiler   import *
 from constructs import *
 
-def defect(U_, F_, l, name, impipeDict):
+def defect(U_, F_, l, name, pipeData):
     if U_ == None:
         return F_
 
-    z = impipeDict['z']
-    y = impipeDict['y']
-    x = impipeDict['x']
+    z = pipeData['z']
+    y = pipeData['y']
+    x = pipeData['x']
 
-    invhh = impipeDict['invhh']
+    invhh = pipeData['invhh']
 
-    extent = impipeDict['extent']
-    interior = impipeDict['interior']
-    ghosts = impipeDict['ghosts']
+    extent = pipeData['extent']
+    interior = pipeData['interior']
+    ghosts = pipeData['ghosts']
 
     innerBox = interior[l]['innerBox']
 

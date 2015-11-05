@@ -10,20 +10,20 @@ sys.path.insert(0, '../../../../')
 from compiler   import *
 from constructs import *
 
-def wCycle(impipeDict, dataDict):
-    N = impipeDict['N']
-    L = dataDict['L']
+def wCycle(pipeData, appData):
+    N = pipeData['N']
+    L = appData['L']
 
-    nu1 = dataDict['nu1']
-    nu2 = dataDict['nu2']
-    nuc = dataDict['nuc']
+    nu1 = appData['nu1']
+    nu2 = appData['nu2']
+    nuc = appData['nuc']
 
     # initial guess
     V = Image(Double, "V_", [N[L]+2, N[L]+2, N[L]+2])
     # rhs
     F = Image(Double, "F_", [N[L]+2, N[L]+2, N[L]+2])
 
-    jacobi_c = impipeDict['jacobi_c']
+    jacobi_c = pipeData['jacobi_c']
 
     # pre-smoothing and coarse-smoothing outputs
     smoothP1 = {}
@@ -70,7 +70,7 @@ def wCycle(impipeDict, dataDict):
                     inFunc = smoothP1[l][visit[l]][t-1]
 
                 smoothP1[l][visit[l]][t] = wJacobi(inFunc, f, l, fname,
-                                                   impipeDict, dataDict)
+                                                   pipeData, appData)
 
             return smoothP1[l][visit[l]][nuc-1]
         ###################################################
@@ -90,7 +90,7 @@ def wCycle(impipeDict, dataDict):
                     inFunc = smoothP1[l][visit[l]][t-1]
 
                 smoothP1[l][visit[l]][t] = wJacobi(inFunc, f, l, fname,
-                                                   impipeDict, dataDict)
+                                                   pipeData, appData)
 
             if nu1 <= 0:
                 smoothOut = v
@@ -105,7 +105,7 @@ def wCycle(impipeDict, dataDict):
 
             r_h[l][visit[l]] = defect(smoothOut, f, l, 
                                       "defect_L"+str(l)+"__"+str(visit[l]),
-                                      impipeDict)
+                                      pipeData)
 
             ###############################################
   
@@ -115,7 +115,7 @@ def wCycle(impipeDict, dataDict):
 
             r_2h[l][visit[l]] = restrict(r_h[l][visit[l]], l, 
                                          "restrict_L"+str(l-1)+"__"+str(visit[l]),
-                                         impipeDict)
+                                         pipeData)
 
             ###############################################
  
@@ -153,7 +153,7 @@ def wCycle(impipeDict, dataDict):
 
             ec[l][visit[l]] = interpolate(e_2h[l][visit[l]],
                                           correctIn, l, fname,
-                                          impipeDict)
+                                          pipeData)
 
             if nu2 <= 0:
                 return ec[l][visit[l]]
@@ -177,7 +177,7 @@ def wCycle(impipeDict, dataDict):
                     inFunc = smoothP2[l][visit[l]][t-1]
 
                 smoothP2[l][visit[l]][t] = wJacobi(inFunc, f, l, fname,
-                                                   impipeDict, dataDict)
+                                                   pipeData, appData)
  
             return smoothP2[l][visit[l]][nu2-1]
     #######################################################
