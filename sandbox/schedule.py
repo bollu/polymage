@@ -114,6 +114,22 @@ def align_and_scale_parts(pipeline, group):
             compatible = False
         return compatible
 
+    def check_compatibility(old_align, no_align_conflict,
+                            old_scale, no_scale_conflict,
+                            across=""):
+        if across != "":
+            across = " across "+across
+
+        if old_align and not no_align_conflict:
+            LOG(logging.ERROR, "Conflict in alignment"+across)
+            assert False
+
+        if old_scale and not no_scale_conflict:
+            LOG(logging.ERROR, "Conflict in scaling"+across)
+            assert False
+
+        return
+
     def extract_arg_vars_coefs(ref_args):
         '''
         Extracts variables and their co-efficients from each argument
@@ -436,15 +452,11 @@ def align_and_scale_parts(pipeline, group):
             part.set_align(base_align)
             part.set_scale(base_scale)
         for ref in refs:
-            no_conflict = compatible_align(part_align, old_align)
-            if old_align and not no_conflict:
-                LOG(logging.ERROR, "Conflict in alignment across refs")
-                return False
-
-            no_conflict = compatible_scale(part_scale, old_scale)
-            if old_scale and not no_conflict:
-                LOG(logging.ERROR, "Conflict in scaling across refs")
-                return False
+            no_align_conflict = compatible_align(part_align, old_align)
+            no_scale_conflict = compatible_scale(part_scale, old_scale)
+            check_compatibility(old_align, no_align_conflict,
+                                old_scale, no_scale_conflict,
+                                across="refs")
 
             old_align = part.align
             old_scale = part.scale
@@ -454,27 +466,18 @@ def align_and_scale_parts(pipeline, group):
               no_scale_conflict = \
                 align_scale_with_ref(part, ref, max_dim)
 
-            if old_align and not no_align_conflict:
-                LOG(logging.ERROR, \
-                    "Conflict in alignment across ref parts")
-                return False
-            if old_scale and not no_scale_conflict:
-                LOG(logging.ERROR, \
-                    "Conflict in scaling across ref parts")
-                return False
+            check_compatibility(old_align, no_align_conflict,
+                                old_scale, no_scale_conflict,
+                                across="ref parts")
 
             part_align = part.align
             part_scale = part.scale
 
-        no_conflict = compatible_align(part_align, old_align)
-        if old_align and not no_conflict:
-            LOG(logging.ERROR, "Conflict in alignment across refs")
-            return False
-
-        no_conflict = compatible_scale(part_scale, old_scale)
-        if old_scale and not no_conflict:
-            LOG(logging.ERROR, "Conflict in scaling across refs")
-            return False
+        no_align_conflict = compatible_align(part_align, old_align)
+        no_scale_conflict = compatible_scale(part_scale, old_scale)
+        check_compatibility(old_align, no_align_conflict,
+                            old_scale, no_scale_conflict,
+                            across="refs")
 
     # normalize the scaling factors, so that none of them is lesser than 1
     norm = [1 for i in range(0, max_dim)]
