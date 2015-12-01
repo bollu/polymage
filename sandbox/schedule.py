@@ -7,7 +7,7 @@ import expression
 
 # LOG CONFIG #
 schedule_logger = logging.getLogger("schedule.py")
-schedule_logger.setLevel(logging.INFO)
+schedule_logger.setLevel(logging.DEBUG-1)
 LOG = schedule_logger.log
 
 def get_parent_parts(part, group):
@@ -400,27 +400,28 @@ def align_and_scale_parts(pipeline, group):
     # begin from the topologically earliest part as the base for
     # alignment reference
     base_parts = [part for part in sorted_parts \
-                       if part._level_no == sorted_parts[0]._level_no]
+                       if part._level_no == sorted_parts[0]._level_no and \
+                          len(part.align) == max_dim]
+    base_part = base_parts[0]
 
     # the alignment positions and scaling factors for variables follows
     # domain order of base parts
     base_align = [i+1 for i in range(0, max_dim)]
     base_scale = [1 for i in range(0, max_dim)]
 
-    # initial alignment and scaling for all the base parts
-    for part in base_parts:
-        # ***
-        log_level = logging.DEBUG-1
-        LOG(log_level, "____")
-        LOG(log_level, str(part.comp.name)+\
-                       " (level : "+str(part._level_no)+")")
-        # ***
+    # initial alignment and scaling for the base part
+    # ***
+    log_level = logging.DEBUG-1
+    LOG(log_level, "____")
+    LOG(log_level, str(base_part.comp.name)+\
+                   " (level : "+str(base_part._level_no)+")")
+    # ***
+    base_part.set_align(base_align)
+    base_part.set_scale(base_scale)
 
-        part.set_align(base_align)
-        part.set_scale(base_scale)
+    other_parts = list(sorted_parts)
+    other_parts.remove(base_part)
 
-    other_parts = [part for part in sorted_parts \
-                        if part not in base_parts]
     for part in other_parts:
         # ***
         log_level = logging.DEBUG-1
@@ -484,7 +485,7 @@ def align_and_scale_parts(pipeline, group):
 
     # compute the lcm of the Fraction denominators of all scaling factors
     # for each dimension
-    for part in other_parts:
+    for part in sorted_parts:
         scale = part.scale
         for dim in range(0, max_dim):
             if scale[dim] != '-':

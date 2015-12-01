@@ -6,6 +6,7 @@ import islpy as isl
 
 from constructs import *
 from expression import *
+from schedule import *
 
 def lcm(a, b):
     return a*b/(gcd(a, b))
@@ -207,6 +208,12 @@ class PolyPart(object):
     def set_scale(self, _scale):
         self._scale = [i for i in _scale]
         return
+
+    def is_align_set(self):
+        return self._align != [] and self._align != None
+
+    def is_scale_set(self):
+        return self._scale != [] and self._scale != None
 
     def is_self_dependent(self):
         obj_refs = [ ref.objectRef for ref in self.refs \
@@ -610,7 +617,7 @@ class PolyRep(object):
             # a level dimension. The level dimension gives the ordering
             # of the compute objects within a group.
 
-            align, scale = self.default_align_and_scale(sched_m)
+            align, scale = default_align_and_scale(sched_m)
 
             if (isinstance(case, Case)):
                 # Dealing with != and ||. != can be replaced with < || >.
@@ -688,7 +695,7 @@ class PolyRep(object):
     def create_poly_parts_from_default(self, comp, sched_map,
                                        level_no, schedule_names):
         sched_m = sched_map.copy()
-        align, scale = self.default_align_and_scale(sched_m)
+        align, scale = default_align_and_scale(sched_m)
 
         assert(isinstance(comp.default, AbstractExpression))
         poly_part = PolyPart(sched_m, comp.default,
@@ -820,17 +827,6 @@ class PolyRep(object):
                 isl_set_id_user(id_, poly_part)
                 poly_parts.append(poly_part)
         return poly_parts
-
-    def default_align_and_scale(self, sched):
-        dim_in = sched.dim(isl._isl.dim_type.in_)
-        # align[i] = j means input dimension i is mapped to output 
-        # dimension j
-        align = [ i+1 for i in range(0, dim_in) ]
-        # the default scaling in each dimension is set to 1 i.e., the
-        # schedule dimension correspoinding to input dimension will be 
-        # scaled by 1
-        scale = [1 for i in range(0, dim_in)]
-        return (align, scale)
 
     def generate_code(self):
         self.polyast = []

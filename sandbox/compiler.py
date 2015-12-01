@@ -28,7 +28,7 @@ def buildPipeline(outputs,
         tile_sizes = [16, 16, 16]
 
     if size_threshold == None:
-        size_threshold = 5
+        size_threshold = 200*200
 
     return pipe.Pipeline(_ctx = ctx,
                          _outputs = outputs,
