@@ -1,23 +1,65 @@
 from __future__ import absolute_import, division, print_function
 
-from poly import *
 import logging
 from grouping import get_group_dep_vecs
 import expression
+from utils import *
+import poly as poly
+from poly import *
 
 # LOG CONFIG #
 schedule_logger = logging.getLogger("schedule.py")
-schedule_logger.setLevel(logging.DEBUG-1)
+schedule_logger.setLevel(logging.INFO)
 LOG = schedule_logger.log
 
-def get_parent_parts(part, group):
-     refs = part.refs
-     parent_parts = []
-     for ref in refs:
-         if ref.objectRef != part.comp:
-             if ref.objectRef in group.polyRep.poly_parts:
-                 parent_parts.extend(group.polyRep.poly_parts[ref.objectRef])
-     return list(set(parent_parts))
+class ASPacket(object):
+    """
+    contains alignment and scaling for a part
+    """
+    def __init__(self, _align, _scale):
+        self.align = _align
+        self.scale = _scale
+
+class ASInfo(object):
+    """
+    contains the following types of scaling and alignment for a part:
+    1. true : contains only those that can be inferred from the parent part
+    2. full : [true] + random alignment and scaling for the remaining dims
+    """
+    def __init__(self, _true, _full):
+        # _true, _full -> type : ASPacket
+        # absolute alignment and scaling w.r.t base part
+        self.true = _true
+        self.full = _full
+
+def format_schedule_constraints(dim_in, dim_out, align, scale, level_no):
+    ineq_coeff = []
+    eq_coeff   = []
+    dim_set = [ False for i in range(0, dim_out) ]
+    # Adding identity constraint for each dimension
+    for i in range(0, dim_in):
+        coeff = {}
+        coeff[('out', align[i])] = 1
+        if scale[i] != '-':
+            assert scale[i] >= 1
+        coeff[('in', i)] = -1 * scale[i]
+        eq_coeff.append(coeff)
+        dim_set[align[i]] = True
+
+    # Setting the leading schedule dimension to level
+    level_coeff = {}
+    level_coeff[('out', 0)] = -1
+    level_coeff[('constant', 0)] = level_no-1
+    eq_coeff.append(level_coeff)
+
+    # Setting the remaining dimensions to zero
+    for i in range(1, dim_out):
+        if not dim_set[i]:
+            coeff = {}
+            coeff[('out', i)] = 1
+            coeff[('constant', 0)] = 0
+            eq_coeff.append(coeff)
+    return [ineq_coeff, eq_coeff]
 
 def base_schedule(group):
     """
@@ -37,11 +79,29 @@ def base_schedule(group):
                                                    part.align,
                                                    part.scale,
                                                    part._level_no)
-        part.sched = add_constraints(part.sched.copy(), ineqs, eqs)
+        part.sched = poly.add_constraints(part.sched, ineqs, eqs)
 
     return parts
 
-def align_and_scale_parts(pipeline, group):
+def default_align_and_scale(sched, max_dim=None):
+    dim_in = sched.dim(isl._isl.dim_type.in_)
+    # align[i] = j means input dimension i is mapped to output
+    # dimension j
+    align = [ i+1 for i in range(0, dim_in) ]
+    # the default scaling in each dimension is set to 1 i.e., the
+    # schedule dimension correspoinding to input dimension will be
+    # scaled by 1
+    scale = [1 for i in range(0, dim_in)]
+
+    if max_dim:
+        if dim_in < max_dim:
+            for i in range(dim_in, max_dim):
+                align.append('-')
+                scale.append('-')
+
+    return (align, scale)
+
+def align_and_scale(pipeline, group):
 
     """
     Alignment structure:
@@ -72,6 +132,13 @@ def align_and_scale_parts(pipeline, group):
     LOG(log_level, "___________________________________")
     LOG(log_level, "in align_and_scale_parts()")
     # ***
+
+    def log_a_s(level, al_str, sc_str, a_s_pack):
+        log_str1 = al_str+" = "+str([i for i in a_s_pack.align])
+        log_str2 = sc_str+" = "+str([i for i in a_s_pack.scale])
+        LOG(level, log_str1)
+        LOG(level, log_str2)
+        return
 
     def compatible_align(align1, align2):
         '''
@@ -165,10 +232,38 @@ def align_and_scale_parts(pipeline, group):
 
         return ref_arg_vars, ref_arg_coeffs
 
-    def align_scale_vars(part, parent_part, ref_arg_vars, ref_arg_coeffs):
+    def pick_best(aln_scl_list):
+        '''
+        Picks the align_scale which contains maximum information.
+        aln_scl_list is a list of ASInfo objects, with info across multiple
+        parents/children.
+        '''
+        dim_max = 0
+        best = None
+        # info with minimum number of unknowns is better
+        for aln_scl in aln_scl_list:
+            if not aln_scl:  # empty entry
+                continue
+            dims = [dim for dim in aln_scl.true.align
+                          if dim != '-']
+            if dim_max < len(dims):
+                dim_max = len(dims)
+                best = aln_scl
+
+        assert dim_max
+
+        return best
+
+    def align_scale_vars(child_part, parent_part,
+                         ref_arg_vars, ref_arg_coeffs,
+                         info, reverse=False):
         '''
         Finds an alignment and scaling factor for each dimension associated
         with the reference argument variable
+
+        reverse flag is used to set the alignment direction:
+        align parent to child : reverse = True
+        align child to parent : reverse = False
         '''
 
         def get_domain_dims(sched, var_list):
@@ -198,294 +293,444 @@ def align_and_scale_parts(pipeline, group):
             assert(dim <= max_dim)
             return dim_map
 
-        # parent info
-        parent_align = parent_part.align
-        parent_scale = parent_part.scale
-        max_dim = len(parent_align)
+        def new_list():
+            ''' return a new empty list of length max_dim '''
+            return ['-' for i in range(0, max_dim)]
+
+        def new_dict():
+            ''' return a new empty dictionary of length max_dim '''
+            _dict = {}
+            for i in range(0, max_dim):
+                _dict[i] = '-'
+            return _dict
+
+        def compute_abs(dim, dst_pack, rel_align_map, rel_scale_map):
+            root_dim = rel_align_map[dim]
+            if root_dim != '-':
+                align = dst_pack.align[root_dim]
+                scale = dst_pack.scale[root_dim] * rel_scale_map[dim]
+            return align, scale
+
+        def unit_test(align, scale):
+            # test for unique alignment
+            assert (len(align) == len(set(align)))
+
+            # test for alignment boundary
+            out_of_bound = all(max_dim >= dim for dim in align if dim != '-')\
+                           and \
+                           all(0 < dim for dim in align if dim != '-')
+            assert (out_of_bound)
+
+            # test for scaling
+            for dim in range(0, max_dim):
+                if align[dim] == '-':
+                    assert scale[dim] == '-'
+                else:
+                    assert scale[dim] != '-'
+                    # precisely, this should be tested for a constant
+
+            return
+
+        def align_src_to_dst(dst, src_dims, dst_dims, rel_align, rel_scale):
+            '''
+            Given a target and a relative alignment-scaling info, find the
+            true and full alignment-scaling
+            '''
+
+            # only those dims whose align,scale can be infered from the parent
+            true_align = new_list()
+            true_scale = new_list()
+            for dim in range(0, max_dim):
+                true_align[dim], true_scale[dim] = \
+                    compute_abs(dim, dst.true, rel_align, rel_scale)
+
+            # dims of the part which didn't get an alignment
+            rem_part_dims = [dim for dim in src_dims.values() \
+                                     if rel_align[dim] == '-']
+
+            # dims of the parent part to which no part dim was aligned
+            rem_parent_dims = [dim for dim in dst_dims.values() \
+                                       if dim not in rel_align.values()]
+
+            # align each of the remaining part dims to any remaining dim of
+            # the parent part
+            for dim in rem_part_dims:
+                rel_scale[dim] = 1
+                if rem_parent_dims:
+                    rel_align[dim] = rem_parent_dims.pop()
+                else:
+                    rel_align[dim] = '*'
+
+            # aligned to one of the parent dims
+            aligned_dims = [dim for dim in src_dims.values()
+                                    if rel_align[dim] != '*']
+            # not aligned to any of the parent dims
+            dangling_dims = [dim for dim in src_dims.values()
+                                     if dim not in aligned_dims]
+
+            # normalize to the base alignment, scaling using the relative
+            # alignment, scaling
+            full_align = new_list()
+            full_scale = new_list()
+            for dim in aligned_dims:
+                if true_align[dim] != '-':
+                    full_align[dim] = true_align[dim]
+                    full_scale[dim] = true_scale[dim]
+                else:
+                    full_align[dim], full_scale[dim] = \
+                        compute_abs(dim, dst.full, rel_align, rel_scale)
+
+            # dangling_dims are assigned any available dim of the base alignment
+            avail_dims = [dim for dim in range(0, max_dim) \
+                                if dim not in full_align]
+            for dim in dangling_dims:
+                full_align[dim] = avail_dims.pop()
+                full_scale[dim] = 1
+
+            # validity tests
+            unit_test(true_align, true_scale)
+            unit_test(full_align, full_scale)
+
+            true = ASPacket(true_align, true_scale)
+            full = ASPacket(full_align, full_scale)
+            part_solution = ASInfo(true, full)
+
+            return part_solution
+
+        # BEGIN
+        max_dim = info.max_dim
 
         # relative alignment and scaling
         # dict: dim -> dim
-        rel_align = {}
-        rel_scale = {}
+        rel_align = new_dict()
+        rel_scale = new_dict()
 
-        # start from null alignment
-        part_align = ['-' for i in range(0, max_dim)]
-        part_scale = ['-' for i in range(0, max_dim)]
-
-        # dimensionality of the part
-        part_dim_in = part.sched.dim(isl._isl.dim_type.in_)
-
-        # dimensions of variable domain of the part and its parent
-        part_dims = get_domain_dims(part.sched, part.comp.variableDomain[0])
+        # dimensions of variable domain of the part, and its parent
+        child_dims = get_domain_dims(child_part.sched, \
+                                     child_part.comp.variableDomain[0])
         parent_dims = get_argvar_order(ref_arg_vars)
 
-        # ***
-        log_level = logging.DEBUG-2
-        log_str = "aligning and scaling with all ref-part variables..."
-        LOG(log_level, "")
-        LOG(log_level, log_str)
-        # ***
+        if reverse == True:
+            dst_part = child_part
+            src_part = parent_part
+
+            dst_dims = child_dims
+            src_dims = parent_dims
+        else:
+            dst_part = parent_part
+            src_part = child_part
+
+            dst_dims = parent_dims
+            src_dims = child_dims
+
+        # child info
+        dst_pack = info.align_scale[dst_part]
 
         # for each variable in the reference argument, get the alignment of
-        # the part relative to the parent
+        # the part relative to the destination
         for var in ref_arg_vars:
             if var != '-':
-                rel_align[part_dims[var]] = parent_dims[var]
-                rel_scale[part_dims[var]] = ref_arg_coeffs[var]
+                rel_align[src_dims[var]] = dst_dims[var]
+                rel_scale[src_dims[var]] = ref_arg_coeffs[var]
 
-        # dims of the part which didn't get an alignment
-        rem_part_dims = [dim for dim in part_dims.values() \
-                                 if dim not in rel_align]
-        # dims of the parent part to which no part dim was aligned
-        rem_parent_dims = [dim for dim in parent_dims.values() \
-                                   if dim not in rel_align.values()]
+        src_part_solution = align_src_to_dst(dst_pack, src_dims, dst_dims,
+                                             rel_align, rel_scale)
 
-        # align each of the remaining part dims to any remaining dim of
-        # the parent part
-        for dim in rem_part_dims:
-            rel_scale[dim] = 1
-            if rem_parent_dims:
-                rel_align[dim] = rem_parent_dims.pop()
-            else:
-                rel_align[dim] = '*'
+        if src_part in info.align_scale:  # already has a solution
+            src_part_solution = \
+                pick_best([info.align_scale[src_part], src_part_solution])
+        info.align_scale[src_part] = src_part_solution
 
-        aligned_dims = [dim for dim in part_dims.values()
-                                if rel_align[dim] != '*']
-        dangling_dims = [dim for dim in part_dims.values()
-                                 if dim not in aligned_dims]
+        return
 
-        # normalize to the base alignment, scaling using the relative
-        # alignment, scaling
-        for dim in aligned_dims:
-            root_dim = rel_align[dim]
-            part_align[dim] = parent_align[root_dim]
-            part_scale[dim] = parent_scale[root_dim] * rel_scale[dim]
+    def solve_from_ref_part(part, ref, ref_part, info, reverse=False):
+        '''
+        given the Reference object's poly part, solve for alignment and scaling
+        reverse = True  : solve for parent
+        reverse = False : solve for child
+        '''
+        # process the argument list
+        ref_args = ref.arguments
+        ref_arg_vars, ref_arg_coeffs = extract_arg_vars_coefs(ref_args)
 
-        # dangling_dims are assigned any available dim of the base alignment
-        avail_dims = [dim for dim in range(0, max_dim) \
-                            if dim not in part_align]
-        for dim in dangling_dims:
-            part_align[dim] = avail_dims.pop()
-            part_scale[dim] = 1
+        # match the part variables with the reference variables
+        align_scale_vars(part, ref_part, \
+                         ref_arg_vars, ref_arg_coeffs, \
+                         info, reverse)
 
-        # test for unique alignment
-        assert (len(part_align) == len(set(part_align)))
+        return
 
-        # test for alignment boundary
-        out_of_bound = all(max_dim >= dim for dim in part_align if dim != '-') \
-                       and \
-                       all(0 < dim for dim in part_align if dim != '-')
-        assert (out_of_bound)
-
-        return part_align, part_scale
-
-    def align_scale_with_ref(part, ref, max_dim):
+    def solve_from_ref(part, ref, info, reverse=False):
+        '''
+        given the Reference object, solve for alignment and scaling
+        reverse = True  : solve for parent
+        reverse = False : solve for child
+        '''
+        max_dim = info.max_dim
         ref_comp = ref.objectRef
-
-        # initialize new alignment
-        part_align = ['-' for i in range(0, max_dim)]
-        part.set_align(part_align)
-
-        old_align = part.align
-
-        # initialize new scaling
-        part_scale = ['-' for i in range(0, max_dim)]
-        part.set_scale(part_scale)
-
-        old_scale = part.scale
-
-        # ***
-        log_level = logging.DEBUG-2
-        log_str = "aligning and scaling with all ref-parts..."
-        LOG(log_level, "")
-        LOG(log_level, log_str)
-        # ***
 
         ref_poly_parts = group.polyRep.poly_parts[ref_comp]
         for ref_part in ref_poly_parts:
-            part_align = part.align
-            part_scale = part.scale
+            solve_from_ref_part(part, ref, ref_part, info, reverse)
 
-            # if old_align is not empty(init) and the alignment has changed
-            no_conflict = compatible_align(old_align, part_align)
-            if old_align and not no_conflict:
-                return False, True  # or False, False
+        return
 
-            # if old_scale is not empty(init) and the alignment has changed
-            no_conflict = compatible_align(old_scale, part_scale)
-            if old_scale and not no_conflict:
-                return True, False
+    ''' bottom-up phase '''
 
-            old_align = part.align
-            old_scale = part.scale
+    def solve_comp_from_children(comp, info):
+        """
+        solve for alignment and scaling of comp by referring to the solved
+        child comps.
+        """
 
-            ref_part_align = ref_part.align
-            ref_part_scale = ref_part.scale
+        def collect_child_refs(children):
+            refs = []
+            for child in children:
+                refs[child_part] = [ref for ref in child.refs]
 
-            # ***
-            log_level = logging.DEBUG-2
-            LOG(log_level, "")
-            log_str1 = "ref_part_align = "+str([i for i in ref_part_align])
-            log_str2 = "ref_part_scale = "+str([i for i in ref_part_scale])
-            LOG(log_level, "ref = %s", str(ref_part.comp.name))
-            LOG(log_level, log_str1)
-            LOG(log_level, log_str2)
-            # ***
+        # if already visited
+        if comp in info.solved:
+            return
 
-            # process the argument list
-            ref_args = ref.arguments
-            ref_arg_vars, ref_arg_coeffs = extract_arg_vars_coefs(ref_args)
+        part_map = info.group.polyRep.poly_parts
+        all_children = info.pipe._comp_objs_children[comp]
+        solved_children = [child for child in all_children \
+                                   if child in info.solved]
 
-            # ***
-            log_level = logging.DEBUG-2
-            log_str1 = "ref_arg_vars  = "+ \
-                      str([i.__str__() for i in ref_arg_vars])
-            log_str2 = "ref_arg_coeffs = "+ \
-                      str([(i.__str__(), ref_arg_coeffs[i]) \
-                            for i in ref_arg_coeffs])
-            LOG(log_level, log_str1)
-            LOG(log_level, log_str2)
-            # ***
+        for child in solved_children:
+            for child_part in part_map[child]:
+                # collect the references made only to comp
+                refs = [ref for ref in child_part.refs
+                              if ref.objectRef == comp]
 
-            # match the part variables with the reference variables
-            part_align, part_scale = \
-                align_scale_vars(part, ref_part, ref_arg_vars, ref_arg_coeffs)
+                # if the poly part makes no reference to any other compute object
+                if not refs:
+                    continue
+                else:
+                    # compute the alignment and scaling across references
+                    for ref in refs:
+                        solve_from_ref(child_part, ref, info, reverse=True)
 
-            # ***
-            log_level = logging.DEBUG-2
-            log_str1 = "old_align = "+str([i for i in old_align])
-            log_str2 = "old_scale = "+str([i for i in old_scale])
-            LOG(log_level, log_str1)
-            LOG(log_level, log_str2)
+        for part in part_map[comp]:
+            assert part in info.align_scale
 
-            log_level = logging.DEBUG-1
-            log_str1 = "part_align = "+str([i for i in part_align])
-            log_str2 = "part_scale = "+str([i for i in part_scale])
-            LOG(log_level, log_str1)
-            LOG(log_level, log_str2)
-            # ***
+        return
 
-            part.set_align(part_align)
-            part.set_scale(part_scale)
+    def solve_comp_parents(parents, info):
+        '''
+        Solves for alignment and scaling for poly parts of comps in the parents
+        list, using the information of only the already solved children.
+        Traverses in a breadth-first fashion.
+        '''
+        if parents == []:
+            return
 
-        no_conflict = compatible_align(old_align, part_align)
-        if old_align and not no_conflict:
-            return False, True  # or False, False
+        parent_map = info.pipe._comp_objs_parents
+        poly_parts = info.group.polyRep.poly_parts
+        parent_order = {}
+        for parent in parents:
+            parent_order[parent] = poly_parts[parent][0]._level_no
+            # index 0 picks the fist poly part
 
-        no_conflict = compatible_align(old_scale, part_scale)
-        if old_scale and not no_conflict:
-            return True, False
+        # parents near leaf level shall be solved at the earliest
+        sorted_order = sorted(parent_order.items(), key=lambda x:x[1], \
+                              reverse=True)
+        sorted_parents = [x[0] for x in sorted_order]
 
-        return True, True
+        for parent in sorted_parents:
+            solve_comp_from_children(parent, info)
+            info.solved.append(parent)
 
-    # BEGIN
+        # collect unsolved parents of parents within the group
+        all_grand_parents = []
+        for parent in sorted_parents:
+            if parent in parent_map:
+                grand_parents = [gp for gp in parent_map[parent] \
+                                      if gp not in info.solved and \
+                                         gp in info.group._comp_objs]
+                all_grand_parents += grand_parents
+        all_grand_parents = list(set(all_grand_parents))
+
+        solve_comp_parents(all_grand_parents, info)
+
+        return
+
+    ''' top-down phase '''
+
+    def solve_comp_from_parents(comp, info):
+        """
+        solve for alignment and scaling of comp by referring to the solved
+        parent comps.
+        """
+        # if already visited
+        if comp in info.solved:
+            return
+
+        comp_parts = info.group.polyRep.poly_parts[comp]
+        all_parents = [p for p in info.pipe._comp_objs_parents[comp] \
+                           if p in info.group._comp_objs]
+        solved_pars = [par for par in all_parents \
+                             if par in info.solved]
+
+        # unsolved parents are the newly discovered parents
+        discovered_parents = set(all_parents).difference(set(solved_pars))
+        info.discovered = list(set(info.discovered).union(discovered_parents))
+
+        # solve for each part
+        for p in comp_parts:
+            # collect the references to solved parents
+            refs = [ref for ref in p.refs
+                          if ref.objectRef in solved_pars]
+
+            # if the poly part makes no reference to any other compute object
+            if not refs:
+                aln_scl = default_align_and_scale(p.sched, info.max_dim)
+                true_default = ASPacket(aln_scl[0], aln_scl[1])
+                full_default = ASPacket(aln_scl[0], aln_scl[1])
+                info.align_scale[p] = ASInfo(true_default, full_default)
+            else:
+                # compute the alignment and scaling across references
+                for ref in refs:
+                    solve_from_ref(p, ref, info)
+
+            assert p in info.align_scale
+
+        return
+
+    def solve_comp_children(children, info):
+        '''
+        Solves for alignment and scaling for poly parts of comps in the
+        children list, using the information of only the already solved
+        parents. Traverses in a breadth-first fashion.
+        '''
+        # leaf comp node
+        if children == []:
+            return
+
+        children_map = info.pipe._comp_objs_children
+        poly_parts = info.group.polyRep.poly_parts
+        child_order = {}
+        for child in children:
+            if child in info.group._comp_objs:
+                child_order[child] = poly_parts[child][0]._level_no
+                # index 0 picks the fist poly part
+        sorted_order = sorted(child_order.items(), key=lambda x: x[1])
+        sorted_children = [x[0] for x in sorted_order]
+
+        for child in sorted_children:
+            solve_comp_from_parents(child, info)
+            info.solved.append(child)
+
+        # collect unsolved children of children within the group
+        all_grand_children = []
+        for child in sorted_children:
+            if child in children_map:
+                grand_children = [gc for gc in children_map[child] \
+                                       if gc not in info.solved and \
+                                          gc in info.group._comp_objs]
+                all_grand_children += grand_children
+        all_grand_children = list(set(all_grand_children))
+
+        solve_comp_children(all_grand_children, info)
+
+        return
+
+    ''' main '''
     comp_objs = group._comp_objs
 
     # list all parts with no self references and find the max dim
     max_dim = 0
+    min_level = 1000000
     no_self_dep_parts = []
     for comp in comp_objs:
         for p in group.polyRep.poly_parts[comp]:
-            p_align = p.align
+            p_align = [ i for i in p.align if i != '-' ]
             if not p.is_self_dependent():
                 no_self_dep_parts.append(p)
-                # update size of align vector to max dim
-                # assuming that 'align' has only spatial dims
                 if max_dim < len(p_align):
                     max_dim = len(p_align)
-
-    sorted_parts = sorted(no_self_dep_parts, \
-                          key = lambda part:part._level_no)
-
-    # begin from the topologically earliest part as the base for
-    # alignment reference
-    base_parts = [part for part in sorted_parts \
-                       if part._level_no == sorted_parts[0]._level_no and \
-                          len(part.align) == max_dim]
-    base_part = base_parts[0]
+                if min_level > p._level_no:
+                    min_level = p._level_no
 
     # the alignment positions and scaling factors for variables follows
     # domain order of base parts
     base_align = [i+1 for i in range(0, max_dim)]
     base_scale = [1 for i in range(0, max_dim)]
 
-    # initial alignment and scaling for the base part
+    # begin from the topologically earliest part as the base for
+    # alignment reference
+    min_level_parts = [part for part in no_self_dep_parts \
+                       if part._level_no == min_level]
+    min_level_comps = list(set([p.comp for p in min_level_parts]))
+
+    # pick the min-level part with the highest dimensionality as base part
+    base_part = None
+    dim_max = 0
+    for p in min_level_parts:
+        p_align = [i for i in p.align if i != '-']
+        if len(p_align) > dim_max:
+            dim_max = len(p_align)
+            base_part = p
+
+    assert (base_part != None)
+    base_comp = base_part.comp
+
+    # initial alignment and scaling for the base comp parts
     # ***
     log_level = logging.DEBUG-1
     LOG(log_level, "____")
     LOG(log_level, str(base_part.comp.name)+\
                    " (level : "+str(base_part._level_no)+")")
-    # ***
-    base_part.set_align(base_align)
-    base_part.set_scale(base_scale)
 
-    other_parts = list(sorted_parts)
-    other_parts.remove(base_part)
+    for p in group.polyRep.poly_parts[base_comp]:
+        align, scale = default_align_and_scale(p.sched, max_dim)
+        p.set_align(align)
+        p.set_scale(scale)
 
-    for part in other_parts:
-        # ***
-        log_level = logging.DEBUG-1
-        LOG(log_level, "____")
-        LOG(log_level, str(part.comp.name)+\
-                       " (level : "+str(part._level_no)+")")
-        # ***
+    class Info(object):
+        def __init__(self, _pipe, _group, _max_dim):
+            self.pipe = _pipe
+            self.group = _group
+            self.max_dim = _max_dim  # max dimensionality of the group
+            self.solved = []
+            # list of comps encountered while solving for base comp family
+            self.discovered = []
+            # mapping from poly-part to ASPacket
+            self.align_scale = {}
 
-        old_align = []
-        old_scale = []
-        part.set_align(old_align)
-        part.set_scale(old_scale)
+    info = Info(pipeline, group, max_dim)
+    info.solved.append(base_comp)
+    for part in group.polyRep.poly_parts[base_comp]:
+        true_pack = ASPacket(part.align, part.scale)
+        full_pack = ASPacket(part.align, part.scale)
+        info.align_scale[part] = ASInfo(true_pack, full_pack)
 
-        part_align = part.align
-        part_scale = part.scale
+    # recursively compute alignment and scaling for the family of base_comp
+    if base_comp in pipeline._comp_objs_children:
+        children = [c for c in pipeline._comp_objs_children[base_comp] \
+                        if c in group._comp_objs]
+        if children:
+            solve_comp_children(pipeline._comp_objs_children[base_comp], info)
 
-        # ***
-        log_level = logging.DEBUG-2
-        LOG(log_level, "")
-        LOG(log_level, "aligning and scaling with all refs...")
-        # ***
+    # compute newly discovered parents iteratively until no new parent is
+    # discovered.
+    solve_comp_parents(info.discovered, info)
 
-        refs = part.refs
-        # filter out refs whose compute object is not present in this group
-        refs = [ ref for ref in refs
-                        if ref.objectRef in group._comp_objs ]
+    # set all the solutions into polypart object members
+    for comp in comp_objs:
+        for part in group.polyRep.poly_parts[comp]:
+            assert part in info.align_scale
+            final = info.align_scale[part]
+            part.set_align(final.full.align)
+            part.set_scale(final.full.scale)
 
-        if not refs:
-            part.set_align(base_align)
-            part.set_scale(base_scale)
-        for ref in refs:
-            no_align_conflict = compatible_align(part_align, old_align)
-            no_scale_conflict = compatible_scale(part_scale, old_scale)
-            check_compatibility(old_align, no_align_conflict,
-                                old_scale, no_scale_conflict,
-                                across="refs")
-
-            old_align = part.align
-            old_scale = part.scale
-
-            # Alignment and scaling with references
-            no_align_conflict, \
-              no_scale_conflict = \
-                align_scale_with_ref(part, ref, max_dim)
-
-            check_compatibility(old_align, no_align_conflict,
-                                old_scale, no_scale_conflict,
-                                across="ref parts")
-
-            part_align = part.align
-            part_scale = part.scale
-
-        no_align_conflict = compatible_align(part_align, old_align)
-        no_scale_conflict = compatible_scale(part_scale, old_scale)
-        check_compatibility(old_align, no_align_conflict,
-                            old_scale, no_scale_conflict,
-                            across="refs")
-
+    ''' normalizing the scaling factors '''
     # normalize the scaling factors, so that none of them is lesser than 1
     norm = [1 for i in range(0, max_dim)]
 
-    # compute the lcm of the Fraction denominators of all scaling factors
-    # for each dimension
-    for part in sorted_parts:
+    # compute the lcm of the Fraction denominators of scaling factors of all
+    # poly parts in the group, for each dimension
+    for part in info.align_scale:
         scale = part.scale
         for dim in range(0, max_dim):
             if scale[dim] != '-':
@@ -495,7 +740,7 @@ def align_and_scale_parts(pipeline, group):
     LOG(logging.DEBUG, "")
     LOG(logging.DEBUG, "Final alignment and scaling")
 
-    for part in sorted_parts:
+    for part in info.align_scale:
         scale = part.scale
         new_scale = [1 for i in range(0, max_dim)]
         for dim in range(0, max_dim):
@@ -717,7 +962,7 @@ def mark_par_and_vec(poly_part, param_estimates):
             interval = p.comp.reductionDomain[dim]
         # Since size could be estimated so can interval size be
         intr_size = \
-            get_dim_size(interval, param_estimates)
+            poly.get_dim_size(interval, param_estimates)
 
         # outer parallel dim
         if(get_constant_from_expr(intr_size) >= 32):
@@ -785,7 +1030,7 @@ def enable_tile_scratchpad(group_parts):
 
             ineqs = []
 
-            p.sched = add_constraints(p.sched, ineqs, eqs)
+            p.sched = poly.add_constraints(p.sched, ineqs, eqs)
 
     return
 
@@ -809,7 +1054,7 @@ def schedule_time_within_group(part_comp_map):
             coeff[('constant', 0)] = -pi
             coeff[('out', time_dim + 1)] = 1
             eqs.append(coeff)
-            p.sched = add_constraints(p.sched, [], eqs)
+            p.sched = poly.add_constraints(p.sched, [], eqs)
             pi += 1
 
     return
@@ -986,7 +1231,7 @@ def overlap_tile(pipeline, group_parts, slope_min, slope_max):
                 ineqs.append(coeff)
 
                 prior_dom = part.sched.domain()
-                part.sched = add_constraints(part.sched, ineqs, eqs)
+                part.sched = poly.add_constraints(part.sched, ineqs, eqs)
                 post_dom = part.sched.domain()
 
                 assert(part.sched.is_empty() == False)
