@@ -1,6 +1,11 @@
 import ctypes
 import _ctypes
 
+from fractions import gcd
+
+def lcm(a, b):
+    return a*b/(gcd(a, b))
+
 def convert_to_ctype(inp_type, inp_value):
     if inp_type == 'void':
         return ctypes.c_void(inp_value)

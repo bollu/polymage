@@ -6,10 +6,7 @@ import islpy as isl
 
 from constructs import *
 from expression import *
-from schedule import *
-
-def lcm(a, b):
-    return a*b/(gcd(a, b))
+import schedule as schd
 
 # Static method 'alloc' for isl Id does not allow the user to be
 # not None, as of now. We need an exclusive dictionary to map the
@@ -617,7 +614,7 @@ class PolyRep(object):
             # a level dimension. The level dimension gives the ordering
             # of the compute objects within a group.
 
-            align, scale = default_align_and_scale(sched_m)
+            align, scale = schd.default_align_and_scale(sched_m)
 
             if (isinstance(case, Case)):
                 # Dealing with != and ||. != can be replaced with < || >.
@@ -695,7 +692,7 @@ class PolyRep(object):
     def create_poly_parts_from_default(self, comp, sched_map,
                                        level_no, schedule_names):
         sched_m = sched_map.copy()
-        align, scale = default_align_and_scale(sched_m)
+        align, scale = schd.default_align_and_scale(sched_m)
 
         assert(isinstance(comp.default, AbstractExpression))
         poly_part = PolyPart(sched_m, comp.default,
@@ -963,35 +960,6 @@ def map_coeff_to_dim(coeff):
         elif (isinstance(var, Variable)):
             coeff[('in', var.name)] = coeffval
     return coeff
-
-def format_schedule_constraints(dim_in, dim_out, align, scale, level_no):
-    ineq_coeff = []
-    eq_coeff   = []
-    dim_set = [ False for i in range(0, dim_out) ]
-    # Adding identity constraint for each dimension
-    for i in range(0, dim_in):
-        coeff = {}
-        coeff[('out', align[i])] = 1
-        if scale[i] != '-':
-            assert scale[i] >= 1
-        coeff[('in', i)] = -1 * scale[i]
-        eq_coeff.append(coeff)
-        dim_set[align[i]] = True
-
-    # Setting the leading schedule dimension to level
-    level_coeff = {}
-    level_coeff[('out', 0)] = -1
-    level_coeff[('constant', 0)] = level_no-1
-    eq_coeff.append(level_coeff)
-
-    # Setting the remaining dimensions to zero
-    for i in range(1, dim_out):
-        if not dim_set[i]:
-            coeff = {}
-            coeff[('out', i)] = 1
-            coeff[('constant', 0)] = 0
-            eq_coeff.append(coeff)
-    return [ineq_coeff, eq_coeff]
 
 def format_domain_constraints(domain, var_names):
     ineq_coeff = []

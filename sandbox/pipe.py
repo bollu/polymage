@@ -461,7 +461,7 @@ class Pipeline:
         self.add_group(merged)
 
         # also checks if the merging was valid
-        align_and_scale_parts(self, merged)
+        align_and_scale(self, merged)
 
         return merged
 
