@@ -1,7 +1,7 @@
 import sys
 
-def printLine(toFile=None):
-    if toFile:
+def printLine(to_file=None):
+    if to_file:
         print("--------------------------------------------------", file=to_file)
     else:
         print("--------------------------------------------------")
