@@ -2,7 +2,6 @@ from __future__ import absolute_import, division, print_function
 
 import sys
 sys.path.insert(0, '../../../../')
-sys.path.insert(0, '../../../../')
 
 from compiler   import *
 from constructs import *

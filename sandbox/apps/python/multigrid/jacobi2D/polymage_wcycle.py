@@ -5,7 +5,6 @@ from polymage_restrict    import restrict
 from polymage_interpolate import interpolate
 
 sys.path.insert(0, '../../../../')
-sys.path.insert(0, '../../../../')
 
 from compiler   import *
 from constructs import *

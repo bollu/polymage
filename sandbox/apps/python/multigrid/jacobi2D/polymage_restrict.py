@@ -5,7 +5,6 @@ from fractions  import Fraction
 from polymage_common import setGhosts
 
 sys.path.insert(0, '../../../../')
-sys.path.insert(0, '../../../../')
 
 from compiler   import *
 from constructs import *
