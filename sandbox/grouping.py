@@ -54,11 +54,6 @@ def auto_group(pipeline):
     g_par_child_map = pipeline._group_children
     groups = list(set([group_map[comp] for comp in group_map]))
 
-    # creating this to be used in get_size() for a comp
-    parts = {}
-    for comp in comps:
-        parts[comp] = group_map[comp].polyRep.poly_parts[comp][0]
-
     def get_group_cost(group):
         return 1
 
@@ -69,9 +64,7 @@ def auto_group(pipeline):
     # when the domains of parents and the computation itself is too small to
     # benefit from tiling or parallelization. The parents are included so that
     # we do not miss out on storage optimzations.
-    def get_small_comps(pipeline, comps, parts):
-        estimates = pipeline._param_estimates
-        threshold = pipeline._size_threshold
+    def get_small_comps(pipeline, comps):
         comp_parents = pipeline._comp_objs_parents
 
         small_comps = []
@@ -80,17 +73,18 @@ def auto_group(pipeline):
         # arithmetic intensity in the expressions.
         comp_size_map = {}
         for comp in comps:
-            comp_size_map[comp] = parts[comp].get_size(estimates)
+            parts = group_map[comp].polyRep.poly_parts[comp]
+            comp_size_map[comp] = sum([p.get_size(param_est) for p in parts])
 
         for comp in comps:
             is_small_comp = False
             if comp_size_map[comp] != '*':
-                is_small_comp = (comp_size_map[comp] <= threshold)
+                is_small_comp = (comp_size_map[comp] <= size_thresh)
             # iterate over parents of comp
             for pcomp in comp_parents:
                 if comp_size_map[pcomp] != '*':
                     is_small_comp = is_small_comp and \
-                        (comp_size_map[pcomp] > threshold)
+                        (comp_size_map[pcomp] > size_thresh)
                 else:
                     is_small_comp = False
             if is_small_comp:
@@ -99,7 +93,7 @@ def auto_group(pipeline):
         return small_comps, comp_size_map
 
 
-    small_comps, comp_size_map = get_small_comps(pipeline, comps, parts)
+    small_comps, comp_size_map = get_small_comps(pipeline, comps)
 
     # loop termination boolean
     opt = True
