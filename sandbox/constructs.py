@@ -588,9 +588,23 @@ class Function(object):
     @defn.setter
     def defn(self, _def):
         assert(self._body == [])
+        assert(len(_def) > 0)
+        case_type = 0
+        non_case_type = 0
         for case in _def:
             case = Value.numericToValue(case)
             assert(isinstance(case, (Case, AbstractExpression)))
+
+            # if the function is defined using Case, all the definition parts
+            # in the list '_def' must be of the type Case.
+            if isinstance(case, Case):
+                case_type += 1
+            else:
+                non_case_type += 1
+
+            assert(non_case_type <= 1)
+            assert(case_type * non_case_type == 0)
+
             # check if the Case and Expression constructs only use
             # function variables and global parameters
 
