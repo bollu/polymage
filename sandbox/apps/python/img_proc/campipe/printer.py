@@ -16,15 +16,17 @@ def print_usage():
     print("[main]: <mode>  :: {'new', 'existing', 'tune'}")
 
 def print_config(app_data):
+    app_args = app_data['app_args']
     rows = app_data['rows']
     cols = app_data['cols']
     print_line()
     print("# Problem Settings #")
     print("")
-    print("[main]: image       =", app_data['image_path'])
-    print("[main]: image size  =", nx, "x", ny)
-    print("[main]: colour_temp =", app_data['colour_temp'])
-    print("[main]: contrast    =", app_data['contrast'])
-    print("[main]: gamma       =", app_data['gamma'])
-    print("[main]: nruns       =", app_data['nruns'])
+    print("[main]: mode        =", app_args.mode)
+    print("[main]: image       =", app_args.img_file)
+    print("[main]: image size  =", rows, "x", cols)
+    print("[main]: colour_temp =", app_args.colour_temp)
+    print("[main]: contrast    =", app_args.contrast)
+    print("[main]: gamma       =", app_args.gamma)
+    print("[main]: nruns       =", app_args.runs)
     print_line()

@@ -3,7 +3,7 @@ import subprocess
 
 from cpp_compiler import c_compile
 from loader import load_lib
-from polymage_campipe import cam_pipe
+from polymage_campipe import camera_pipe
 
 from compiler import *
 from constructs import *
@@ -48,27 +48,29 @@ def graph_gen(pipe, file_name, app_data):
 
 def build_campipe(pipe_data, app_data):
     # construct the camera pipeline
-    out_campipe = cam_pipe(pipe_data, app_data)
+    out_campipe = camera_pipe(pipe_data)
 
-    n = pipe_data['n']
+    R = pipe_data['R']
+    C = pipe_data['C']
 
     live_outs = [out_campipe]
-    pipe_name = app_data['cycle_name']
-    p_estimates = [(n, app_data['n'])]
-    p_constraints = [ Condition(n, "==", app_data['n']) ]
+    pipe_name = app_data['app']
+    p_estimates = [(R, app_data['rows']), (C, app_data['cols'])]
+    p_constraints = [ Condition(R, "==", app_data['rows']), \
+                      Condition(C, "==", app_data['cols']) ]
     t_size = [16, 16]
-    g_size = 10
+    g_size = 5
     opts = []
     if app_data['pool_alloc'] == True:
         opts += ['pool_alloc']
 
-    pipe = build_pipeline(live_outs,
-                          param_estimates=p_estimates,
-                          param_constraints=p_constraints,
-                          tile_sizes = t_size,
-                          group_size = g_size,
-                          options = opts,
-                          pipe_name = pipe_name)
+    pipe = buildPipeline(live_outs,
+                         param_estimates=p_estimates,
+                         param_constraints=p_constraints,
+                         tile_sizes = t_size,
+                         group_size = g_size,
+                         options = opts,
+                         pipe_name = pipe_name)
 
     return pipe
 

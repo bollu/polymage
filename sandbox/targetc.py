@@ -604,7 +604,7 @@ class CArrayDecl(AbstractCgenObject):
     def __init__(self, _carray):
         self.carray = _carray
         self.carray.layout = 'multidim'
-    def _cgen(self):    
+    def _cgen(self):
         decl = cgen.Value(self.carray.typ.__str__(), self.carray.name)
         for dim in self.carray.dims:
             decl = cgen.ArrayOf(decl, dim)
