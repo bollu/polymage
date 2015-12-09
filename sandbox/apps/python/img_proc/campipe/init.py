@@ -13,7 +13,7 @@ def init_images(app_data):
     app_args = app_data['app_args']
 
     # input image: 
-    img_path = app_args['img']
+    img_path = app_args.img_file
     img = np.array(Image.open(img_path))
     rows, cols = img.shape
     # convert to short int image
@@ -47,13 +47,18 @@ def init_images(app_data):
     img_data['M7000'] = matrix_7000
 
     app_data['img_data'] = img_data
+    app_data['rows'] = rows
+    app_data['cols'] = cols
 
-    return 
+    return
 
 def get_input(sys_args, app_data):
     # parse the command-line arguments
     app_args = parse_args()
     app_data['app_args'] = app_args
+
+    app_data['mode'] = app_args.mode
+    app_data['pool_alloc'] = app_args.pool_alloc
 
     # flag to note execution time
     app_data['timer'] = os.path.isfile("timer.flag")
@@ -61,14 +66,8 @@ def get_input(sys_args, app_data):
     return
 
 def init_all(args, pipe_data, app_data):
-    # TODO init cycle type {V, W}
-
     get_input(args, app_data)
 
     init_images(app_data)
-
-    #set_vars(pipe_data, app_data)
-
-    #set_cases(pipe_data, app_data)
 
     return

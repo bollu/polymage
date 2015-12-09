@@ -60,6 +60,14 @@ def parse_args():
                        dest='display',
                        default=False,
                        help='display output image',)
+
+    parser.add_option('--pool_alloc',
+                       action='store_true',
+                       dest='pool_alloc',
+                       default=False,
+                       help='True : Use a pool of memory allocations, \
+                             False: generate simple malloc function call',)
+
     (options, args) = parser.parse_args()
 
     return options
