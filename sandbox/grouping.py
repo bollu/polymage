@@ -74,7 +74,14 @@ def auto_group(pipeline):
         comp_size_map = {}
         for comp in comps:
             parts = group_map[comp].polyRep.poly_parts[comp]
-            comp_size_map[comp] = sum([p.get_size(param_est) for p in parts])
+            p_sizes = []
+            for p in parts:
+                p_size = p.get_size(param_est)
+                if p_size == '*':
+                    p_sizes.append(0)
+                else:
+                    p_sizes.append(p_size)
+            comp_size_map[comp] = sum(p_sizes)
 
         for comp in comps:
             is_small_comp = False
