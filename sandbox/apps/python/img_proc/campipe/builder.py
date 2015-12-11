@@ -58,8 +58,8 @@ def build_campipe(pipe_data, app_data):
     p_estimates = [(R, app_data['rows']), (C, app_data['cols'])]
     p_constraints = [ Condition(R, "==", app_data['rows']), \
                       Condition(C, "==", app_data['cols']) ]
-    t_size = [16, 16]
-    g_size = 5
+    t_size = [16, 16, 16]
+    g_size = 10
     opts = []
     if app_data['pool_alloc'] == True:
         opts += ['pool_alloc']
@@ -87,7 +87,7 @@ def create_lib(build_func, pipe_name, impipe_data, app_data, mode):
             #graph_gen(pipe, pipe_name, app_data)
 
             # generate pipeline cpp source
-            code_gen(pipe, pipe_src, app_data)
+            codegen(pipe, pipe_src, app_data)
 
     if mode != 'ready':
         # compile the cpp code
