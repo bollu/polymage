@@ -754,10 +754,10 @@ class Reduction(Function):
             assert(isinstance(case, (Case, Reduce)))
             # check if the Case and Expression constructs only use
             # function variables and global parameters
-    
+
             # Which way is better Case inside accumulate or accumulate inside
             # Case
-            
+
             # MOD -> if _def is not a Case, shouldnt it be disallowed after
             # the first definition?
             self._body.append(case)

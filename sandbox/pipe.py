@@ -147,9 +147,11 @@ class Group:
         return order
 
     def __str__(self):
-        comp_str  = "\n\n".join([comp.__str__() \
-                    for comp in self._comp_objs]) + '\n'
-        return comp_str + '\n' + self._polyrep.__str__()
+        comp_str  = '[' + \
+                    ', '.join([comp.name \
+                        for comp in self._comp_objs]) + \
+                    ']'
+        return comp_str
 
 class Pipeline:
     def __init__(self, _ctx, _outputs,

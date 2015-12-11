@@ -123,7 +123,8 @@ def auto_group(pipeline):
             # 1. big enough
             # 2. does not contain reduction
             # 3. number of comps in group < grp_size
-            if not is_small_grp and not is_reduction_grp and \
+            if not is_small_grp and \
+               not is_reduction_grp and \
                len(group._comp_objs) < grp_size:
                 merge = True
 
