@@ -87,7 +87,7 @@ def default_align_and_scale(sched, max_dim=None):
     dim_in = sched.dim(isl._isl.dim_type.in_)
     # align[i] = j means input dimension i is mapped to output
     # dimension j
-    align = [ i+1 for i in range(0, dim_in) ]
+    align = [ i for i in range(0, dim_in) ]
     # the default scaling in each dimension is set to 1 i.e., the
     # schedule dimension correspoinding to input dimension will be
     # scaled by 1
@@ -238,6 +238,7 @@ def align_and_scale(pipeline, group):
         aln_scl_list is a list of ASInfo objects, with info across multiple
         parents/children.
         '''
+        assert aln_scl_list
         dim_max = 0
         best = None
         # info with minimum number of unknowns is better
@@ -250,7 +251,8 @@ def align_and_scale(pipeline, group):
                 dim_max = len(dims)
                 best = aln_scl
 
-        assert dim_max
+        if best == None:
+            best = aln_scl_list[0]
 
         return best
 
@@ -304,30 +306,45 @@ def align_and_scale(pipeline, group):
                 _dict[i] = '-'
             return _dict
 
+        def non_null(_list, null='-'):
+            n_list = [x for x in _list if x != null]
+            return n_list
+
         def compute_abs(dim, dst_pack, rel_align_map, rel_scale_map):
             root_dim = rel_align_map[dim]
-            if root_dim != '-':
-                align = dst_pack.align[root_dim]
-                scale = dst_pack.scale[root_dim] * rel_scale_map[dim]
-            return align, scale
+            if root_dim == '-':
+                dim_align = '-'
+                dim_scale = '-'
+            else:
+                dim_align = dst_pack.align[root_dim]
+                try:
+                    dim_scale = dst_pack.scale[root_dim] * rel_scale_map[dim]
+                except TypeError:
+                    dim_scale = '-'
+            return dim_align, dim_scale
 
         def unit_test(align, scale):
-            # test for unique alignment
-            assert (len(align) == len(set(align)))
+            # 1. test for unique alignment
+            n_align = non_null(align)
+            assert (len(n_align) == len(set(n_align)))
 
-            # test for alignment boundary
-            out_of_bound = all(max_dim >= dim for dim in align if dim != '-')\
+            # 2. test for alignment boundary
+            out_of_bound = all(max_dim > dim for dim in align if dim != '-')\
                            and \
-                           all(0 < dim for dim in align if dim != '-')
+                           all(0 <= dim for dim in align if dim != '-')
             assert (out_of_bound)
 
-            # test for scaling
+            # 3. test for scaling
             for dim in range(0, max_dim):
                 if align[dim] == '-':
                     assert scale[dim] == '-'
                 else:
                     assert scale[dim] != '-'
                     # precisely, this should be tested for a constant
+
+            # 4. dimensionality test
+            assert len(align) == info.max_dim
+            assert len(scale) == info.max_dim
 
             return
 
@@ -344,32 +361,30 @@ def align_and_scale(pipeline, group):
                 true_align[dim], true_scale[dim] = \
                     compute_abs(dim, dst.true, rel_align, rel_scale)
 
-            # dims of the part which didn't get an alignment
-            rem_part_dims = [dim for dim in src_dims.values() \
-                                     if rel_align[dim] == '-']
+            # dims of the src part which are not related to dst
+            rem_src_dims = [dim for dim in src_dims.values() \
+                                  if rel_align[dim] == '-']
 
-            # dims of the parent part to which no part dim was aligned
-            rem_parent_dims = [dim for dim in dst_dims.values() \
-                                       if dim not in rel_align.values()]
+            # dims of the dst part which are not related to src
+            rem_dst_dims = [dim for dim in dst_dims.values() \
+                                  if dim not in rel_align.values()]
 
-            # align each of the remaining part dims to any remaining dim of
-            # the parent part
-            for dim in rem_part_dims:
+            # align each of the rem_src_dims to any of rem_dst_dims
+            for dim in rem_src_dims:
                 rel_scale[dim] = 1
-                if rem_parent_dims:
-                    rel_align[dim] = rem_parent_dims.pop()
+                if rem_dst_dims:
+                    rel_align[dim] = rem_dst_dims.pop()
                 else:
-                    rel_align[dim] = '*'
+                    rel_align[dim] = '*'  # dangling
 
-            # aligned to one of the parent dims
+            # aligned to one of the dst dims
             aligned_dims = [dim for dim in src_dims.values()
                                     if rel_align[dim] != '*']
-            # not aligned to any of the parent dims
+            # not aligned to any of the dst dims
             dangling_dims = [dim for dim in src_dims.values()
                                      if dim not in aligned_dims]
 
-            # normalize to the base alignment, scaling using the relative
-            # alignment, scaling
+            # normalize to the base align_scale using the relative align_scale
             full_align = new_list()
             full_scale = new_list()
             for dim in aligned_dims:
@@ -425,6 +440,7 @@ def align_and_scale(pipeline, group):
 
         # child info
         dst_pack = info.align_scale[dst_part]
+        assert(dst_pack)
 
         # for each variable in the reference argument, get the alignment of
         # the part relative to the destination
@@ -654,7 +670,7 @@ def align_and_scale(pipeline, group):
 
     # the alignment positions and scaling factors for variables follows
     # domain order of base parts
-    base_align = [i+1 for i in range(0, max_dim)]
+    base_align = [i for i in range(0, max_dim)]
     base_scale = [1 for i in range(0, max_dim)]
 
     # begin from the topologically earliest part as the base for
@@ -716,13 +732,21 @@ def align_and_scale(pipeline, group):
     # discovered.
     solve_comp_parents(info.discovered, info)
 
+    def plus_one(align):
+        plus_align = []
+        for dim in align:
+            if dim != '-':
+                plus_align.append(dim+1)
+            else:
+                plus_align.append('-')
+        return plus_align
+
     # set all the solutions into polypart object members
     for comp in comp_objs:
         for part in group.polyRep.poly_parts[comp]:
             assert part in info.align_scale
-            final = info.align_scale[part]
-            part.set_align(final.full.align)
-            part.set_scale(final.full.scale)
+            final = plus_one(info.align_scale[part].full.align)
+            part.set_align(final)
 
     ''' normalizing the scaling factors '''
     # normalize the scaling factors, so that none of them is lesser than 1
@@ -731,7 +755,7 @@ def align_and_scale(pipeline, group):
     # compute the lcm of the Fraction denominators of scaling factors of all
     # poly parts in the group, for each dimension
     for part in info.align_scale:
-        scale = part.scale
+        scale = info.align_scale[part].full.scale
         for dim in range(0, max_dim):
             if scale[dim] != '-':
                 d = Fraction(scale[dim].denominator)
@@ -741,7 +765,7 @@ def align_and_scale(pipeline, group):
     LOG(logging.DEBUG, "Final alignment and scaling")
 
     for part in info.align_scale:
-        scale = part.scale
+        scale = info.align_scale[part].full.scale
         new_scale = [1 for i in range(0, max_dim)]
         for dim in range(0, max_dim):
             if scale[dim] != '-':
