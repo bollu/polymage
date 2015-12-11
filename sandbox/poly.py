@@ -282,6 +282,7 @@ class PolyPart(object):
             dep_vec[0] = self._level_no - parent_part._level_no
             return (dep_vec, parent_part._level_no)
 
+        # else
         for i in range(0, num_args):
             arg = ref.arguments[i]
             pvar_sched_dim = parent_part.align[i]

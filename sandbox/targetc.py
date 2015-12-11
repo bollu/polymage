@@ -132,6 +132,8 @@ class CType(AbstractCgenObject):
         self.typ = _typ
     def _cgen(self):
         return cgen.POD(self.typ, '').inline(True)
+    def __str__(self):
+        return str(self.typ)
 
 c_int = CType("int32")
 c_uint = CType("uint32")

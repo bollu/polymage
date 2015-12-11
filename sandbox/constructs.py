@@ -5,6 +5,7 @@ from expr_ast import *
 from expr_types import *
 from expression import *
 import logging
+import targetc as genc
 
 logging.basicConfig(format="%(levelname)s: %(name)s: %(message)s")
 
@@ -195,7 +196,8 @@ class Cast(AbstractExpression):
 
     def __str__(self):
         exprStr = self._expr.__str__()
-        return "(" + self._typ.cTypeName() + ") " + "(" + exprStr + ")"
+        return "(" + str(genc.TypeMap.convert(self._typ)) + ") " + \
+               "(" + exprStr + ")"
 
 class Select(AbstractExpression):
     def __init__(self, _cond, _trueExpr, _falseExpr, typeCheck = True):
