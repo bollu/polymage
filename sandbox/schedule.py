@@ -348,11 +348,19 @@ def align_and_scale(pipeline, group):
 
             return
 
-        def align_src_to_dst(dst, src_dims, dst_dims, rel_align, rel_scale):
+        def align_src_to_dst(dst, src_dims, dst_dims, ref_arg_coeffs):
             '''
             Given a target and a relative alignment-scaling info, find the
             true and full alignment-scaling
             '''
+
+            # for each variable in the reference argument, get the alignment of
+            # the part relative to the destination
+            # dim:dim map from src to dst
+            for var in ref_arg_vars:
+                if var != '-':
+                    rel_align[src_dims[var]] = dst_dims[var]
+                    rel_scale[src_dims[var]] = ref_arg_coeffs[var]
 
             # only those dims whose align,scale can be infered from the parent
             true_align = new_list()
@@ -420,11 +428,13 @@ def align_and_scale(pipeline, group):
         rel_align = new_dict()
         rel_scale = new_dict()
 
-        # dimensions of variable domain of the part, and its parent
+        # var:dim map of variable domain of the child part
         child_dims = get_domain_dims(child_part.sched, \
                                      child_part.comp.variableDomain[0])
+        # var:dim map of parent part in argument order
         parent_dims = get_argvar_order(ref_arg_vars)
 
+        # set the source and the destination for alignment/scaling
         if reverse == True:
             dst_part = child_part
             src_part = parent_part
@@ -442,20 +452,14 @@ def align_and_scale(pipeline, group):
         dst_pack = info.align_scale[dst_part]
         assert(dst_pack)
 
-        # for each variable in the reference argument, get the alignment of
-        # the part relative to the destination
-        for var in ref_arg_vars:
-            if var != '-':
-                rel_align[src_dims[var]] = dst_dims[var]
-                rel_scale[src_dims[var]] = ref_arg_coeffs[var]
-
+        # align and scale source to destination
         src_part_solution = align_src_to_dst(dst_pack, src_dims, dst_dims,
-                                             rel_align, rel_scale)
+                                             ref_arg_coeffs)
 
         if src_part in info.align_scale:  # already has a solution
             src_part_solution = \
                 pick_best([info.align_scale[src_part], src_part_solution])
-        info.align_scale[src_part] = src_part_solution
+        info.align_scale[src_part] = src_part_solution  # add to global set
 
         return
 
