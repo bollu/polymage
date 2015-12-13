@@ -202,9 +202,18 @@ def align_and_scale(pipeline, group):
     def complete_align_scale(part, align, scale):
         dim_in = part.sched.dim(isl._isl.dim_type.in_)
         assert dim_in > 0
+        new_align = align
+        new_scale = scale
         if not all(align[dim] != '-' for dim in range(0, dim_in)):
-            return default_align_and_scale(part.sched, max_dim)
-        return (align, scale)
+            used_dims = [dim for dim in align if dim != '-']
+            universal = set(range(0, len(align)))
+            avail_dims = \
+                list(universal.difference(set(used_dims)))
+            for dim in range(0, dim_in):
+                if align[dim] == '-':
+                    new_align[dim] = avail_dims.pop()
+                    new_scale[dim] = 1
+        return (new_align, new_scale)
 
     def non_null(_list, null='-'):
         n_list = [x for x in _list if x != null]
