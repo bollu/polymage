@@ -202,7 +202,7 @@ def align_and_scale(pipeline, group):
     def complete_align_scale(part, align, scale):
         dim_in = part.sched.dim(isl._isl.dim_type.in_)
         assert dim_in > 0
-        if all(align[dim] == '-' for dim in range(0, dim_in)):
+        if not all(align[dim] != '-' for dim in range(0, dim_in)):
             return default_align_and_scale(part.sched, max_dim)
         return (align, scale)
 
@@ -267,9 +267,9 @@ def align_and_scale(pipeline, group):
                 dim_scale = '-'
             else:
                 dim_align = dst_pack.align[root_dim]
-                try:
+                if dim_align != '-':
                     dim_scale = dst_pack.scale[root_dim] * rel_scale_map[dim]
-                except TypeError:
+                else:
                     dim_scale = '-'
             return dim_align, dim_scale
 
@@ -298,7 +298,7 @@ def align_and_scale(pipeline, group):
 
             return
 
-        def align_src_to_dst(dst, src_dims, dst_dims, ref_arg_coeffs):
+        def align_src_to_dst(dst, src_map, dst_map, ref_arg_coeffs):
             '''
             Given a target and a relative alignment-scaling info, find the
             true and full alignment-scaling
@@ -309,8 +309,8 @@ def align_and_scale(pipeline, group):
             # dim:dim map from src to dst
             for var in ref_arg_vars:
                 if var != '-':
-                    rel_align[src_dims[var]] = dst_dims[var]
-                    rel_scale[src_dims[var]] = ref_arg_coeffs[var]
+                    rel_align[src_map[var]] = dst_map[var]
+                    rel_scale[src_map[var]] = ref_arg_coeffs[var]
 
             # only those dims whose align,scale can be infered from the parent
             true_align = new_list()
@@ -320,14 +320,14 @@ def align_and_scale(pipeline, group):
                     compute_abs(dim, dst.true, rel_align, rel_scale)
 
             # dims of the src part which are not related to dst
-            rem_src_dims = [dim for dim in src_dims.values() \
+            rem_src_dims = [dim for dim in src_map.values() \
                                   if rel_align[dim] == '-']
 
             # dims of the dst part which are not related to src
-            rem_dst_dims = [dim for dim in dst_dims.values() \
+            rem_dst_dims = [dim for dim in dst_map.values() \
                                   if dim not in rel_align.values()]
 
-            # align each of the rem_src_dims to any of rem_dst_dims
+            # align each of the rem_src_map to any of rem_dst_map
             for dim in rem_src_dims:
                 rel_scale[dim] = 1
                 if rem_dst_dims:
@@ -336,10 +336,10 @@ def align_and_scale(pipeline, group):
                     rel_align[dim] = '*'  # dangling
 
             # aligned to one of the dst dims
-            aligned_dims = [dim for dim in src_dims.values()
+            aligned_dims = [dim for dim in src_map.values()
                                   if rel_align[dim] != '*']
             # not aligned to any of the dst dims
-            dangling_dims = [dim for dim in src_dims.values()
+            dangling_dims = [dim for dim in src_map.values()
                                    if dim not in aligned_dims]
 
             # normalize to the base align_scale using the relative align_scale
@@ -379,31 +379,31 @@ def align_and_scale(pipeline, group):
         rel_scale = new_dict()
 
         # var:dim map of variable domain of the child part
-        child_dims = get_domain_dims(child_part.sched, \
+        child_map = get_domain_dims(child_part.sched, \
                                      child_part.comp.variableDomain[0])
         # var:dim map of parent part in argument order
-        parent_dims = get_argvar_order(ref_arg_vars)
+        parent_map = get_argvar_order(ref_arg_vars)
 
         # set the source and the destination for alignment/scaling
         if reverse == True:
             dst_part = child_part
             src_part = parent_part
 
-            dst_dims = child_dims
-            src_dims = parent_dims
+            dst_map = child_map
+            src_map = parent_map
         else:
             dst_part = parent_part
             src_part = child_part
 
-            dst_dims = parent_dims
-            src_dims = child_dims
+            dst_map = parent_map
+            src_map = child_map
 
         # child info
         dst_pack = info.align_scale[dst_part]
         assert(dst_pack)
 
         # align and scale source to destination
-        src_part_solution = align_src_to_dst(dst_pack, src_dims, dst_dims,
+        src_part_solution = align_src_to_dst(dst_pack, src_map, dst_map,
                                              ref_arg_coeffs)
 
         if src_part in info.align_scale:  # already has a solution
