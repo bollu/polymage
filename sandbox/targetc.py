@@ -127,13 +127,26 @@ class AbstractCgenObject(object):
     def __str__(self):
         return self._cgen().__str__()
 
+class TypeNameMap(object):
+    _type_name_map = { "void": "void",
+                       "uint64":"unsigned long", "int32": "long",
+                       "uint32":"unsigned int", "int32":"int",
+                       "uint16":"unsigned short", "int16":"short",
+                       "uint8":"unsigned char", "int8":"char",
+                       "float32":"float", "float64":"double" }
+
+    @classmethod
+    def convert(cls, typ):
+        assert typ in cls._type_name_map
+        return cls._type_name_map[typ]
+
 class CType(AbstractCgenObject):
     def __init__(self, _typ):
         self.typ = _typ
     def _cgen(self):
         return cgen.POD(self.typ, '').inline(True)
     def __str__(self):
-        return str(self.typ)
+        return str(TypeNameMap.convert(self.typ))
 
 c_int = CType("int32")
 c_uint = CType("uint32")
