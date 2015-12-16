@@ -158,6 +158,8 @@ class PolyPart(object):
         self.deps = []
         # References made by self
         self._refs = self.collect_part_refs()
+        # self dependence
+        self._self_dep = self.check_self_dep()
         # Mapping between the input variables to the corresponding 
         # schedule dimension. A full affine schedule will need a 
         # transformation matrix. Currently we only shuffle the 
@@ -198,6 +200,10 @@ class PolyPart(object):
     def refs(self):
         return list(self._refs)
 
+    @property
+    def is_self_dependent(self):
+        return self._self_dep
+
     def set_align(self, align):
         self._align = [i for i in align]
         return
@@ -212,7 +218,7 @@ class PolyPart(object):
     def is_scale_set(self):
         return self._scale != [] and self._scale != None
 
-    def is_self_dependent(self):
+    def check_self_dep(self):
         obj_refs = [ ref.objectRef for ref in self.refs \
                          if ref.objectRef == self.comp ]
         if len(obj_refs) > 0:

@@ -260,6 +260,24 @@ class Pipeline:
             auto_group(self)
             pass
 
+        # create list of Groups
+        self._group_list = list(set(self._groups.values()))
+
+        # increment alignments
+        def plus_one(align):
+            plus_align = []
+            for dim in align:
+                if dim != '-':
+                    plus_align.append(dim+1)
+                else:
+                    plus_align.append('-')
+            return plus_align
+
+        for g in self._group_list:
+            for comp in g._comp_objs:
+                for p in g.polyRep.poly_parts[comp]:
+                    p.set_align(plus_one(p.align))
+
         # ***
         log_level = logging.INFO
         LOG(log_level, "Grouped compute objects:")
@@ -269,7 +287,7 @@ class Pipeline:
         # ***
 
         ''' BASE SCHEDULE AND CODEGEN '''
-        for g in list(set(self._groups.values())):
+        for g in self._group_list:
             gparts = base_schedule(g)
             for p in gparts:
                 p.compute_liveness(self)

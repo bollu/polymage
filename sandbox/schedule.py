@@ -623,11 +623,11 @@ def align_and_scale(pipeline, group):
     no_self_dep_parts = []
     for comp in comp_objs:
         for p in group.polyRep.poly_parts[comp]:
-            p_align = non_null(p.align)
-            if not p.is_self_dependent():
+            p_dim_in = p.sched.dim(isl._isl.dim_type.in_)
+            if not p.is_self_dependent:
                 no_self_dep_parts.append(p)
-                if max_dim < len(p_align):
-                    max_dim = len(p_align)
+                if max_dim < p_dim_in:
+                    max_dim = p_dim_in
                 if min_level > p._level_no:
                     min_level = p._level_no
 
@@ -646,9 +646,9 @@ def align_and_scale(pipeline, group):
     base_part = None
     dim_max = 0
     for p in min_level_parts:
-        p_align = non_null(p.align)
-        if len(p_align) > dim_max:
-            dim_max = len(p_align)
+        p_dim_in = p.sched.dim(isl._isl.dim_type.in_)
+        if p_dim_in > dim_max:
+            dim_max = p_dim_in
             base_part = p
 
     assert (base_part != None)
@@ -660,11 +660,6 @@ def align_and_scale(pipeline, group):
     LOG(log_level, "____")
     LOG(log_level, str(base_part.comp.name)+\
                    " (level : "+str(base_part._level_no)+")")
-
-    for p in group.polyRep.poly_parts[base_comp]:
-        align, scale = default_align_and_scale(p.sched, max_dim)
-        p.set_align(align)
-        p.set_scale(scale)
 
     class Info(object):
         def __init__(self, _pipe, _group, _max_dim):
@@ -680,8 +675,11 @@ def align_and_scale(pipeline, group):
     info = Info(pipeline, group, max_dim)
     info.solved.append(base_comp)
     for part in group.polyRep.poly_parts[base_comp]:
-        true_pack = ASPacket(part.align, part.scale)
-        full_pack = ASPacket(part.align, part.scale)
+        # set default values for base parts
+        align, scale = default_align_and_scale(part.sched, max_dim)
+        # update to the temporary info
+        true_pack = ASPacket(align, scale)
+        full_pack = ASPacket(align, scale)
         info.align_scale[part] = ASInfo(true_pack, full_pack)
 
     # recursively compute alignment and scaling for the family of base_comp
@@ -694,15 +692,6 @@ def align_and_scale(pipeline, group):
     # compute newly discovered parents iteratively until no new parent is
     # discovered.
     solve_comp_parents(info.discovered, info)
-
-    def plus_one(align):
-        plus_align = []
-        for dim in align:
-            if dim != '-':
-                plus_align.append(dim+1)
-            else:
-                plus_align.append('-')
-        return plus_align
 
     # set all the solutions into polypart object members
     for comp in comp_objs:
@@ -717,11 +706,8 @@ def align_and_scale(pipeline, group):
             align = align_scale[0]
             scale = align_scale[1]
 
-            # increment non null dimensions by 1
-            final = plus_one(align)
-
             # set the final values into the poly part object
-            part.set_align(final)
+            part.set_align(align)
             part.set_scale(scale)
 
     ''' normalizing the scaling factors '''
@@ -1085,7 +1071,7 @@ def fused_schedule(pipeline, group, param_estimates):
             part_size = p.get_size(param_estimates)
             big_part = (part_size != '*' and \
                         part_size > pipeline._size_threshold)
-            if not p.is_self_dependent() and big_part:
+            if not p.is_self_dependent and big_part:
                 mark_par_and_vec(p, pipeline._param_estimates)
 
     # Find the parts which are not liveout
