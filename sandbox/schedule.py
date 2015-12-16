@@ -209,6 +209,7 @@ def align_and_scale(pipeline, group):
             universal = set(range(0, len(align)))
             avail_dims = \
                 list(universal.difference(set(used_dims)))
+            avail_dims.sort(reverse=True)
             for dim in range(0, dim_in):
                 if align[dim] == '-':
                     new_align[dim] = avail_dims.pop()
@@ -335,6 +336,7 @@ def align_and_scale(pipeline, group):
             # dims of the dst part which are not related to src
             rem_dst_dims = [dim for dim in dst_map.values() \
                                   if dim not in rel_align.values()]
+            rem_dst_dims.sort(reverse=True)
 
             # align each of the rem_src_map to any of rem_dst_map
             for dim in rem_src_dims:
@@ -365,6 +367,7 @@ def align_and_scale(pipeline, group):
             # dangling_dims are assigned any available dim of the base alignment
             avail_dims = [dim for dim in range(0, max_dim) \
                                 if dim not in full_align]
+            avail_dims.sort(reverse=True)
             for dim in dangling_dims:
                 full_align[dim] = avail_dims.pop()
                 full_scale[dim] = 1
