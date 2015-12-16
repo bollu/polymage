@@ -14,6 +14,11 @@ def call_pipe(U_, W_, app_data):
     rows = app_data['rows']
     cols = app_data['cols']
 
+    app_args = app_data['app_args']
+    colour_temp = app_args['colour_temp']
+    contrast = app_args['contrast']
+    gamma = app_args['gamma']
+
     img_data = app_data['img_data']
     IN = img_data['IN']
     M3200 = img_data['M3200']
@@ -26,8 +31,11 @@ def call_pipe(U_, W_, app_data):
 
     # lib function args
     pipe_args = []
-    pipe_args += [ctypes.c_int(rows)]
     pipe_args += [ctypes.c_int(cols)]
+    pipe_args += [ctypes.c_int(rows)]
+    pipe_args += [ctypes.c_float(colour_temp)]
+    pipe_args += [ctypes.c_int(contrast)]
+    pipe_args += [ctypes.c_int(gamma)]
     pipe_args += [ctypes.c_void_p(IN.ctypes.data)]
     pipe_args += [ctypes.c_void_p(M3200.ctypes.data)]
     pipe_args += [ctypes.c_void_p(M7000.ctypes.data)]
