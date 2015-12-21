@@ -37,7 +37,6 @@ cond4D = Condition(x, '>=', 1) & Condition(x, '<=', R) & \
          Condition(z, '>=', 1) & Condition(z, '<=', P) & \
          Condition(w, '>=', 1) & Condition(w, '<=', B)
 
-'''
 def test_gray():
     img = Image(Float, "img", [R+2, C+2, 3])
 
@@ -52,7 +51,6 @@ def test_gray():
     pipeline = buildPipeline([vector], grouping = [[gray, vector]])
 
     return
-'''
 
 def test_flip():
     img = Image(Int, "img", [R+2, C+2])
