@@ -23,7 +23,6 @@ def codeGen(pipe, fileName, appData):
 
     return
 
-'''
 def graphGen(pipe, fileName, appData):
     graphFile = fileName+".dot"
     pngGraph = fileName+".png"
@@ -31,8 +30,8 @@ def graphGen(pipe, fileName, appData):
     print("")
     print("[builder]: writing the graph dot file to", graphFile, "...")
 
-    #graph = pipe.drawPipelineGraphWithGroups()
-    graph = pipe.originalGraph
+    graph = pipe.pipeline_graph
+    #graph = pipe.original_graph
     graph.write(graphFile)
     print("[builder]: ... DONE")
 
@@ -45,7 +44,6 @@ def graphGen(pipe, fileName, appData):
     print("[builder]: ... DONE")
 
     return
-'''
 
 def buildMGCycle(impipeData, appData):
     cycleType = appData['cycle']
@@ -63,8 +61,8 @@ def buildMGCycle(impipeData, appData):
     pipeName = appData['cycle_name']
     pEstimates = [(n, appData['n'])]
     pConstraints = [ Condition(n, "==", appData['n']) ]
-    tSize = [16, 16, 16]
-    gSize = 5
+    tSize = [16, 16]
+    gSize = 100
     opts = []
     if appData['pool_alloc'] == True:
         opts += ['pool_alloc']
@@ -89,7 +87,7 @@ def createLib(buildFunc, pipeName, impipeData, appData, mode):
             pipe = buildFunc(impipeData, appData)
 
             # draw the pipeline graph to a png file
-            #graphGen(pipe, pipeName, appData)
+            graphGen(pipe, pipeName, appData)
 
             # generate pipeline cpp source
             codeGen(pipe, pipeSrc, appData)

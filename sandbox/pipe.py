@@ -6,7 +6,7 @@ try:
 except ImportError:
     import Queue as queue
 
-#import pygraphviz as pgv
+import pygraphviz as pgv
 import targetc as genc
 
 from grouping import *
@@ -218,7 +218,7 @@ class Pipeline:
 
         # Store the initial pipeline graph. The compiler can modify 
         # the pipeline by inlining functions.
-        #self._initialGraph = self.drawPipelineGraph()
+        self._initial_graph = self.draw_pipeline_graph()
 
         # Make a list of all the input groups
         inputs = []
@@ -294,6 +294,8 @@ class Pipeline:
 
             fused_schedule(self, g, self._param_estimates)
 
+        self._pipeline_graph = self.draw_pipeline_graph()
+
     @property
     def groups(self):
         return self._groups
@@ -311,8 +313,12 @@ class Pipeline:
         return self._outputs
 
     @property
-    def originalGraph(self):
-        return self._initialGraph
+    def original_graph(self):
+        return self._initial_graph
+
+    @property
+    def pipeline_graph(self):
+        return self._pipeline_graph
 
     def get_parameters(self):
         params=[]
@@ -342,28 +348,26 @@ class Pipeline:
 
         return group_map, group_parents, group_children
 
-    '''
-    def drawPipelineGraph(self):
-        G = pgv.AGraph(strict=False, directed=True)
-        groupList = list(set([self._groups[f] for f in self._groups]))
+    def draw_pipeline_graph(self):
+        gr = pgv.AGraph(strict=False, directed=True)
+        group_list = list(set([self._groups[f] for f in self._groups]))
 
         # TODO add input nodes to the graph
-        for i in range(0, len(groupList)):
-            subGraphNodes = []
+        for i in range(0, len(group_list)):
+            sub_graph_nodes = []
             for obj in self._comp_objs:
-                if self._groups[obj] == groupList[i]:
-                    subGraphNodes.append(obj.name)
-            G.add_nodes_from(subGraphNodes)
-            G.add_subgraph(nbunch = subGraphNodes, 
+                if self._groups[obj] == group_list[i]:
+                    sub_graph_nodes.append(obj.name)
+            gr.add_nodes_from(sub_graph_nodes)
+            gr.add_subgraph(nbunch = sub_graph_nodes,
                            name = "cluster_" + str(i))
 
         for obj in self._comp_objs:
             for pobj in self._comp_objs_parents[obj]:
-                G.add_edge(pobj.name, obj.name)
+                gr.add_edge(pobj.name, obj.name)
 
-        G.layout(prog='dot')
-        return G
-    '''
+        gr.layout(prog='dot')
+        return gr
 
     def generate_code(self, outputs_no_alloc=False,
                             is_extern_c_func=False,

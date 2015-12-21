@@ -22,7 +22,6 @@ def codegen(pipe, file_name, app_data):
 
     return
 
-'''
 def graph_gen(pipe, file_name, app_data):
     graph_file = file_name+".dot"
     png_graph = file_name+".png"
@@ -30,8 +29,8 @@ def graph_gen(pipe, file_name, app_data):
     print("")
     print("[builder]: writing the graph dot file to", graph_file, "...")
 
-    #graph = pipe.drawPipelineGraphWithGroups()
-    graph = pipe.originalGraph
+    graph = pipe.pipeline_graph
+    #graph = pipe.original_graph
     graph.write(graph_file)
     print("[builder]: ... DONE")
 
@@ -44,7 +43,6 @@ def graph_gen(pipe, file_name, app_data):
     print("[builder]: ... DONE")
 
     return
-'''
 
 def build_campipe(pipe_data, app_data):
     # construct the camera pipeline
@@ -84,7 +82,7 @@ def create_lib(build_func, pipe_name, impipe_data, app_data, mode):
             pipe = build_func(impipe_data, app_data)
 
             # draw the pipeline graph to a png file
-            #graph_gen(pipe, pipe_name, app_data)
+            graph_gen(pipe, pipe_name, app_data)
 
             # generate pipeline cpp source
             codegen(pipe, pipe_src, app_data)
