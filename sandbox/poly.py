@@ -465,7 +465,7 @@ class PolyRep(object):
 
     def extract_polyrep_from_group(self, param_constraints):
         # dict: comp_obj -> level_no
-        comp_objs = self.group.orderComputeObjs()
+        comp_objs = self.group.order_compute_objs()
         num_objs = len(comp_objs.items())
 
         # Comute the max dimensionality of the compute objects

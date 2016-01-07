@@ -737,7 +737,7 @@ def generate_code_for_group(pipeline, g, body, options,
     # NOTE uses the level_no of the first polypart of each compute object of
     # the group as the key for sorting compare operator. *Idea is that all
     # parts of a compute object bears the same level_no*, thus repeated calling
-    # of 'orderComputeObjs' can be avoided.
+    # of 'order_compute_objs' can be avoided.
     group_parts = g.polyRep.poly_parts
     sorted_comp_objs = sorted(g._comp_objs,
                               key = lambda \

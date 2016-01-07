@@ -126,7 +126,7 @@ class Group:
                 polyhedral = False
         return polyhedral
 
-    def orderComputeObjs(self):
+    def order_compute_objs(self):
         # Order stores the numbering of each compute object 
         # when topologically sorted.
         order = {}
