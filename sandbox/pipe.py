@@ -66,6 +66,25 @@ def get_comp_objs_and_dep_maps(outputs):
 
     return comp_objs, comp_objs_parents, comp_objs_children
 
+def order_compute_objs(comp_objs):
+    # Order stores the numbering of each compute object when topologically
+    # sorted.
+    order = {}
+    # Initialize all the initial numbering to zero for all compute objects
+    for comp in comp_objs:
+        order[comp] = 0
+    # Doing a topological sort in an iterative fashion
+    change = True
+    while(change):
+        change = False
+        for comp in comp_objs:
+            parent_objs = get_parents_from_comp_obj(comp)
+            for p_obj in parent_objs:
+                if (p_obj in order and (order[p_obj] >= order[comp])):
+                    order[comp] = order[pobj] + 1
+                    change = True
+    return order
+
 class Group:
     """ 
         Group is a part of the pipeline which realizes a set of computation
@@ -127,23 +146,8 @@ class Group:
         return polyhedral
 
     def order_compute_objs(self):
-        # Order stores the numbering of each compute object 
-        # when topologically sorted.
-        order = {}
-        # Initialize all the initial numbering to zero for
-        # all compute objects in the group
-        for comp in self._comp_objs:
-            order[comp] = 0
-        # Doing a topological sort in an iterative fashion
-        change = True
-        while(change):
-            change = False
-            for comp in self._comp_objs:
-                parentObjs = get_parents_from_comp_obj(comp)
-                for pobj in parentObjs:
-                    if (pobj in order  and (order[pobj] >= order[comp])):
-                        order[comp] = order[pobj] + 1
-                        change = True
+        comp_objs = self._comp_objs
+        order = order_compute_objs(comp_objs)
         return order
 
     def __str__(self):
