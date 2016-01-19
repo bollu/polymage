@@ -532,12 +532,17 @@ class Reduce(object):
         return ret_str
 
 class Function(object):
-    def __init__(self, _varDom, _typ, _name):
+    def __init__(self, _varDom, _typ, _name, _const=""):
         self._name      = _name
         # Type of the scalar range of the function
         self._typ       = _typ
         # Variables of the function
         self._variables = None
+        # Constant function (standalone)
+        if _const == "const":
+            self._const = True
+        else:
+            self._const = False
 
         # Gives the domain of each variable. Domain of each variable is
         # expected to be over integers. Function evaluation in the
@@ -571,6 +576,9 @@ class Function(object):
     @property
     def typ(self):
         return self._typ
+    @property
+    def is_const_func(self):
+        return self._const
 
     @property
     def variableDomain(self):
@@ -655,7 +663,10 @@ class Function(object):
         newBody = [ c.clone() for c in self._body ]
         varDom = ( [ v.clone() for v in self._variables], 
                    [ d.clone() for d in self._varDomain] )
-        newFunc = Function(varDom, self._typ, self._name)
+        _const = ""
+        if self.is_const_func:
+            _const = "const"
+        newFunc = Function(varDom, self._typ, self._name, _const)
         newFunc.defn = newBody
         return newFunc
     

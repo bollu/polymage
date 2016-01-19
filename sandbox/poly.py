@@ -500,12 +500,12 @@ class PolyRep(object):
 
         for comp in comp_objs:
             if (type(comp) == Function or type(comp) == Image):
-                self.extract_polyrep_from_function(comp, schedule_names,
+                self.extract_polyrep_from_function(comp, dim, schedule_names,
                                                    param_names, context_conds,
                                                    comp_objs[comp]+1,
                                                    param_constraints)
             elif (type(comp) == Reduction):
-                self.extract_polyrep_from_reduction(comp, schedule_names,
+                self.extract_polyrep_from_reduction(comp, dim, schedule_names,
                                                     param_names, context_conds,
                                                     comp_objs[comp]+1,
                                                     param_constraints)
@@ -558,7 +558,7 @@ class PolyRep(object):
 
         return poly_dom
 
-    def extract_polyrep_from_function(self, comp,
+    def extract_polyrep_from_function(self, comp, max_dim,
                                       schedule_names, param_names,
                                       context_conds, level_no,
                                       param_constraints):
@@ -567,10 +567,11 @@ class PolyRep(object):
         sched_map = self.create_sched_space(comp.variables, comp.domain,
                                             schedule_names, param_names,
                                             context_conds)
-        self.create_poly_parts_from_definition(comp, sched_map, level_no, 
+        self.create_poly_parts_from_definition(comp, max_dim,
+                                               sched_map, level_no,
                                                schedule_names, comp.domain)
 
-    def extract_polyrep_from_reduction(self, comp,
+    def extract_polyrep_from_reduction(self, comp, max_dim,
                                        schedule_names, param_names,
                                        context_conds, level_no,
                                        param_constraints):
@@ -580,7 +581,8 @@ class PolyRep(object):
                                             comp.reductionDomain,
                                             schedule_names, param_names,
                                             context_conds)
-        self.create_poly_parts_from_definition(comp, sched_map, level_no,
+        self.create_poly_parts_from_definition(comp, max_dim,
+                                               sched_map, level_no,
                                                schedule_names,
                                                comp.reductionDomain)
         dom_map = self.create_sched_space(comp.variables, comp.domain,
@@ -588,7 +590,7 @@ class PolyRep(object):
                                           context_conds)
 
         # Initializing the reduction earlier than any other function
-        self.create_poly_parts_from_default(comp, dom_map, level_no,
+        self.create_poly_parts_from_default(comp, max_dim, dom_map, level_no,
                                             schedule_names)
 
     def create_sched_space(self, variables, domains,
@@ -610,7 +612,7 @@ class PolyRep(object):
 
         return sched_map
 
-    def create_poly_parts_from_definition(self, comp,
+    def create_poly_parts_from_definition(self, comp, max_dim,
                                           sched_map, level_no,
                                           schedule_names, domain):
         self.poly_parts[comp] = []
@@ -621,7 +623,8 @@ class PolyRep(object):
             # a level dimension. The level dimension gives the ordering
             # of the compute objects within a group.
 
-            align, scale = schd.default_align_and_scale(sched_m)
+            align, scale = \
+                schd.default_align_and_scale(sched_m, max_dim, shift=True)
 
             if (isinstance(case, Case)):
                 # Dealing with != and ||. != can be replaced with < || >.
@@ -696,10 +699,11 @@ class PolyRep(object):
         #        isl_set_id_user(id_, poly_part)
         #        self.poly_parts[comp].append(poly_part)
 
-    def create_poly_parts_from_default(self, comp, sched_map,
+    def create_poly_parts_from_default(self, comp, max_dim, sched_map,
                                        level_no, schedule_names):
         sched_m = sched_map.copy()
-        align, scale = schd.default_align_and_scale(sched_m)
+        align, scale = \
+            schd.default_align_and_scale(sched_m, max_dim, shift=True)
 
         assert(isinstance(comp.default, AbstractExpression))
         poly_part = PolyPart(sched_m, comp.default,

@@ -83,14 +83,24 @@ def base_schedule(group):
 
     return parts
 
-def default_align_and_scale(sched, max_dim=None):
+def default_align_and_scale(sched, max_dim=None, shift=False):
     dim_in = sched.dim(isl._isl.dim_type.in_)
+
     # align[i] = j means input dimension i is mapped to output
     # dimension j
-    align = [ i for i in range(0, dim_in) ]
+
     # the default scaling in each dimension is set to 1 i.e., the
     # schedule dimension correspoinding to input dimension will be
     # scaled by 1
+
+    #shift=False
+    if shift:
+        assert max_dim != None
+        off = max_dim - dim_in
+        align = [ i for i in range(off, max_dim) ]
+    else:
+        align = [ i for i in range(0, dim_in) ]
+
     scale = [1 for i in range(0, dim_in)]
 
     if max_dim:
@@ -566,7 +576,7 @@ def align_and_scale(pipeline, group):
 
             # if the poly part makes no reference to any other compute object
             if not refs:
-                aln_scl = default_align_and_scale(p.sched, info.max_dim)
+                aln_scl = default_align_and_scale(p.sched, info.max_dim, shift=True)
                 true_default = ASPacket(aln_scl[0], aln_scl[1])
                 full_default = ASPacket(aln_scl[0], aln_scl[1])
                 info.align_scale[p] = ASInfo(true_default, full_default)
@@ -634,11 +644,6 @@ def align_and_scale(pipeline, group):
                 if min_level > p._level_no:
                     min_level = p._level_no
 
-    # the alignment positions and scaling factors for variables follows
-    # domain order of base parts
-    base_align = [i for i in range(0, max_dim)]
-    base_scale = [1 for i in range(0, max_dim)]
-
     # begin from the topologically earliest part as the base for
     # alignment reference
     min_level_parts = [part for part in no_self_dep_parts \
@@ -679,7 +684,7 @@ def align_and_scale(pipeline, group):
     info.solved.append(base_comp)
     for part in group.polyRep.poly_parts[base_comp]:
         # set default values for base parts
-        align, scale = default_align_and_scale(part.sched, max_dim)
+        align, scale = default_align_and_scale(part.sched, max_dim, shift=True)
         # update to the temporary info
         true_pack = ASPacket(align, scale)
         full_pack = ASPacket(align, scale)
