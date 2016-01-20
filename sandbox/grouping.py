@@ -110,21 +110,29 @@ def auto_group(pipeline):
         for group in pipeline._group_children:
             is_small_grp = True
             is_reduction_grp = False
+            is_const_grp = False
             for comp in group._comp_objs:
                 if not comp in small_comps:
                     is_small_grp = False
                 if isinstance(comp, Reduction):
                     is_reduction_grp = True
+                if comp.is_const_func:
+                    is_const_grp = True
             for g_child in pipeline._group_children[group]:
                 for comp in g_child._comp_objs:
                     if isinstance(comp, Reduction):
                         is_reduction_grp = True
+                    if comp.is_const_func:
+                        is_const_grp = True
+
             # merge if
             # 1. big enough
             # 2. does not contain reduction
-            # 3. number of comps in group < grp_size
+            # 3. does not contain const function
+            # 4. number of comps in group < grp_size
             if not is_small_grp and \
                not is_reduction_grp and \
+               not is_const_grp and \
                len(group._comp_objs) < grp_size:
                 merge = True
 

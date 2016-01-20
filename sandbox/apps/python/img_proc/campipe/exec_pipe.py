@@ -10,14 +10,14 @@ from compiler   import *
 from constructs import *
 from utils import *
 
-def call_pipe(U_, W_, app_data):
+def call_pipe(app_data):
     rows = app_data['rows']
     cols = app_data['cols']
 
     app_args = app_data['app_args']
-    colour_temp = app_args['colour_temp']
-    contrast = app_args['contrast']
-    gamma = app_args['gamma']
+    colour_temp = float(app_args.colour_temp)
+    contrast = float(app_args.contrast)
+    gamma = float(app_args.gamma)
 
     img_data = app_data['img_data']
     IN = img_data['IN']
@@ -26,7 +26,7 @@ def call_pipe(U_, W_, app_data):
     OUT = img_data['OUT']
 
     # lib function name
-    func_name = 'pipeline_'+app_data['app_name']
+    func_name = 'pipeline_'+app_data['app']
     pipe_func = app_data[func_name]
 
     # lib function args
@@ -34,8 +34,8 @@ def call_pipe(U_, W_, app_data):
     pipe_args += [ctypes.c_int(cols)]
     pipe_args += [ctypes.c_int(rows)]
     pipe_args += [ctypes.c_float(colour_temp)]
-    pipe_args += [ctypes.c_int(contrast)]
-    pipe_args += [ctypes.c_int(gamma)]
+    pipe_args += [ctypes.c_float(contrast)]
+    pipe_args += [ctypes.c_float(gamma)]
     pipe_args += [ctypes.c_void_p(IN.ctypes.data)]
     pipe_args += [ctypes.c_void_p(M3200.ctypes.data)]
     pipe_args += [ctypes.c_void_p(M7000.ctypes.data)]
@@ -47,11 +47,8 @@ def call_pipe(U_, W_, app_data):
     return
 
 def campipe(app_data):
-    grid_data = app_data['grid_data']
-    U_ = grid_data['U_']
-    W_ = grid_data['W_']
-
-    runs = app_data['runs']
+    app_args = app_data['app_args']
+    runs = int(app_args.runs)
     it  = 0
 
     timer = app_data['timer']
@@ -59,9 +56,8 @@ def campipe(app_data):
         t1 = time.time()
 
     while it < runs :
-        call_pipe(U_, W_, app_data)
-        if timer == False:
-            calcNorm(W_, app_data)
+        call_pipe(app_data)
+        it += 1
 
     if timer == True:
         t2 = time.time()

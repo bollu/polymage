@@ -247,7 +247,7 @@ def camera_pipe(pipe_data):
     #    val = Cast(Int, (val * 256.0)) # Halide : "Q8.8 fixed point"
     #    return val
 
-    mat = Function(([x, y], [rgb, grbg]), Int, "matrix")
+    mat = Function(([x, y], [rgb, grbg]), Int, "matrix", "const")
     val = (matrix_3200(x, y) * alpha + matrix_7000(x, y) * (1 - alpha))
     mat.defn = [Cast(Int, val * 256.0)]
 
@@ -285,7 +285,7 @@ def camera_pipe(pipe_data):
         return val
 
     # compute this beforehand (its a LUT)
-    curve = Function(([v], [lut_range]), UChar, "curveLUT")
+    curve = Function(([v], [lut_range]), UChar, "curveLUT", "const")
     curve.defn = [lut_value(v)]
 
     # pick from LUT map
