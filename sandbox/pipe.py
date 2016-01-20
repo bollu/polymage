@@ -81,7 +81,7 @@ def order_compute_objs(comp_objs):
             parent_objs = get_parents_from_comp_obj(comp)
             for p_obj in parent_objs:
                 if (p_obj in order and (order[p_obj] >= order[comp])):
-                    order[comp] = order[pobj] + 1
+                    order[comp] = order[p_obj] + 1
                     change = True
     return order
 
@@ -275,16 +275,15 @@ class Pipeline:
             LOG(log_level, [comp.name for comp in g.compute_objs])
         # ***
 
-        ''' ALIGNMENT AND SCALING '''
-        align_parts(self)
-        scale_parts(self)
-
-        ''' BASE SCHEDULE AND CODEGEN '''
+        ''' SCHEDULING '''
         for g in self._group_list:
+            # alignment and scaling
+            align_and_scale(self, g)
+            # base schedule
             gparts = base_schedule(g)
             for p in gparts:
                 p.compute_liveness(self)
-
+            # grouping and tiling
             fused_schedule(self, g, self._param_estimates)
 
         self._pipeline_graph = self.draw_pipeline_graph()
@@ -318,6 +317,11 @@ class Pipeline:
         for group in self._groups.values():
             params = params + group.getParameters()
         return list(set(params))
+
+    def order_compute_objs(self):
+        comp_objs = self._comp_objs
+        order = order_compute_objs(comp_objs)
+        return order
 
     def build_initial_groups(self):
         """

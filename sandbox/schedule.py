@@ -701,6 +701,16 @@ def align_and_scale(pipeline, group):
     # discovered.
     solve_comp_parents(info.discovered, info)
 
+    # increment alignments
+    def plus_one(align):
+        plus_align = []
+        for dim in align:
+            if dim != '-':
+                plus_align.append(dim+1)
+            else:
+                plus_align.append('-')
+        return plus_align
+
     # set all the solutions into polypart object members
     for comp in comp_objs:
         for part in group.polyRep.poly_parts[comp]:
@@ -714,8 +724,10 @@ def align_and_scale(pipeline, group):
             align = align_scale[0]
             scale = align_scale[1]
 
+            plus_align = plus_one(align)
+
             # set the final values into the poly part object
-            part.set_align(align)
+            part.set_align(plus_align)
             part.set_scale(scale)
 
     ''' normalizing the scaling factors '''
@@ -757,7 +769,7 @@ def align_and_scale(pipeline, group):
     # ***
     log_level = logging.DEBUG
     LOG(log_level, "")
-    LOG(log_level, "done ... align_parts()")
+    LOG(log_level, "done ... align_scale_parts()")
     LOG(log_level, "___________________________________")
     # ***
 
