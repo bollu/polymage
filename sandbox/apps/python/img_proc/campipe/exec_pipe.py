@@ -51,7 +51,7 @@ def campipe(app_data):
     runs = int(app_args.runs)
     it  = 0
 
-    timer = app_data['timer']
+    timer = bool(app_args.timer)
     if timer == True:
         t1 = time.time()
 
@@ -64,6 +64,6 @@ def campipe(app_data):
 
         time_taken = float(t2) - float(t1)
         print("")
-        print("[exec_pipe] : time taken to execute = ", time_taken, " ms")
+        print("[exec_pipe] : time taken to execute = ", time_taken*1000, " ms")
 
     return

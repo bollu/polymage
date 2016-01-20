@@ -49,17 +49,25 @@ def parse_args():
                        default=0,
                        help='number of cols of image ROI',)
 
-    parser.add_option('-t', '--runs',
+    parser.add_option('-n', '--runs',
                        action='store',
                        dest='runs',
                        default=1,
                        help='number of runs',)
 
+    parser.add_option('-t', '--timer',
+                       action='store_true',
+                       dest='timer',
+                       default=False,
+                       help='True : report execution time, \
+                             False: do not collect timing info',)
+
     parser.add_option('-d', '--display',
                        action='store_true',
                        dest='display',
                        default=False,
-                       help='display output image',)
+                       help='True : display output image, \
+                             False: do not display output image',)
 
     parser.add_option('--pool_alloc',
                        action='store_true',

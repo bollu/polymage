@@ -60,9 +60,6 @@ def get_input(sys_args, app_data):
     app_data['mode'] = app_args.mode
     app_data['pool_alloc'] = app_args.pool_alloc
 
-    # flag to note execution time
-    app_data['timer'] = os.path.isfile("timer.flag")
-
     return
 
 def init_all(args, pipe_data, app_data):
