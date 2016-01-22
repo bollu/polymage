@@ -689,7 +689,7 @@ def align_and_scale(pipeline, group):
 
     # initial alignment and scaling for the base comp parts
     # ***
-    log_level = logging.DEBUG-1
+    log_level = logging.DEBUG
     LOG(log_level, "____")
     LOG(log_level, str(base_part.comp.name)+\
                    " (level : "+str(base_part._level_no)+")")
@@ -781,15 +781,17 @@ def align_and_scale(pipeline, group):
                 new_scale[dim] = '-'
         part.set_scale(new_scale)
 
-        # ***
-        log_level = logging.DEBUG
-        LOG(log_level, part.comp.name)
+    for comp in comp_objs:
+        for part in group.polyRep.poly_parts[comp]:
+            # ***
+            log_level = logging.DEBUG
+            LOG(log_level, part.comp.name)
 
-        log_str1 = "part.align = "+str([i for i in part.align])
-        log_str2 = "part.scale = "+str([i for i in part.scale])
-        LOG(log_level, log_str1)
-        LOG(log_level, log_str2)
-        # ***
+            log_str1 = "part.align = "+str([i for i in part.align])
+            log_str2 = "part.scale = "+str([i for i in part.scale])
+            LOG(log_level, log_str1)
+            LOG(log_level, log_str2)
+            # ***
 
     # ***
     log_level = logging.DEBUG
