@@ -66,22 +66,23 @@ def get_comp_objs_and_dep_maps(outputs):
 
     return comp_objs, comp_objs_parents, comp_objs_children
 
-def order_compute_objs(comp_objs):
-    # Order stores the numbering of each compute object when topologically
-    # sorted.
+def level_order(objs, parent_map):
+    # Order stores the numbering of each object when topologically sorted.
     order = {}
-    # Initialize all the initial numbering to zero for all compute objects
-    for comp in comp_objs:
-        order[comp] = 0
+    # Initialize all the initial numbering to zero for all objects
+    for obj in objs:
+        order[obj] = 0
     # Doing a topological sort in an iterative fashion
     change = True
     while(change):
         change = False
-        for comp in comp_objs:
-            parent_objs = get_parents_from_comp_obj(comp)
+        for obj in objs:
+            parent_objs = parent_map[obj]
+            if parent_objs is None:
+                continue
             for p_obj in parent_objs:
-                if (p_obj in order and (order[p_obj] >= order[comp])):
-                    order[comp] = order[p_obj] + 1
+                if (p_obj in order and (order[p_obj] >= order[obj])):
+                    order[obj] = order[p_obj] + 1
                     change = True
     return order
 
@@ -93,7 +94,8 @@ class Group:
         computation objects when possible.
     """
     # Construct a group from a set of language functions / reductions
-    def __init__(self, _ctx, _comp_objs, _param_constraints):
+    def __init__(self, _ctx, _comp_objs, _comp_objs_parents, \
+                 _param_constraints):
         # All the computation constructs in the language derive from the
         # Function class. Input images cannot be part of a group.
         for comp in _comp_objs:
@@ -101,7 +103,8 @@ class Group:
             #assert(not isinstance(comp, Image))
 
         self._comp_objs  = _comp_objs
-        self._level_order = self.order_compute_objs()
+        self._comp_objs_parents  = _comp_objs_parents
+        self._level_order_comps = self.order_compute_objs()
         self._polyrep = None
         refs = []
 
@@ -147,7 +150,7 @@ class Group:
         return polyhedral
 
     def order_compute_objs(self):
-        order = order_compute_objs(self._comp_objs)
+        order = level_order(self._comp_objs, self._comp_objs_parents)
         return order
 
     def __str__(self):
@@ -212,7 +215,7 @@ class Pipeline:
           self._comp_objs_children = \
             get_comp_objs_and_dep_maps(self._outputs)
 
-        self._level_order = self.order_compute_objs()
+        self._level_order_comps = self.order_compute_objs()
 
         ''' INITIAL GROUPING '''
         # Create a group for each pipeline function / reduction and compute
@@ -269,6 +272,9 @@ class Pipeline:
         # create list of Groups
         self._group_list = list(set(self._groups.values()))
 
+        # level order traversal of groups
+        self._level_order_groups = self.order_group_objs()
+
         # ***
         log_level = logging.INFO
         LOG(log_level, "Grouped compute objects:")
@@ -314,6 +320,14 @@ class Pipeline:
     def pipeline_graph(self):
         return self._pipeline_graph
 
+    @property
+    def get_ordered_compobjs(self):
+        return self._level_order_comps
+
+    @property
+    def get_ordered_groups(self):
+        return self._level_order_groups
+
     def get_parameters(self):
         params=[]
         for group in self._groups.values():
@@ -321,8 +335,22 @@ class Pipeline:
         return list(set(params))
 
     def order_compute_objs(self):
-        order = order_compute_objs(self._comp_objs)
+        order = level_order(self._comp_objs, self._comp_objs_parents)
         return order
+
+    def order_group_objs(self):
+        order = level_order(self._group_list, self._group_parents)
+        return order
+
+    def get_sorted_compobjs(self):
+        sorted_comps = sorted(self._level_order_comps.items(),
+                              key=lambda x: x[1])
+        return sorted_comps
+
+    def get_sorted_groups(self):
+        sorted_groups = sorted(self._level_order_groups.items(),
+                               key=lambda x: x[1])
+        return sorted_groups
 
     def build_initial_groups(self):
         """
@@ -336,7 +364,9 @@ class Pipeline:
         group_parents = {}
         group_children = {}
         for comp in comp_objs:
-            group_map[comp] = Group(self._ctx, [comp], self._param_constraints)
+            group_map[comp] = \
+                Group(self._ctx, [comp], self._comp_objs_parents,
+                      self._param_constraints)
 
         for comp in group_map:
             group_parents[group_map[comp]] = \
@@ -476,7 +506,8 @@ class Pipeline:
         comp_objs = g1.compute_objs + g2.compute_objs
         comp_objs = list(set(comp_objs))
         # Create a new group
-        merged = Group(self._ctx, comp_objs, self._param_constraints)
+        merged = Group(self._ctx, comp_objs, self._comp_objs_parents, \
+                       self._param_constraints)
 
         self.drop_group(g1)
         self.drop_group(g2)
@@ -484,6 +515,7 @@ class Pipeline:
 
         return merged
 
+    '''
     def get_ordered_groups(self):
         # Assign level numbers to each group and sort accourding to the level
         group_order = {}
@@ -506,6 +538,7 @@ class Pipeline:
         sorted_groups = sorted(group_order.items(), key=lambda x: x[1])
 
         return sorted_groups
+    '''
 
     def replace_group(self, old_group, new_group):
         # if old_group has any child

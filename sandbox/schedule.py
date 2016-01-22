@@ -665,13 +665,13 @@ def align_and_scale(pipeline, group):
     # prefer the comp appearing at a higher level in the 'pipeline'
     abs_min_level = 1000000
     for comp in min_level_comps:
-        if abs_min_level > pipeline._level_order[comp]:
-            abs_min_level = pipeline._level_order[comp]
+        if abs_min_level > pipeline._level_order_comps[comp]:
+            abs_min_level = pipeline._level_order_comps[comp]
 
     abs_min_comps = []
     abs_min_parts = []
     for comp in min_level_comps:
-        if pipeline._level_order[comp] == abs_min_level:
+        if pipeline._level_order_comps[comp] == abs_min_level:
             abs_min_comps.append(comp)
             abs_min_parts += group.polyRep.poly_parts[comp]
 
