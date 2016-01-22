@@ -9,7 +9,7 @@ from poly import *
 
 # LOG CONFIG #
 schedule_logger = logging.getLogger("schedule.py")
-schedule_logger.setLevel(logging.INFO)
+schedule_logger.setLevel(logging.DEBUG)
 LOG = schedule_logger.log
 
 class ASPacket(object):
@@ -280,17 +280,23 @@ def align_and_scale(pipeline, group):
                 _dict[i] = '-'
             return _dict
 
-        def compute_abs(dim, dst_pack, rel_align_map, rel_scale_map):
+        def compute_abs(dim, dst_pack, rel_align_map, rel_scale_map, \
+                        reverse=False, pseudo=False):
             root_dim = rel_align_map[dim]
-            if root_dim == '-':
-                dim_align = '-'
-                dim_scale = '-'
-            else:
+            dim_align = '-'
+            dim_scale = '-'
+            if root_dim != '-':
                 dim_align = dst_pack.align[root_dim]
                 if dim_align != '-':
-                    dim_scale = dst_pack.scale[root_dim] * rel_scale_map[dim]
-                else:
-                    dim_scale = '-'
+                    dim_scale = 1
+                    if not pseudo:
+                        if reverse:
+                            dim_scale = Fraction(dst_pack.scale[root_dim]) / \
+                                        Fraction(rel_scale_map[dim])
+                        else:
+                            dim_scale = dst_pack.scale[root_dim] * \
+                                        rel_scale_map[dim]
+
             return dim_align, dim_scale
 
         def unit_test(align, scale):
@@ -318,7 +324,10 @@ def align_and_scale(pipeline, group):
 
             return
 
-        def align_src_to_dst(dst, src_map, dst_map, ref_arg_coeffs):
+        def align_src_to_dst(dst, \
+                             rel_align, rel_scale, \
+                             src_map, dst_map, \
+                             ref_arg_coeffs, reverse=False):
             '''
             Given a target and a relative alignment-scaling info, find the
             true and full alignment-scaling
@@ -337,7 +346,7 @@ def align_and_scale(pipeline, group):
             true_scale = new_list()
             for dim in range(0, max_dim):
                 true_align[dim], true_scale[dim] = \
-                    compute_abs(dim, dst.true, rel_align, rel_scale)
+                    compute_abs(dim, dst.true, rel_align, rel_scale, reverse)
 
             # dims of the src part which are not related to dst
             rem_src_dims = [dim for dim in src_map.values() \
@@ -372,7 +381,8 @@ def align_and_scale(pipeline, group):
                     full_scale[dim] = true_scale[dim]
                 else:
                     full_align[dim], full_scale[dim] = \
-                        compute_abs(dim, dst.full, rel_align, rel_scale)
+                        compute_abs(dim, dst.full, rel_align, rel_scale, \
+                                    reverse, pseudo=True)
 
             # dangling_dims are assigned any available dim of the base alignment
             avail_dims = [dim for dim in range(0, max_dim) \
@@ -425,8 +435,10 @@ def align_and_scale(pipeline, group):
         assert(dst_pack)
 
         # align and scale source to destination
-        src_part_solution = align_src_to_dst(dst_pack, src_map, dst_map,
-                                             ref_arg_coeffs)
+        src_part_solution = align_src_to_dst(dst_pack,
+                                             rel_align, rel_scale,
+                                             src_map, dst_map,
+                                             ref_arg_coeffs, reverse)
 
         if src_part in info.align_scale:  # already has a solution
             src_part_solution = \
@@ -650,10 +662,23 @@ def align_and_scale(pipeline, group):
                               if part._level_no == min_level]
     min_level_comps = list(set([p.comp for p in min_level_parts]))
 
+    # prefer the comp appearing at a higher level in the 'pipeline'
+    abs_min_level = 1000000
+    for comp in min_level_comps:
+        if abs_min_level > pipeline._level_order[comp]:
+            abs_min_level = pipeline._level_order[comp]
+
+    abs_min_comps = []
+    abs_min_parts = []
+    for comp in min_level_comps:
+        if pipeline._level_order[comp] == abs_min_level:
+            abs_min_comps.append(comp)
+            abs_min_parts += group.polyRep.poly_parts[comp]
+
     # pick the min-level part with the highest dimensionality as base part
     base_part = None
     dim_max = 0
-    for p in min_level_parts:
+    for p in abs_min_parts:
         p_dim_in = p.sched.dim(isl._isl.dim_type.in_)
         if p_dim_in > dim_max:
             dim_max = p_dim_in
@@ -751,7 +776,7 @@ def align_and_scale(pipeline, group):
         new_scale = [1 for i in range(0, max_dim)]
         for dim in range(0, max_dim):
             if scale[dim] != '-':
-                new_scale[dim] = norm[dim] * part.scale[dim]
+                new_scale[dim] = int(norm[dim] * part.scale[dim])
             else:
                 new_scale[dim] = '-'
         part.set_scale(new_scale)

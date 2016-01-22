@@ -101,6 +101,7 @@ class Group:
             #assert(not isinstance(comp, Image))
 
         self._comp_objs  = _comp_objs
+        self._level_order = self.order_compute_objs()
         self._polyrep = None
         refs = []
 
@@ -146,8 +147,7 @@ class Group:
         return polyhedral
 
     def order_compute_objs(self):
-        comp_objs = self._comp_objs
-        order = order_compute_objs(comp_objs)
+        order = order_compute_objs(self._comp_objs)
         return order
 
     def __str__(self):
@@ -211,6 +211,8 @@ class Pipeline:
          self._comp_objs_parents, \
           self._comp_objs_children = \
             get_comp_objs_and_dep_maps(self._outputs)
+
+        self._level_order = self.order_compute_objs()
 
         ''' INITIAL GROUPING '''
         # Create a group for each pipeline function / reduction and compute
@@ -319,8 +321,7 @@ class Pipeline:
         return list(set(params))
 
     def order_compute_objs(self):
-        comp_objs = self._comp_objs
-        order = order_compute_objs(comp_objs)
+        order = order_compute_objs(self._comp_objs)
         return order
 
     def build_initial_groups(self):
