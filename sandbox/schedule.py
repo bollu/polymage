@@ -640,40 +640,36 @@ def align_and_scale(pipeline, group):
         return
 
     ''' main '''
-    comp_objs = group._comp_objs
+    comp_objs = group.get_sorted_compobjs()
+    group_parts = group.polyRep.poly_parts
 
     # list all parts with no self references and find the max dim
     max_dim = 0
-    min_level = 1000000
     no_self_dep_parts = []
     for comp in comp_objs:
-        for p in group.polyRep.poly_parts[comp]:
+        for p in group_parts[comp]:
             p_dim_in = p.sched.dim(isl._isl.dim_type.in_)
             if not p.is_self_dependent:
                 no_self_dep_parts.append(p)
                 if max_dim < p_dim_in:
                     max_dim = p_dim_in
-                if min_level > p._level_no:
-                    min_level = p._level_no
 
-    # begin from the topologically earliest part as the base for
-    # alignment reference
-    min_level_parts = [part for part in no_self_dep_parts \
-                              if part._level_no == min_level]
-    min_level_comps = list(set([p.comp for p in min_level_parts]))
+    # begin from the topologically earliest comp parts as the base parts for
+    # scaling and alignment reference
+    root_comps = group._root_comps
 
-    # prefer the comp appearing at a higher level in the 'pipeline'
+    # prefer the comp closer to the root_comp of the pipeline
     abs_min_level = 1000000
-    for comp in min_level_comps:
+    for comp in root_comps:
         if abs_min_level > pipeline._level_order_comps[comp]:
             abs_min_level = pipeline._level_order_comps[comp]
 
     abs_min_comps = []
     abs_min_parts = []
-    for comp in min_level_comps:
+    for comp in root_comps:
         if pipeline._level_order_comps[comp] == abs_min_level:
             abs_min_comps.append(comp)
-            abs_min_parts += group.polyRep.poly_parts[comp]
+            abs_min_parts += group_parts[comp]
 
     # pick the min-level part with the highest dimensionality as base part
     base_part = None
@@ -707,7 +703,7 @@ def align_and_scale(pipeline, group):
 
     info = Info(pipeline, group, max_dim)
     info.solved.append(base_comp)
-    for part in group.polyRep.poly_parts[base_comp]:
+    for part in group_parts[base_comp]:
         # set default values for base parts
         align, scale = default_align_and_scale(part.sched, max_dim, shift=True)
         # update to the temporary info
@@ -738,7 +734,7 @@ def align_and_scale(pipeline, group):
 
     # set all the solutions into polypart object members
     for comp in comp_objs:
-        for part in group.polyRep.poly_parts[comp]:
+        for part in group_parts[comp]:
             # after solving, no poly part cannot not have a solution
             assert part in info.align_scale
             # short hand
@@ -782,7 +778,7 @@ def align_and_scale(pipeline, group):
         part.set_scale(new_scale)
 
     for comp in comp_objs:
-        for part in group.polyRep.poly_parts[comp]:
+        for part in group_parts[comp]:
             # ***
             log_level = logging.DEBUG
             LOG(log_level, part.comp.name)

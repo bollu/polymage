@@ -105,6 +105,8 @@ class Group:
         self._comp_objs  = _comp_objs
         self._comp_objs_parents  = _comp_objs_parents
         self._level_order_comps = self.order_compute_objs()
+        self._root_comps = [comp for comp in self._comp_objs \
+                                   if self._level_order_comps[comp] == 0]
         self._polyrep = None
         refs = []
 
@@ -133,6 +135,10 @@ class Group:
     def name(self):
         return [comp.name for comp in self.compute_objs]
 
+    @property
+    def get_ordered_compobjs(self):
+        return self._level_order_comps
+
     def is_fused(self):
         return len(self.compute_objs) > 1
 
@@ -152,6 +158,12 @@ class Group:
     def order_compute_objs(self):
         order = level_order(self._comp_objs, self._comp_objs_parents)
         return order
+
+    def get_sorted_compobjs(self):
+        sorted_comps = sorted(self._level_order_comps.items(),
+                              key=lambda x: x[1])
+        sorted_comps = [c[0] for c in sorted_comps]
+        return sorted_comps
 
     def __str__(self):
         comp_str  = '[' + \
@@ -345,11 +357,13 @@ class Pipeline:
     def get_sorted_compobjs(self):
         sorted_comps = sorted(self._level_order_comps.items(),
                               key=lambda x: x[1])
+        sorted_comps = [c[0] for c in sorted_comps]
         return sorted_comps
 
     def get_sorted_groups(self):
         sorted_groups = sorted(self._level_order_groups.items(),
                                key=lambda x: x[1])
+        sorted_groups = [g[0] for g in sorted_groups]
         return sorted_groups
 
     def build_initial_groups(self):

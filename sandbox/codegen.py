@@ -864,7 +864,7 @@ def generate_code_for_pipeline(pipeline,
                                are_io_void_ptrs=False):
     sorted_groups = pipeline.get_sorted_groups()
     # Discard the level order information
-    sorted_groups = [ g[0] for g in sorted_groups ]
+    sorted_groups = [ g for g in sorted_groups ]
     # Create a top level module for the pipeline
     m = genc.CModule('Pipeline')
 
