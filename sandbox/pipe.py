@@ -251,7 +251,7 @@ class Pipeline:
         bounds_check_pass(self)
 
         # inline pass
-        inline_pass(self)
+        #inline_pass(self)
 
         # make sure the set of functions to be inlined and those to be grouped
         # are disjoint

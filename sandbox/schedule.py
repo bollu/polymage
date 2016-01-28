@@ -9,7 +9,7 @@ from poly import *
 
 # LOG CONFIG #
 schedule_logger = logging.getLogger("schedule.py")
-schedule_logger.setLevel(logging.DEBUG)
+schedule_logger.setLevel(logging.INFO)
 LOG = schedule_logger.log
 
 class ASPacket(object):
@@ -150,6 +150,14 @@ def align_and_scale(pipeline, group):
         LOG(level, log_str2)
         return
 
+    def non_null(_list, null='-'):
+        n_list = [x for x in _list if x != null]
+        return n_list
+
+    def new_list(fill='-'):
+        ''' return a new empty list of length max_dim '''
+        return [fill for i in range(0, max_dim)]
+
     def extract_arg_vars_coefs(ref_args):
         '''
         Extracts variables and their co-efficients from each argument
@@ -226,9 +234,90 @@ def align_and_scale(pipeline, group):
                     new_scale[dim] = 1
         return (new_align, new_scale)
 
-    def non_null(_list, null='-'):
-        n_list = [x for x in _list if x != null]
-        return n_list
+    def match_scales(part1, part2, info):
+        '''
+        check whether the scaling of each aligned dimesnion of both the parts
+        match
+        '''
+        # scale
+        full_scale1 = info.align_scale[part1].full.scale
+        full_scale2 = info.align_scale[part2].full.scale
+        # align
+        full_align1 = info.align_scale[part1].full.align
+        full_align2 = info.align_scale[part2].full.align
+
+        assert len(full_align1) == len(full_scale1)
+        assert len(full_align2) == len(full_scale2)
+
+        # match for scales if aligned dims are equal
+        max_dim = info.max_dim
+        match = True
+        for d1 in range(0, max_dim):
+            for d2 in range(0, max_dim):
+                if full_align1[d1] == full_align2[d2]:
+                    if full_scale1[d1] != full_scale2[d2]:
+                        match = False
+        return match
+
+    def copy_scale(part1, part2, info):
+        '''
+        copy the scaling info of part2 to part1 using the alignment info
+        '''
+        # scale
+        full_scale1 = new_list()
+        full_scale2 = info.align_scale[part2].full.scale
+        # align
+        full_align1 = info.align_scale[part1].full.align
+        full_align2 = info.align_scale[part2].full.align
+        # match for scales if aligned dims are equal
+        max_dim = info.max_dim
+        match = True
+        for d1 in range(0, max_dim):
+            for d2 in range(0, max_dim):
+                if full_align1[d1] == full_align2[d2]:
+                    full_scale1[d1] = full_scale2[d2]
+        info.align_scale[part1].full.scale = full_scale1
+
+        return
+
+    def uniform_scale(comp_parts, info):
+        log_level = logging.DEBUG-3
+        LOG(log_level, "@@@@@@@@@@@")
+        LOG(log_level, comp_parts[0].comp.name)
+        #if len(comp_parts) > 1:
+        # check if the scaling for comp is same across all parts
+        same_scale = True
+        ref_part = comp_parts[0]
+        for p in comp_parts:
+            same_scale = match_scales(p, ref_part, info) and \
+                         same_scale
+
+        # pick the part with best scaling info, to set uniform scaling
+        # across comp parts
+        #if not same_scale:
+        max_true_dims = 0
+        best_part = None
+        count = 1
+        for p in comp_parts:
+            LOG(log_level, "part :"+str(count))
+            count += 1
+            true_align = info.align_scale[p].true.align
+            true_scale = info.align_scale[p].true.scale  #
+            true_dims = len(non_null(true_align))
+            LOG(log_level, "true_scale: "+str(true_scale))
+            LOG(log_level, "true_align: "+str(true_align))
+            if true_dims > max_true_dims:
+                max_true_dims = true_dims
+                best_part = p
+        LOG(log_level, str(max_true_dims))
+
+        #if not best_part:
+        #LOG(log_level, "Best: "+str(info.align_scale[best_part].full.scale))
+
+        for p in comp_parts:
+            copy_scale(p, best_part, info)
+
+        return
 
     def align_scale_vars(child_part, parent_part,
                          ref_arg_vars, ref_arg_coeffs,
@@ -268,10 +357,6 @@ def align_and_scale(pipeline, group):
                 dim += 1
             assert(dim <= max_dim)
             return dim_map
-
-        def new_list():
-            ''' return a new empty list of length max_dim '''
-            return ['-' for i in range(0, max_dim)]
 
         def new_dict():
             ''' return a new empty dictionary of length max_dim '''
@@ -412,7 +497,7 @@ def align_and_scale(pipeline, group):
 
         # var:dim map of variable domain of the child part
         child_map = get_domain_dims(child_part.sched, \
-                                     child_part.comp.variableDomain[0])
+                                    child_part.comp.variableDomain[0])
         # var:dim map of parent part in argument order
         parent_map = get_argvar_order(ref_arg_vars)
 
@@ -515,8 +600,13 @@ def align_and_scale(pipeline, group):
                     for ref in refs:
                         solve_from_ref(child_part, ref, info, reverse=True)
 
+        # check if all parts of the comp have an alignment and scaling
         for part in part_map[comp]:
             assert part in info.align_scale
+
+        # ensure all the comp parts have the same scale
+        comp_scale = uniform_scale(part_map[comp], info)
+        info.comp_scale[comp] = comp_scale
 
         return
 
@@ -589,7 +679,7 @@ def align_and_scale(pipeline, group):
             # if the poly part makes no reference to any other compute object
             if not refs:
                 aln_scl = default_align_and_scale(p.sched, info.max_dim, shift=True)
-                true_default = ASPacket(aln_scl[0], aln_scl[1])
+                true_default = ASPacket(new_list(), new_list())
                 full_default = ASPacket(aln_scl[0], aln_scl[1])
                 info.align_scale[p] = ASInfo(true_default, full_default)
             else:
@@ -598,6 +688,10 @@ def align_and_scale(pipeline, group):
                     solve_from_ref(p, ref, info)
 
             assert p in info.align_scale
+
+        # ensure all the comp parts have the same scale
+        comp_scale = uniform_scale(comp_parts, info)
+        info.comp_scale[comp] = comp_scale
 
         return
 
@@ -700,6 +794,7 @@ def align_and_scale(pipeline, group):
             self.discovered = []
             # mapping from poly-part to ASPacket
             self.align_scale = {}
+            self.comp_scale = {}
 
     info = Info(pipeline, group, max_dim)
     info.solved.append(base_comp)
