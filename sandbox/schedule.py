@@ -20,17 +20,29 @@ class ASPacket(object):
         self.align = _align
         self.scale = _scale
 
+    def clone(self):
+        align = list(self.align)
+        scale = list(self.scale)
+        return ASPacket(align, scale)
+
 class ASInfo(object):
     """
     contains the following types of scaling and alignment for a part:
     1. true : contains only those that can be inferred from the parent part
     2. full : [true] + random alignment and scaling for the remaining dims
     """
-    def __init__(self, _true, _full):
+    def __init__(self, _true, _full, _borrowed=False):
         # _true, _full -> type : ASPacket
         # absolute alignment and scaling w.r.t base part
+        assert type(_true) == ASPacket and type(_full) == ASPacket
         self.true = _true
         self.full = _full
+        self.borrowed = bool(_borrowed)
+
+    def clone(self):
+        true = self.true.clone()
+        full = self.full.clone()
+        return ASInfo(true, full, self.borrowed)
 
 def format_schedule_constraints(dim_in, dim_out, align, scale, level_no):
     ineq_coeff = []
@@ -40,7 +52,7 @@ def format_schedule_constraints(dim_in, dim_out, align, scale, level_no):
     for i in range(0, dim_in):
         coeff = {}
         coeff[('out', align[i])] = 1
-        if scale[i] != '-':
+        if scale[i] != NULL:
             assert scale[i] >= 1
         coeff[('in', i)] = -1 * scale[i]
         eq_coeff.append(coeff)
@@ -106,8 +118,8 @@ def default_align_and_scale(sched, max_dim=None, shift=False):
     if max_dim:
         if dim_in < max_dim:
             for i in range(dim_in, max_dim):
-                align.append('-')
-                scale.append('-')
+                align.append(NULL)
+                scale.append(NULL)
 
     return (align, scale)
 
@@ -121,7 +133,7 @@ def align_and_scale(pipeline, group):
     of the list part.align. This value is a dimension in the root part or the
     part that is at the first level of the topologically sorted group. In case
     there are multiple parent parts, the same alignment should hold for all
-    those parts. A mapping to '-' instead of an integer dimension indicates
+    those parts. A mapping to NULL instead of an integer dimension indicates
     alignment to none.
 
     Scaling factor structure:
@@ -150,11 +162,11 @@ def align_and_scale(pipeline, group):
         LOG(level, log_str2)
         return
 
-    def non_null(_list, null='-'):
+    def non_null(_list, null=NULL):
         n_list = [x for x in _list if x != null]
         return n_list
 
-    def new_list(fill='-'):
+    def new_list(fill=NULL):
         ''' return a new empty list of length max_dim '''
         return [fill for i in range(0, max_dim)]
 
@@ -172,7 +184,7 @@ def align_and_scale(pipeline, group):
                 nvars = len(arg_vars)
                 if nvars == 0:
                     # example: dim 0 in (2, x+1, y-1)
-                    ref_arg_vars.append('-')
+                    ref_arg_vars.append(NULL)
                     pass
                 elif nvars == 1:
                     # example: dims 0, 1 and 2 in (c, x+1, y-1)
@@ -206,8 +218,7 @@ def align_and_scale(pipeline, group):
         for aln_scl in aln_scl_list:
             if not aln_scl:  # empty entry
                 continue
-            dims = [dim for dim in aln_scl.true.align
-                          if dim != '-']
+            dims = non_null(aln_scl.true.align)
             if dim_max < len(dims):
                 dim_max = len(dims)
                 best = aln_scl
@@ -217,105 +228,65 @@ def align_and_scale(pipeline, group):
 
         return best
 
+    def prune_align_scale(aln_scl, dim_in, info):
+        '''
+        prune the align_scale information to dim_in from max_dim
+        '''
+        max_dim = info.max_dim
+        null = [NULL for d in range(0, max_dim-dim_in)]
+        aln_scl.true.align[dim_in:max_dim] = null
+        aln_scl.full.align[dim_in:max_dim] = null
+        aln_scl.true.scale[dim_in:max_dim] = null
+        aln_scl.full.scale[dim_in:max_dim] = null
+
+        return
+
     def complete_align_scale(part, align, scale):
+        '''
+        extend the align_scale to a list of length max_dim using special NULLs
+        '''
         dim_in = part.sched.dim(isl._isl.dim_type.in_)
         assert dim_in > 0
         new_align = align
         new_scale = scale
-        if not all(align[dim] != '-' for dim in range(0, dim_in)):
-            used_dims = [dim for dim in align if dim != '-']
+        if not all(align[dim] != NULL for dim in range(0, dim_in)):
+            used_dims = [dim for dim in align if dim != NULL]
             universal = set(range(0, len(align)))
             avail_dims = \
                 list(universal.difference(set(used_dims)))
             avail_dims.sort(reverse=True)
             for dim in range(0, dim_in):
-                if align[dim] == '-':
+                if align[dim] == NULL:
                     new_align[dim] = avail_dims.pop()
                     new_scale[dim] = 1
         return (new_align, new_scale)
 
-    def match_scales(part1, part2, info):
+    def borrow_align_scale(comp_parts, info):
         '''
-        check whether the scaling of each aligned dimesnion of both the parts
-        match
+        borrows align_scale information for a part with NULL true align_scale,
+        from another part with maximum true align_scale info
         '''
-        # scale
-        full_scale1 = info.align_scale[part1].full.scale
-        full_scale2 = info.align_scale[part2].full.scale
-        # align
-        full_align1 = info.align_scale[part1].full.align
-        full_align2 = info.align_scale[part2].full.align
 
-        assert len(full_align1) == len(full_scale1)
-        assert len(full_align2) == len(full_scale2)
+        if len(comp_parts) > 1:
+            # list all parts of the comp that has NULL true alignemnt
+            empty = [p for p in comp_parts \
+                         if not non_null(info.align_scale[p].true.align)]
 
-        # match for scales if aligned dims are equal
-        max_dim = info.max_dim
-        match = True
-        for d1 in range(0, max_dim):
-            for d2 in range(0, max_dim):
-                if full_align1[d1] == full_align2[d2]:
-                    if full_scale1[d1] != full_scale2[d2]:
-                        match = False
-        return match
+            # pick the best align_scale from the parts with non NULL true
+            # alignment
+            non_empty = list(set(comp_parts).difference(set(empty)))
+            aln_scl_list = [info.align_scale[p] for p in non_empty]
+            best_aln_scl = pick_best(aln_scl_list)
 
-    def copy_scale(part1, part2, info):
-        '''
-        copy the scaling info of part2 to part1 using the alignment info
-        '''
-        # scale
-        full_scale1 = new_list()
-        full_scale2 = info.align_scale[part2].full.scale
-        # align
-        full_align1 = info.align_scale[part1].full.align
-        full_align2 = info.align_scale[part2].full.align
-        # match for scales if aligned dims are equal
-        max_dim = info.max_dim
-        match = True
-        for d1 in range(0, max_dim):
-            for d2 in range(0, max_dim):
-                if full_align1[d1] == full_align2[d2]:
-                    full_scale1[d1] = full_scale2[d2]
-        info.align_scale[part1].full.scale = full_scale1
-
-        return
-
-    def uniform_scale(comp_parts, info):
-        log_level = logging.DEBUG-3
-        LOG(log_level, "@@@@@@@@@@@")
-        LOG(log_level, comp_parts[0].comp.name)
-        #if len(comp_parts) > 1:
-        # check if the scaling for comp is same across all parts
-        same_scale = True
-        ref_part = comp_parts[0]
-        for p in comp_parts:
-            same_scale = match_scales(p, ref_part, info) and \
-                         same_scale
-
-        # pick the part with best scaling info, to set uniform scaling
-        # across comp parts
-        #if not same_scale:
-        max_true_dims = 0
-        best_part = None
-        count = 1
-        for p in comp_parts:
-            LOG(log_level, "part :"+str(count))
-            count += 1
-            true_align = info.align_scale[p].true.align
-            true_scale = info.align_scale[p].true.scale  #
-            true_dims = len(non_null(true_align))
-            LOG(log_level, "true_scale: "+str(true_scale))
-            LOG(log_level, "true_align: "+str(true_align))
-            if true_dims > max_true_dims:
-                max_true_dims = true_dims
-                best_part = p
-        LOG(log_level, str(max_true_dims))
-
-        #if not best_part:
-        #LOG(log_level, "Best: "+str(info.align_scale[best_part].full.scale))
-
-        for p in comp_parts:
-            copy_scale(p, best_part, info)
+            # set the 'borrowed' flag, and borrow the alignment and scaling
+            # info from the part picked as best. prune the info to the part's
+            # actual dimensionality.
+            best_aln_scl.borrowed = True
+            for p in empty:
+                dim_in = p.sched.dim(isl._isl.dim_type.in_)
+                best_clone = best_aln_scl.clone()
+                prune_align_scale(best_clone, dim_in, info)
+                info.align_scale[p] = best_clone
 
         return
 
@@ -352,7 +323,7 @@ def align_and_scale(pipeline, group):
             dim_map = {}
             dim = 0
             for var in var_list:
-                if var != '-':
+                if var != NULL:
                     dim_map[var] = dim
                 dim += 1
             assert(dim <= max_dim)
@@ -362,17 +333,18 @@ def align_and_scale(pipeline, group):
             ''' return a new empty dictionary of length max_dim '''
             _dict = {}
             for i in range(0, max_dim):
-                _dict[i] = '-'
+                _dict[i] = NULL
             return _dict
 
         def compute_abs(dim, dst_pack, rel_align_map, rel_scale_map, \
                         reverse=False, pseudo=False):
+            ''' compute the absolute align_scale using relative align_scale '''
             root_dim = rel_align_map[dim]
-            dim_align = '-'
-            dim_scale = '-'
-            if root_dim != '-':
+            dim_align = NULL
+            dim_scale = NULL
+            if root_dim != NULL:
                 dim_align = dst_pack.align[root_dim]
-                if dim_align != '-':
+                if dim_align != NULL:
                     dim_scale = 1
                     if not pseudo:
                         if reverse:
@@ -397,10 +369,10 @@ def align_and_scale(pipeline, group):
 
             # 3. test for scaling
             for dim in range(0, max_dim):
-                if align[dim] == '-':
-                    assert scale[dim] == '-'
+                if align[dim] == NULL:
+                    assert scale[dim] == NULL
                 else:
-                    assert scale[dim] != '-'
+                    assert scale[dim] != NULL
                     # precisely, this should be tested for a constant
 
             # 4. dimensionality test
@@ -422,7 +394,7 @@ def align_and_scale(pipeline, group):
             # the part relative to the destination
             # dim:dim map from src to dst
             for var in ref_arg_vars:
-                if var != '-':
+                if var != NULL:
                     rel_align[src_map[var]] = dst_map[var]
                     rel_scale[src_map[var]] = ref_arg_coeffs[var]
 
@@ -435,7 +407,7 @@ def align_and_scale(pipeline, group):
 
             # dims of the src part which are not related to dst
             rem_src_dims = [dim for dim in src_map.values() \
-                                  if rel_align[dim] == '-']
+                                  if rel_align[dim] == NULL]
 
             # dims of the dst part which are not related to src
             rem_dst_dims = [dim for dim in dst_map.values() \
@@ -461,7 +433,7 @@ def align_and_scale(pipeline, group):
             full_align = new_list()
             full_scale = new_list()
             for dim in aligned_dims:
-                if true_align[dim] != '-':
+                if true_align[dim] != NULL:
                     full_align[dim] = true_align[dim]
                     full_scale[dim] = true_scale[dim]
                 else:
@@ -604,9 +576,8 @@ def align_and_scale(pipeline, group):
         for part in part_map[comp]:
             assert part in info.align_scale
 
-        # ensure all the comp parts have the same scale
-        comp_scale = uniform_scale(part_map[comp], info)
-        info.comp_scale[comp] = comp_scale
+        # borrow align_scale for the under previleged!
+        borrow_align_scale(part_map[comp], info)
 
         return
 
@@ -689,9 +660,8 @@ def align_and_scale(pipeline, group):
 
             assert p in info.align_scale
 
-        # ensure all the comp parts have the same scale
-        comp_scale = uniform_scale(comp_parts, info)
-        info.comp_scale[comp] = comp_scale
+        # borrow align_scale for the under previleged!
+        borrow_align_scale(comp_parts, info)
 
         return
 
@@ -821,10 +791,10 @@ def align_and_scale(pipeline, group):
     def plus_one(align):
         plus_align = []
         for dim in align:
-            if dim != '-':
+            if dim != NULL:
                 plus_align.append(dim+1)
             else:
-                plus_align.append('-')
+                plus_align.append(NULL)
         return plus_align
 
     # set all the solutions into polypart object members
@@ -855,7 +825,7 @@ def align_and_scale(pipeline, group):
     for part in info.align_scale:
         scale = part.scale
         for dim in range(0, max_dim):
-            if scale[dim] != '-':
+            if scale[dim] != NULL:
                 d = Fraction(scale[dim].denominator)
                 norm[dim] = lcm(d, norm[dim])
 
@@ -866,10 +836,10 @@ def align_and_scale(pipeline, group):
         scale = part.scale
         new_scale = [1 for i in range(0, max_dim)]
         for dim in range(0, max_dim):
-            if scale[dim] != '-':
+            if scale[dim] != NULL:
                 new_scale[dim] = int(norm[dim] * part.scale[dim])
             else:
-                new_scale[dim] = '-'
+                new_scale[dim] = NULL
         part.set_scale(new_scale)
 
     for comp in comp_objs:

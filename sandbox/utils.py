@@ -3,6 +3,8 @@ import _ctypes
 
 from fractions import gcd
 
+NULL = 'X'
+
 def lcm(a, b):
     return a*b/(gcd(a, b))
 

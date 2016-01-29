@@ -6,6 +6,7 @@ import islpy as isl
 
 from constructs import *
 from expression import *
+from utils import *
 import schedule as schd
 
 # Static method 'alloc' for isl Id does not allow the user to be
@@ -280,7 +281,7 @@ class PolyPart(object):
 
         num_args = len(ref.arguments)
         dim_out = parent_part.sched.dim(isl._isl.dim_type.out)
-        dep_vec = [ '-' for i in range(0, dim_out) ]
+        dep_vec = [ NULL for i in range(0, dim_out) ]
 
         if isinstance(parent_part.comp, Reduction):
             for i in range(1, dim_out):
@@ -388,13 +389,13 @@ class PolyPart(object):
                 #assert(False)
                 dep_vec[pvar_sched_dim] = '*'
 
-        assert dep_vec[0] == '-'
+        assert dep_vec[0] == NULL
         dep_vec[0] = self._level_no - parent_part._level_no
         for i in range(0, dim_out):
-            if (dep_vec[i] == '-'):
+            if (dep_vec[i] == NULL):
                 dep_vec[i] = 0
         #for i in range(0, dim_out):
-        #    if (dep_vec[i] == '-'):
+        #    if (dep_vec[i] == NULL):
         #        dep_vec[i] = '*'
         #        p_lower_bound = parent_part.sched.range().dim_min(i)
         #        p_upper_bound = parent_part.sched.range().dim_max(i)
