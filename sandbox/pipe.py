@@ -529,31 +529,6 @@ class Pipeline:
 
         return merged
 
-    '''
-    def get_ordered_groups(self):
-        # Assign level numbers to each group and sort accourding to the level
-        group_order = {}
-        groups = set(self._groups.values())
-        group_list = [ [g, len(self._group_parents[g])] for g in groups ]
-
-        level = 0
-        while group_list:
-            # find all the groups whose parents have their levels assigned
-            level_assigned = [ t for t in group_list if t[1] == 0 ]
-            for assgn in level_assigned:
-                group_order[assgn[0]] = level
-                group_list.remove(assgn)
-                # reduce the unassigned parent count for all the children
-                child_groups = self._group_children[assgn[0]]
-                for assgn in group_list:
-                    if assgn[0] in child_groups:
-                        assgn[1] -= 1
-            level = level + 1
-        sorted_groups = sorted(group_order.items(), key=lambda x: x[1])
-
-        return sorted_groups
-    '''
-
     def replace_group(self, old_group, new_group):
         # if old_group has any child
         if old_group in self._group_children:
