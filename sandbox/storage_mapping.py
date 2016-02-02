@@ -75,6 +75,7 @@ class Storage:
         self._dimension = []
         for dim in range(0, self._dims):
             self._dimension.append(Dimension(self._dim_sizes[dim]))
+        self._lookup_key = self.generate_key()
 
     @property
     def dims(self):
@@ -82,10 +83,29 @@ class Storage:
     @property
     def dim_sizes(self):
         return self._dim_sizes
+    @property
+    def lookup_key(self):
+        return self._lookup_key
 
     def get_dim(self, dim):
         assert dim < self._dims
         return self._dimension[dim]
+
+    def generate_key(self):
+        key = [self.dims]
+
+        # get (param, coeff) key from each dim
+        param_keys = []
+        for dim in range(0, dims):
+            storage_dim = storage.get_dim(dim)
+            param_keys.append((storage_dim.param, storage_dim.coeff))
+        param_keys = sorted(param_keys, key=lambda x:x[0])
+
+        key.extend(param_keys)
+        # convert to string because list as a dict key is not allowed
+        key = str(key)
+
+        return key
 
 def storage_classification(pipeline):
     '''
@@ -147,25 +167,6 @@ def storage_classification(pipeline):
 
         return storage_map
 
-    def construct_key(comp, storage_map):
-        storage = storage_map[comp]
-        dims = storage.dims
-        key = [dims]
-
-        param_keys = []
-        for dim in range(0, dims):
-            storage_dim = storage.get_dim(dim)
-            param = storage_dim.param
-            coeff = storage_dim.coeff
-            param_keys.append((param, coeff))
-        param_keys = sorted(param_keys, key=lambda x:x[0])
-
-        key.extend(param_keys)
-        # convert to string because list as a dict key is not allowed
-        key = str(key)
-
-        return key
-
     def find_storage_equivalence(comps, storage_map):
         '''
         Create a mapping to the compute object from it's size properties.
@@ -178,8 +179,8 @@ def storage_classification(pipeline):
         storage_class_map = {}
         key_map = {}
         for comp in comps:
-            key = construct_key(comp, storage_map)
-            key_map[comp] = key
+            storage = storage_map[comp]
+            key_map[comp] = storage.lookup_key
             if key not in storage_class_map:
                 storage_class_map[key] = [comp]
             else:
