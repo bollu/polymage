@@ -6,7 +6,7 @@ from pipe import *
 
 # LOG CONFIG #
 pipe_logger = logging.getLogger("storage_mapping.py")
-pipe_logger.setLevel(logging.DEBUG-1)
+pipe_logger.setLevel(logging.INFO)
 LOG = pipe_logger.log
 
 def compute_liveness(pipeline, schedule):
@@ -34,13 +34,23 @@ def compute_liveness(pipeline, schedule):
     return liveness_map
 
 class Dimension:
-    def __init__(self, size):
-        self._param = size[0]
-        self._size_expr = size[1]
+    def __init__(self, size_map):
+
+        _param = size_map[0]
+        if _param == 0:  # constant
+            self._param = '0'
+        else:  # Parameter
+            self._param = _param.name
+
+        self._size_expr = size_map[1]
 
         coeff_map = get_affine_var_and_param_coeff(self._size_expr)
-        self._coeff = coeff_map[self._param]
         self._const = get_constant_from_expr(self._size_expr)
+        self._coeff = 1
+        if not self.is_constant:
+            self._coeff = coeff_map[_param]
+        else:
+            self._coeff = self._const
 
     @property
     def param(self):
@@ -54,9 +64,9 @@ class Dimension:
     @property
     def const(self):
         return self._const
-
+    @property
     def is_constant(self):
-        return self._param == 0
+        return self._param == '0'
 
 class Storage:
     def __init__(self, _dims, _dim_sizes):
@@ -120,7 +130,7 @@ def storage_classification(pipeline):
 
         return comp_size
 
-    def create_storage_class(comps, comp_size):
+    def create_storage_object(comps, comp_size):
         '''
         Create classes of storage with different sizes. Default storage class
         is 'const' class which includes arrays with no Parameters. Coefficients
@@ -128,18 +138,71 @@ def storage_classification(pipeline):
         '''
         # dict 'storage' : {comp -> Storage}
 
-        storage = {}
+        storage_map = {}
         for comp in comps:
             dim_sizes = comp_size[comp][0]
             total_size = comp_size[comp][1]
             dims = len(dim_sizes)
-            storage[comp] = Storage(dims, dim_sizes)
+            storage_map[comp] = Storage(dims, dim_sizes)
+
+        return storage_map
+
+    def construct_key(comp, storage_map):
+        storage = storage_map[comp]
+        dims = storage.dims
+        key = [dims]
+
+        param_keys = []
+        for dim in range(0, dims):
+            storage_dim = storage.get_dim(dim)
+            param = storage_dim.param
+            coeff = storage_dim.coeff
+            param_keys.append((param, coeff))
+        param_keys = sorted(param_keys, key=lambda x:x[0])
+
+        key.extend(param_keys)
+        # convert to string because list as a dict key is not allowed
+        key = str(key)
+
+        return key
+
+    def find_storage_equivalence(comps, storage_map):
+        '''
+        Create a mapping to the compute object from it's size properties.
+        To create mapping, first we need to generate keys this way-
+        - Field 0 : dimensionality 'dim' of the compute object
+        - The following 'dim' fields are tuples of Parameter names with their
+          respective coefficents. The fields are sorted using the parameter
+          names.
+        '''
+        storage_class_map = {}
+        key_map = {}
+        for comp in comps:
+            key = construct_key(comp, storage_map)
+            key_map[comp] = key
+            if key not in storage_class_map:
+                storage_class_map[key] = [comp]
+            else:
+                storage_class_map[key].append(comp)
+
+        return key_map, storage_class_map
 
     # compute the total size of the compute object using the interval
     # information
     comp_size = compute_sizes(comps)
 
     # create storage classes
-    create_storage_class(comps, comp_size)
+    storage_map = create_storage_object(comps, comp_size)
+
+    # find equivalence in size between storage objects and create classes of
+    # storage objects
+    key_map, storage_class_map = find_storage_equivalence(comps, storage_map)
+
+    # ***
+    for key in storage_class_map:
+        log_level = logging.DEBUG-1
+        comp_names = [comp.name for comp in storage_class_map[key]]
+        LOG(log_level, comp_names)
+    # ***
 
     return
