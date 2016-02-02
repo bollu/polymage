@@ -33,37 +33,37 @@ def compute_liveness(pipeline, schedule):
 
     return liveness_map
 
+class Dimension:
+    def __init__(self, size):
+        self._param = size[0]
+        self._size_expr = size[1]
+
+        coeff_map = get_affine_var_and_param_coeff(self._size_expr)
+        self._coeff = coeff_map[self._param]
+        self._const = get_constant_from_expr(self._size_expr)
+
+    @property
+    def param(self):
+        return self._param
+    @property
+    def size(self):
+        return self._size_expr
+    @property
+    def coeff(self):
+        return self._coeff
+    @property
+    def const(self):
+        return self._const
+
+    def is_constant(self):
+        return self._param == 0
+
 class Storage:
-    class Dimension:
-        def __init__(self, size):
-            self._param = size[0]
-            self._size_expr = size[1]
-
-            coeff_map = get_affine_var_and_param_coeff(self._size_expr)
-            self._coeff = coeff_map[self._param]
-            self._const = get_constant_from_expr(self._size_expr)
-
-        @property
-        def param(self):
-            return self._param
-        @property
-        def size(self):
-            return self._size_expr
-        @property
-        def coeff(self):
-            return self._coeff
-        @property
-        def const(self):
-            return self._const
-
-        def is_constant(self):
-            return self._param == 0
-
     def __init__(self, _dims, _dim_sizes):
         self._dims = _dims
         self._dim_sizes = _dim_sizes
         self._dimension = []
-        for dim in range(0, dims):
+        for dim in range(0, self._dims):
             self._dimension.append(Dimension(self._dim_sizes[dim]))
 
     @property
@@ -130,13 +130,16 @@ def storage_classification(pipeline):
 
         storage = {}
         for comp in comps:
-            dim_sizes = comp_size[0]
-            total_size = comp_size[1]
+            dim_sizes = comp_size[comp][0]
+            total_size = comp_size[comp][1]
             dims = len(dim_sizes)
             storage[comp] = Storage(dims, dim_sizes)
 
     # compute the total size of the compute object using the interval
     # information
     comp_size = compute_sizes(comps)
+
+    # create storage classes
+    create_storage_class(comps, comp_size)
 
     return
