@@ -107,15 +107,12 @@ def test_sampling():
                              #grouping = groups,
                              param_estimates = p_est,
                              pipe_name="up")
-
-    '''
-    filename = 'down_graph.dot'
-    pipeline.originalGraph.write(filename)
  
-    filename = 'down_graph_grouped.dot'
-    g = pipeline.drawPipelineGraph()
+    pipeline.create_storage_classes()
+
+    filename = 'sampling_graph.dot'
+    g = pipeline.pipeline_graph
     g.write(filename)
-    '''
 
     filename = 'sampling_naive.cpp'
     c_file = open(filename, 'w')

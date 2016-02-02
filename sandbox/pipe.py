@@ -18,6 +18,7 @@ from schedule import *
 from poly import *
 from bounds import *
 from inline import *
+from storage_mapping import *
 
 # LOG CONFIG #
 pipe_logger = logging.getLogger("pipe.py")
@@ -597,3 +598,6 @@ class Pipeline:
         for s in self._groups:
             return_str = return_str + s.__str__() + "\n"
         return return_str
+
+    def create_storage_classes(self):
+        return storage_classification(self)
