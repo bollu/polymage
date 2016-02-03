@@ -142,14 +142,11 @@ class Storage:
 
         return total_size
 
-def storage_classification(pipeline):
+def storage_classification(comps):
     '''
     Classifies the compute objects into separate groups based on their storage
     sizes.
     '''
-    comps = pipeline._comp_objs
-    children = pipeline._comp_objs_children
-
     def compute_sizes(comps):
         '''
         For each dimension of the compute object, find the interval size and

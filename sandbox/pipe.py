@@ -600,4 +600,4 @@ class Pipeline:
         return return_str
 
     def create_storage_classes(self):
-        return storage_classification(self)
+        return storage_classification(self._comp_objs)
