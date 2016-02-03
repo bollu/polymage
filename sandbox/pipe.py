@@ -309,6 +309,9 @@ class Pipeline:
 
         self._pipeline_graph = self.draw_pipeline_graph()
 
+        ''' STORAGE OPTIMIZATION '''
+        self.create_storage_classes()
+
     @property
     def groups(self):
         return self._groups

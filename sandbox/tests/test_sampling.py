@@ -108,8 +108,6 @@ def test_sampling():
                              param_estimates = p_est,
                              pipe_name="up")
  
-    pipeline.create_storage_classes()
-
     filename = 'sampling_graph.dot'
     g = pipeline.pipeline_graph
     g.write(filename)

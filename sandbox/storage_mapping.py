@@ -277,5 +277,6 @@ def storage_classification(comps):
 
     return
 
+# TESTME
 def classify_scratchpad_storage(comps, size_map):
     pass

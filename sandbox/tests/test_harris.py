@@ -93,8 +93,6 @@ def test_harris_corner():
                              param_estimates = p_est,
                              pipe_name = "harris")
 
-    pipeline.create_storage_classes()
-
     filename = 'harris_graph.dot'
     g = pipeline.pipeline_graph
     g.write(filename)
