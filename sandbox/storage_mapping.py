@@ -102,6 +102,14 @@ class Storage:
         return self._dimension[dim]
 
     def generate_key(self):
+        '''
+        To create class mapping, we generate keys this way -
+        - Field 0 : dimensionality 'dim' of the compute object
+        - Following 'dim' fields are tuples of Parameter names with their
+          respective coefficents. The fields are sorted using the parameter
+          names.
+        '''
+
         key = [self.dims]
 
         # get (param, coeff) key from each dim
@@ -190,11 +198,9 @@ def storage_classification(pipeline):
     def find_storage_equivalence(comps, storage_map):
         '''
         Create a mapping to the compute object from it's size properties.
-        To create mapping, first we need to generate keys this way-
-        - Field 0 : dimensionality 'dim' of the compute object
-        - Following 'dim' fields are tuples of Parameter names with their
-          respective coefficents. The fields are sorted using the parameter
-          names.
+        The classification can be further improved with the knowledge of param
+        constraints or estimates, by not differentiating b/w dimensions of
+        equal sizes.
         '''
         storage_class_map = {}
         key_map = {}
@@ -210,6 +216,13 @@ def storage_classification(pipeline):
         return key_map, storage_class_map
 
     def maximal_storage(comps, storage_class_map, storage_map):
+        '''
+        Compute the maximal storage needed at each dimension individually and
+        over approximate the total storage to be the product of maximal storage
+        of all dimensions. This can further be improved with the knowledge of
+        param constraints or estimates which suggests an exact measure of the
+        size of each dimension.
+        '''
         new_storage_map = {}
         for key in storage_class_map:
             storage_class = storage_class_map[key]  # a list
@@ -266,3 +279,6 @@ def storage_classification(pipeline):
     storage_map = maximal_storage(comps, storage_class_map, storage_map)
 
     return
+
+def classify_scratchpad_storage(comps, size_map):
+    pass
