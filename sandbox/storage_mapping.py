@@ -35,8 +35,9 @@ def compute_liveness(pipeline, schedule):
 
 class Dimension:
     def __init__(self, size_map):
-
         _param = size_map[0]
+        self._orig_param = _param
+
         if _param == 0:  # constant
             self._param = '0'
         else:  # Parameter
@@ -52,6 +53,9 @@ class Dimension:
         else:
             self._coeff = self._const
 
+    @property
+    def orig_param(self):
+        return self._orig_param
     @property
     def param(self):
         return self._param
@@ -80,8 +84,6 @@ class Storage:
         self._lookup_key = self.generate_key()
         self._offsets = self.gen_param_offsets()
 
-        self._total_size = None
-
     @property
     def dims(self):
         return self._dims
@@ -89,11 +91,11 @@ class Storage:
     def dim_sizes(self):
         return self._dim_sizes
     @property
-    def total_size(self):
-        return self._total_size
-    @property
     def lookup_key(self):
         return self._lookup_key
+    @property
+    def offsets(self):
+        return self._offsets
 
     def get_dim(self, dim):
         assert dim < self._dims
@@ -125,9 +127,12 @@ class Storage:
 
         return param_offsets
 
-    def set_total_size(self, _size):
-        self._total_size = _size
+    def compute_total_size(self):
+        total_size = 1
+        for size in self.dim_sizes:
+            total_size *= size
 
+        return total_size
 
 def storage_classification(pipeline):
     '''
@@ -204,6 +209,47 @@ def storage_classification(pipeline):
 
         return key_map, storage_class_map
 
+    def maximal_storage(comps, storage_class_map, storage_map):
+        new_storage_map = {}
+        for key in storage_class_map:
+            storage_class = storage_class_map[key]  # a list
+            # pick a dummpy comp to get the total number of dimensions and the
+            # original parameter associated with each dimesnion
+            helper_comp = storage_class[0]
+            helper_storage = storage_map[helper_comp]
+            dims = helper_storage.dims
+            # this list holds the maximal offset value for each dimension
+            max_offset = [0 for dim in range(0, dims)]
+            for comp in storage_class:
+                storage = storage_map[comp]
+                offsets = storage.offsets
+                for dim in range(0, dims):
+                    dim_off = offsets[dim][1]  # its a tuple
+                    max_offset[dim] = int(max(max_offset[dim], dim_off))
+
+            # collect the dim storage info and update with the new maximal
+            # offset
+            dim_sizes = []
+            for dim in range(0, dims):
+                dim_storage = storage.get_dim(dim)
+                param = dim_storage.orig_param
+                size = (Fraction(dim_storage.coeff)) * dim_storage.orig_param + \
+                       max_offset[dim]
+                dim_sizes.append((param, size))
+
+            # final maximal storage for this class
+            max_storage = \
+                Storage(dims, dim_sizes)
+
+            # all comps of this class now have identical storage
+            for comp in storage_class:
+                new_storage_map[comp] = max_storage
+
+        # clear the temporary mappings
+        storage_class_map.clear()
+
+        return new_storage_map
+
     # compute the total size of the compute object using the interval
     # information
     comp_size = compute_sizes(comps)
@@ -215,11 +261,8 @@ def storage_classification(pipeline):
     # storage objects
     key_map, storage_class_map = find_storage_equivalence(comps, storage_map)
 
-    # ***
-    for key in storage_class_map:
-        log_level = logging.DEBUG-1
-        comp_names = [comp.name for comp in storage_class_map[key]]
-        LOG(log_level, comp_names)
-    # ***
+    # compute the maximal offsets in each dimension of the compute objects,
+    # and compute the total_size of the storage for each storage class
+    storage_map = maximal_storage(comps, storage_class_map, storage_map)
 
     return
