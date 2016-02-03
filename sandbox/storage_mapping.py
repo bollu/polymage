@@ -72,10 +72,15 @@ class Storage:
     def __init__(self, _dims, _dim_sizes):
         self._dims = _dims
         self._dim_sizes = _dim_sizes
+
         self._dimension = []
         for dim in range(0, self._dims):
             self._dimension.append(Dimension(self._dim_sizes[dim]))
+
         self._lookup_key = self.generate_key()
+        self._offsets = self.gen_param_offsets()
+
+        self._total_size = None
 
     @property
     def dims(self):
@@ -83,6 +88,9 @@ class Storage:
     @property
     def dim_sizes(self):
         return self._dim_sizes
+    @property
+    def total_size(self):
+        return self._total_size
     @property
     def lookup_key(self):
         return self._lookup_key
@@ -96,8 +104,8 @@ class Storage:
 
         # get (param, coeff) key from each dim
         param_keys = []
-        for dim in range(0, dims):
-            storage_dim = storage.get_dim(dim)
+        for dim in range(0, self.dims):
+            storage_dim = self.get_dim(dim)
             param_keys.append((storage_dim.param, storage_dim.coeff))
         param_keys = sorted(param_keys, key=lambda x:x[0])
 
@@ -106,6 +114,20 @@ class Storage:
         key = str(key)
 
         return key
+
+    def gen_param_offsets(self):
+        # get (param, const) from each dim
+        param_offsets = []
+        for dim in range(0, self.dims):
+            storage_dim = self.get_dim(dim)
+            param_offsets.append((storage_dim.param, storage_dim.const))
+        param_offsets = sorted(param_offsets, key=lambda x:x[0])
+
+        return param_offsets
+
+    def set_total_size(self, _size):
+        self._total_size = _size
+
 
 def storage_classification(pipeline):
     '''
@@ -127,7 +149,6 @@ def storage_classification(pipeline):
         comp_size = {}
         for comp in comps:
             interval_sizes = []
-            total_size = 1
             intervals = comp.domain
             dim = 0
             for interval in intervals:
@@ -135,18 +156,13 @@ def storage_classification(pipeline):
                 assert not len(params) > 1
                 if len(params) == 1:
                     param = params[0]
-                elif len(params) == 0:
+                elif len(params) == 0:  # const
                     param = 0
                 size = interval.upperBound - interval.lowerBound
                 interval_sizes.append((param, size))
-                total_size = total_size * size
                 dim += 1
-            # ***
-            log_level = logging.DEBUG
-            LOG(log_level, str(total_size))
-            # ***
     
-            comp_size[comp] = (interval_sizes, total_size)
+            comp_size[comp] = interval_sizes
 
         return comp_size
 
@@ -160,8 +176,7 @@ def storage_classification(pipeline):
 
         storage_map = {}
         for comp in comps:
-            dim_sizes = comp_size[comp][0]
-            total_size = comp_size[comp][1]
+            dim_sizes = comp_size[comp]
             dims = len(dim_sizes)
             storage_map[comp] = Storage(dims, dim_sizes)
 
@@ -172,7 +187,7 @@ def storage_classification(pipeline):
         Create a mapping to the compute object from it's size properties.
         To create mapping, first we need to generate keys this way-
         - Field 0 : dimensionality 'dim' of the compute object
-        - The following 'dim' fields are tuples of Parameter names with their
+        - Following 'dim' fields are tuples of Parameter names with their
           respective coefficents. The fields are sorted using the parameter
           names.
         '''
@@ -180,7 +195,8 @@ def storage_classification(pipeline):
         key_map = {}
         for comp in comps:
             storage = storage_map[comp]
-            key_map[comp] = storage.lookup_key
+            key = storage.lookup_key
+            key_map[comp] = key
             if key not in storage_class_map:
                 storage_class_map[key] = [comp]
             else:
