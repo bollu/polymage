@@ -491,14 +491,18 @@ class CArray(CName):
                return False
         return True
 
+    def get_total_size(self):
+        total = 1
+        for dim in self.dims:
+            total *= dim
+        return total
+
     def allocate_contiguous(self, block, pooled=False):
         if self.layout == 'contiguous':
             # Generate a code block which dynamically allocates memory for the
             # given array. Single chunk allocation.
-            size_expr = 1
             cast_type = CPointer(self.typ, 1)
-            for i in range(0, len(self.dims)):
-                size_expr *= self.dims[i]
+            size_expr = self.get_total_size()
             #expr = CCast(cast_type, \
             #             c_memalign(64, CSizeof(self.typ) * size_expr))
             if not pooled:
@@ -617,13 +621,21 @@ class CArray(CName):
             block.add(CStatement(c_pool_free(self.name)))
 
 class CArrayDecl(AbstractCgenObject):
-    def __init__(self, _carray):
+    def __init__(self, _carray, _flat=False):
         self.carray = _carray
-        self.carray.layout = 'multidim'
+        self.flat = _flat
+        if _flat:
+            self.carray.layout = 'contiguous_static'
+        else:
+            self.carray.layout = 'multidim'
     def _cgen(self):
         decl = cgen.Value(self.carray.typ.__str__(), self.carray.name)
-        for dim in self.carray.dims:
-            decl = cgen.ArrayOf(decl, dim)
+        if not self.flat:
+            for dim in self.carray.dims:
+                decl = cgen.ArrayOf(decl, dim)
+        else:
+            total_size = self.carray.get_total_size()
+            decl = cgen.ArrayOf(decl, total_size)
         return decl
 
 # Probably defunct code beyond this point. Check and move to expression

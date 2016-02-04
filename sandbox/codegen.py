@@ -378,6 +378,9 @@ def generate_c_naive_from_isl_ast(polyrep, node, body,
                 vec_pragma = genc.CPragma("ivdep")
                 body.add(vec_pragma)
 
+            #flat_scratch = 'flatten_scratchpad' in pipeline._options
+            flat_scratch = True
+
             body.add(loop)
             # Assuming only one parallel dimension and a whole lot
             # of other things.
@@ -388,7 +391,7 @@ def generate_c_naive_from_isl_ast(polyrep, node, body,
                         #if array.is_constant_size() and False:
                         #if array.is_constant_size():
                         if array.is_constant_size() or True:
-                            array_decl = genc.CArrayDecl(array)
+                            array_decl = genc.CArrayDecl(array, flat_scratch)
                             lbody.add(array_decl)
                         else:
                             array_ptr = genc.CPointer(array.typ, 1)
