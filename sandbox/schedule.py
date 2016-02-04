@@ -9,7 +9,7 @@ from poly import *
 
 # LOG CONFIG #
 schedule_logger = logging.getLogger("schedule.py")
-schedule_logger.setLevel(logging.INFO)
+schedule_logger.setLevel(logging.DEBUG)
 LOG = schedule_logger.log
 
 class ASPacket(object):
@@ -703,6 +703,41 @@ def align_and_scale(pipeline, group):
 
         return
 
+    def plus_one(align):
+        plus_align = []
+        for dim in align:
+            if dim != NULL:
+                plus_align.append(dim+1)
+            else:
+                plus_align.append(NULL)
+        return plus_align
+
+    def find_scale_norm(info):
+        # normalize the scaling factors, so that none of them is lesser than 1
+        norm = [1 for i in range(0, max_dim)]
+
+        # compute the lcm of the Fraction denominators of scaling factors of
+        # all poly parts in the group, for each dimension
+        for part in info.align_scale:
+            scale = part.scale
+            for dim in range(0, max_dim):
+                if scale[dim] != NULL:
+                    d = Fraction(scale[dim].denominator)
+                    norm[dim] = lcm(d, norm[dim])
+
+        return norm
+
+    def normalize_scale(norm, info):
+        for part in info.align_scale:
+            scale = part.scale
+            new_scale = [1 for i in range(0, max_dim)]
+            for dim in range(0, max_dim):
+                if scale[dim] != NULL:
+                    new_scale[dim] = int(norm[dim] * part.scale[dim])
+                else:
+                    new_scale[dim] = NULL
+            part.set_scale(new_scale)
+
     ''' main '''
     comp_objs = group.get_sorted_compobjs()
     group_parts = group.polyRep.poly_parts
@@ -787,16 +822,6 @@ def align_and_scale(pipeline, group):
     # discovered.
     solve_comp_parents(info.discovered, info)
 
-    # increment alignments
-    def plus_one(align):
-        plus_align = []
-        for dim in align:
-            if dim != NULL:
-                plus_align.append(dim+1)
-            else:
-                plus_align.append(NULL)
-        return plus_align
-
     # set all the solutions into polypart object members
     for comp in comp_objs:
         for part in group_parts[comp]:
@@ -810,6 +835,7 @@ def align_and_scale(pipeline, group):
             align = align_scale[0]
             scale = align_scale[1]
 
+            # increment alignments
             plus_align = plus_one(align)
 
             # set the final values into the poly part object
@@ -817,42 +843,22 @@ def align_and_scale(pipeline, group):
             part.set_scale(scale)
 
     ''' normalizing the scaling factors '''
-    # normalize the scaling factors, so that none of them is lesser than 1
-    norm = [1 for i in range(0, max_dim)]
+    norm = find_scale_norm(info)
 
-    # compute the lcm of the Fraction denominators of scaling factors of all
-    # poly parts in the group, for each dimension
-    for part in info.align_scale:
-        scale = part.scale
-        for dim in range(0, max_dim):
-            if scale[dim] != NULL:
-                d = Fraction(scale[dim].denominator)
-                norm[dim] = lcm(d, norm[dim])
+    normalize_scale(norm, info)
 
-    LOG(logging.DEBUG, "")
-    LOG(logging.DEBUG, "Final alignment and scaling")
-
-    for part in info.align_scale:
-        scale = part.scale
-        new_scale = [1 for i in range(0, max_dim)]
-        for dim in range(0, max_dim):
-            if scale[dim] != NULL:
-                new_scale[dim] = int(norm[dim] * part.scale[dim])
-            else:
-                new_scale[dim] = NULL
-        part.set_scale(new_scale)
-
+    # ***
+    log_level = logging.DEBUG
+    LOG(log_level, "")
+    LOG(log_level, "Final alignment and scaling")
     for comp in comp_objs:
         for part in group_parts[comp]:
-            # ***
-            log_level = logging.DEBUG
             LOG(log_level, part.comp.name)
-
             log_str1 = "part.align = "+str([i for i in part.align])
             log_str2 = "part.scale = "+str([i for i in part.scale])
             LOG(log_level, log_str1)
             LOG(log_level, log_str2)
-            # ***
+    # ***
 
     # ***
     log_level = logging.DEBUG
