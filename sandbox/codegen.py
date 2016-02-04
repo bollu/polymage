@@ -819,7 +819,7 @@ def generate_code_for_group(pipeline, g, body, options,
             if reduced_dims[i] == -1:
                 # NOTE interval step is always +1
                 dim_expr = simplify_expr(interval.upperBound -
-                                        interval.lowerBound + 1)
+                                         interval.lowerBound + 1)
 
                 # FIXME Creating both a cVariable (for C declaration) and a
                 # Variable (to append to dims) with same namestring.

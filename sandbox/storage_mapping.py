@@ -168,7 +168,7 @@ def storage_classification(comps):
                     param = params[0]
                 elif len(params) == 0:  # const
                     param = 0
-                size = interval.upperBound - interval.lowerBound
+                size = interval.upperBound - interval.lowerBound + 1
                 interval_sizes.append((param, size))
                 dim += 1
     
