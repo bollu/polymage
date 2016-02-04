@@ -839,17 +839,31 @@ def generate_code_for_group(pipeline, g, body, options,
 
         # 1.3. declare and allocate arrays
         array_type = genc.TypeMap.convert(comp.typ)
-        array = genc.CArray(array_type, comp.name, dims)
-        array_ptr = genc.CPointer(array_type, 1)
-        cfunc_map[comp] = (array, scratch)
 
+        flatten_scratchpad = 'flatten_scratchpad' in pipeline._options
+
+        # full array
         if is_liveout:
+            array = genc.CArray(array_type, comp.name, dims)
             array.layout = 'contiguous'
             # do not allocate output arrays if they are already allocated
             if not is_output or not outputs_no_alloc:
+                array_ptr = genc.CPointer(array_type, 1)
                 array_decl = genc.CDeclaration(array_ptr, array)
                 body.add(array_decl)
                 array.allocate_contiguous(body, pooled)
+        # scratchpad
+        else:
+            if flatten_scratchpad:
+                flat_dim = 1
+                for dim in dims:
+                    flat_dim *= dim
+                array = genc.CArray(array_type, comp.name, [flat_dim])
+            else:
+                array = genc.CArray(array_type, comp.name, dims)
+            pass
+
+        cfunc_map[comp] = (array, scratch)
 
         # array is freed, if comp is a group liveout and not an output
         if not is_output and is_liveout:
