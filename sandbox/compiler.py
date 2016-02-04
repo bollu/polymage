@@ -30,6 +30,8 @@ def buildPipeline(outputs,
     if size_threshold == None:
         size_threshold = 200*200
 
+    options.append('flatten_scratchpad')
+
     return pipe.Pipeline(_ctx = ctx,
                          _outputs = outputs,
                          _param_estimates = param_estimates,

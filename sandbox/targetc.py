@@ -449,7 +449,7 @@ class CArrayAccess(CExpression):
         if self.array.layout == 'multidim':
             for dim in self.dims:
                 access_str = access_str + '[' + dim.__str__() + ']'
-        elif self.array.layout == 'contiguous':
+        elif self.array.layout in ['contiguous', 'contiguous_static']:
             expr = None
             for i in range(0, len(self.dims)):
                 multiplier = None
@@ -475,7 +475,7 @@ class CArray(CName):
     def __init__(self, _typ, _name, _dims, _layout='contiguous'):
         assert(len(_dims) > 0)
         assert isinstance(_typ, CType)
-        assert(_layout == 'contiguous' or _layout == 'multidim')
+        assert(_layout in ['contiguous', 'contiguous_static', 'multidim'])
         CName.__init__(self, _name)
         self.typ = _typ
         self.dims = _dims
@@ -484,6 +484,7 @@ class CArray(CName):
     def __call__(self, *dims):        
         return CArrayAccess(self, dims)
 
+    # FIXME substitute vars and determine if expr is const
     def is_constant_size(self):
         for dim in self.dims:
             if not is_constant_expr(dim):

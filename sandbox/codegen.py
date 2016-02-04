@@ -487,7 +487,6 @@ def generate_c_expr(exp, cparam_map, cvar_map, cfunc_map,
         for i in range(num_args):
             scratch_arg = (exp.arguments[i] -
                            exp.objectRef.domain[i].lowerBound)
-            # TESTME
             if scratch and scratch[i]:
                 scratch_arg = substitute_vars(exp.arguments[i], scratch_map)
             shifted_args.append(simplify_expr(scratch_arg))
@@ -784,8 +783,8 @@ def generate_code_for_group(pipeline, g, body, options,
     # list of arrays to be freed
     group_freelist = []
 
-    # TODO: not yet included
     pooled = 'pool_alloc' in pipeline._options
+    flatten_scratchpad = 'flatten_scratchpad' in pipeline._options
 
     for comp in sorted_comp_objs:
         # ***
@@ -839,12 +838,10 @@ def generate_code_for_group(pipeline, g, body, options,
 
         # 1.3. declare and allocate arrays
         array_type = genc.TypeMap.convert(comp.typ)
-
-        flatten_scratchpad = 'flatten_scratchpad' in pipeline._options
+        array = genc.CArray(array_type, comp.name, dims)
 
         # full array
         if is_liveout:
-            array = genc.CArray(array_type, comp.name, dims)
             array.layout = 'contiguous'
             # do not allocate output arrays if they are already allocated
             if not is_output or not outputs_no_alloc:
@@ -852,16 +849,9 @@ def generate_code_for_group(pipeline, g, body, options,
                 array_decl = genc.CDeclaration(array_ptr, array)
                 body.add(array_decl)
                 array.allocate_contiguous(body, pooled)
-        # scratchpad
         else:
             if flatten_scratchpad:
-                flat_dim = 1
-                for dim in dims:
-                    flat_dim *= dim
-                array = genc.CArray(array_type, comp.name, [flat_dim])
-            else:
-                array = genc.CArray(array_type, comp.name, dims)
-            pass
+                array.layout = 'contiguous_static'
 
         cfunc_map[comp] = (array, scratch)
 
