@@ -712,41 +712,56 @@ def align_and_scale(pipeline, group):
                 plus_align.append(NULL)
         return plus_align
 
+    def increment_aligns(comp_objs, part_map):
+        for comp in comp_objs:
+            for part in part_map[comp]:
+                plus_align = plus_one(part.align)
+                part.set_align(plus_align)
+
     def find_scale_norm(info):
-        # normalize the scaling factors, so that none of them is lesser than 1
+        '''
+        find the lcm of scales of each dim, of all aligned parts
+        '''
         norm = [1 for i in range(0, max_dim)]
 
         # compute the lcm of the Fraction denominators of scaling factors of
         # all poly parts in the group, for each dimension
         for part in info.align_scale:
+            align = part.align
             scale = part.scale
             for dim in range(0, max_dim):
-                if scale[dim] != NULL:
+                if align[dim] != NULL:
                     d = Fraction(scale[dim].denominator)
-                    norm[dim] = lcm(d, norm[dim])
+                    align_dim = align[dim]
+                    norm[align_dim] = lcm(d, norm[align_dim])
 
         return norm
 
     def normalize_scale(norm, info):
+        '''
+        normalize the scaling factors, so that none of them is lesser than 1
+        '''
         for part in info.align_scale:
+            align = part.align
             scale = part.scale
             new_scale = [1 for i in range(0, max_dim)]
             for dim in range(0, max_dim):
-                if scale[dim] != NULL:
-                    new_scale[dim] = int(norm[dim] * part.scale[dim])
+                if align[dim] != NULL:
+                    align_dim = align[dim]
+                    new_scale[dim] = int(norm[align_dim] * part.scale[dim])
                 else:
                     new_scale[dim] = NULL
             part.set_scale(new_scale)
 
     ''' main '''
     comp_objs = group.get_sorted_compobjs()
-    group_parts = group.polyRep.poly_parts
+    group_part_map = group.polyRep.poly_parts
 
     # list all parts with no self references and find the max dim
     max_dim = 0
     no_self_dep_parts = []
     for comp in comp_objs:
-        for p in group_parts[comp]:
+        for p in group_part_map[comp]:
             p_dim_in = p.sched.dim(isl._isl.dim_type.in_)
             if not p.is_self_dependent:
                 no_self_dep_parts.append(p)
@@ -768,7 +783,7 @@ def align_and_scale(pipeline, group):
     for comp in root_comps:
         if pipeline._level_order_comps[comp] == abs_min_level:
             abs_min_comps.append(comp)
-            abs_min_parts += group_parts[comp]
+            abs_min_parts += group_part_map[comp]
 
     # pick the min-level part with the highest dimensionality as base part
     base_part = None
@@ -799,11 +814,10 @@ def align_and_scale(pipeline, group):
             self.discovered = []
             # mapping from poly-part to ASPacket
             self.align_scale = {}
-            self.comp_scale = {}
 
     info = Info(pipeline, group, max_dim)
     info.solved.append(base_comp)
-    for part in group_parts[base_comp]:
+    for part in group_part_map[base_comp]:
         # set default values for base parts
         align, scale = default_align_and_scale(part.sched, max_dim, shift=True)
         # update to the temporary info
@@ -824,7 +838,7 @@ def align_and_scale(pipeline, group):
 
     # set all the solutions into polypart object members
     for comp in comp_objs:
-        for part in group_parts[comp]:
+        for part in group_part_map[comp]:
             # after solving, no poly part cannot not have a solution
             assert part in info.align_scale
             # short hand
@@ -835,24 +849,23 @@ def align_and_scale(pipeline, group):
             align = align_scale[0]
             scale = align_scale[1]
 
-            # increment alignments
-            plus_align = plus_one(align)
-
             # set the final values into the poly part object
-            part.set_align(plus_align)
+            part.set_align(align)
             part.set_scale(scale)
 
     ''' normalizing the scaling factors '''
     norm = find_scale_norm(info)
-
     normalize_scale(norm, info)
+
+    ''' increment alignments '''
+    increment_aligns(comp_objs, group_part_map)
 
     # ***
     log_level = logging.DEBUG
     LOG(log_level, "")
     LOG(log_level, "Final alignment and scaling")
     for comp in comp_objs:
-        for part in group_parts[comp]:
+        for part in group_part_map[comp]:
             LOG(log_level, part.comp.name)
             log_str1 = "part.align = "+str([i for i in part.align])
             log_str2 = "part.scale = "+str([i for i in part.scale])
