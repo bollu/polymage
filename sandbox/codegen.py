@@ -272,7 +272,7 @@ def generate_c_naive_from_expression_node(polyrep, node, body,
 
     acc_scratch = [ False for i in range(0, dom_len) ]
     for i in range(0, dom_len):
-        if i in poly_part.dim_tile_info:  # ADDME
+        if i in poly_part.dim_tile_info:
             if (poly_part.dim_tile_info[i][0] != 'none'):
                 acc_scratch[i] = True
 
@@ -733,26 +733,45 @@ def generate_code_for_group(pipeline, g, body, options,
                             cparam_map, cfunc_map,
                             outputs, outputs_no_alloc):
 
+    def mark_liveouts(pipeline, comp_objs):
+        compobjs_set = set(comp_objs)
+        liveout_map = {}
+        for comp in comp_objs:
+            children = set(pipeline._comp_objs_children[comp])
+            is_liveout = not children.issubset(compobjs_set)
+            liveout_map[comp] = is_liveout
+
+        return liveout_map
+
+    def mark_outputs(comp_objs, outputs):
+        output_map = {}
+
+        compobjs_set = set(comp_objs)
+        output_set = set(outputs)
+        group_outputs = compobjs_set.intersection(output_set)
+        group_intermediates = compobjs_set.difference(group_outputs)
+
+        for comp in group_outputs:
+            output_map[comp] = True
+        for comp in group_intermediates:
+            output_map[comp] = False
+
+        return output_map
+
     g.polyRep.generate_code()
 
     # NOTE uses the level_no of the first polypart of each compute object of
     # the group as the key for sorting compare operator. *Idea is that all
     # parts of a compute object bears the same level_no*, thus repeated calling
     # of 'order_compute_objs' can be avoided.
-    group_parts = g.polyRep.poly_parts
+    group_part_map = g.polyRep.poly_parts
     sorted_comp_objs = sorted(g._comp_objs,
                               key = lambda \
-                              comp : group_parts[comp][0]._level_no)
+                              comp : group_part_map[comp][0]._level_no)
 
-    # NOTE the last comp obj in the sorted list has the max level number
-    # that is shared by all the liveouts of the group
-    last_comp = sorted_comp_objs[len(sorted_comp_objs)-1]
-    max_level = group_parts[last_comp][0]._level_no
-    is_comp_liveout = {}
-    is_comp_output = {}
-    for comp in sorted_comp_objs:
-        is_comp_liveout[comp] = (group_parts[comp][0]._level_no == max_level)
-        is_comp_output[comp] = comp in outputs
+    # mark live-out comps
+    is_comp_liveout = mark_liveouts(pipeline, sorted_comp_objs)
+    is_comp_output = mark_outputs(sorted_comp_objs, outputs)
 
     # ***
     log_str = str([comp.name for comp in sorted_comp_objs])
@@ -782,8 +801,8 @@ def generate_code_for_group(pipeline, g, body, options,
         # 1.1. scratchpad allocation, wherever applicable
         reduced_dims = [ -1 for i in range(0, len(comp.domain))]
         scratch = [ False for i in range(0, len(comp.domain))]
-        if comp in group_parts and not is_liveout:
-            for part in group_parts[comp]:
+        if comp in group_part_map and not is_liveout:
+            for part in group_part_map[comp]:
                 for i in range(0, len(comp.domain)):
                     if i in part.dim_scratch_size:  # as a key
                         reduced_dims[i] = max(reduced_dims[i],

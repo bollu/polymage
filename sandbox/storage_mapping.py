@@ -275,8 +275,18 @@ def storage_classification(comps):
     # and compute the total_size of the storage for each storage class
     storage_map = maximal_storage(comps, storage_class_map, storage_map)
 
-    return
+    return storage_map
 
 # TESTME
 def classify_scratchpad_storage(comps, size_map):
-    pass
+    scratch_class = {}
+    scratch_class_map = {}
+    for comp in comps:
+        size = size_map[comp]
+        if size not in scratch_class:
+            scratch_class[size] = [comp]
+        else:
+            scratch_class[size].append(comp)
+        scratch_class_map[comp] = scratch_class[size]
+
+    return scratch_class, scratch_class_map
