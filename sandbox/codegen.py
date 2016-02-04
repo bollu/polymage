@@ -733,10 +733,13 @@ def generate_code_for_group(pipeline, g, body, options,
                             cparam_map, cfunc_map,
                             outputs, outputs_no_alloc):
 
-    def mark_liveouts(pipeline, comp_objs):
+    def mark_liveouts(pipeline, comp_objs, outputs):
         compobjs_set = set(comp_objs)
         liveout_map = {}
         for comp in comp_objs:
+            if comp in outputs:
+                liveout_map[comp] = True
+                continue
             children = set(pipeline._comp_objs_children[comp])
             is_liveout = not children.issubset(compobjs_set)
             liveout_map[comp] = is_liveout
@@ -770,7 +773,7 @@ def generate_code_for_group(pipeline, g, body, options,
                               comp : group_part_map[comp][0]._level_no)
 
     # mark live-out comps
-    is_comp_liveout = mark_liveouts(pipeline, sorted_comp_objs)
+    is_comp_liveout = mark_liveouts(pipeline, sorted_comp_objs, outputs)
     is_comp_output = mark_outputs(sorted_comp_objs, outputs)
 
     # ***
