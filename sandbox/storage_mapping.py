@@ -313,11 +313,14 @@ def classify_scratchpad_storage(comps, size_map):
     scratch_class = {}
     scratch_class_map = {}
     for comp in comps:
+        typ = comp.typ
+        typ_size = TypeSizeMap.getsize(typ)
         size = size_map[comp]
-        if size not in scratch_class:
-            scratch_class[size] = [comp]
+        key = (typ_size, size)
+        if key not in scratch_class:
+            scratch_class[key] = [comp]
         else:
-            scratch_class[size].append(comp)
-        scratch_class_map[comp] = scratch_class[size]
+            scratch_class[key].append(comp)
+        scratch_class_map[comp] = scratch_class[key]
 
     return scratch_class, scratch_class_map
