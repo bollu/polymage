@@ -888,7 +888,7 @@ def generate_code_for_group(pipeline, g, body, options,
 
     return group_freelist
 
-def generate_code_for_pipeline(pipeline, grp_schedule,
+def generate_code_for_pipeline(pipeline,
                                outputs_no_alloc=False,
                                is_extern_c_func=False,
                                are_io_void_ptrs=False):
