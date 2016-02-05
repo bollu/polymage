@@ -15,6 +15,7 @@ from constructs import *
 from expression import *
 from codegen import *
 from schedule import *
+from align_scale import *
 from poly import *
 from bounds import *
 from inline import *

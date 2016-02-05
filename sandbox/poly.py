@@ -7,7 +7,7 @@ import islpy as isl
 from constructs import *
 from expression import *
 from utils import *
-import schedule as schd
+import align_scale as aln_scl
 
 # Static method 'alloc' for isl Id does not allow the user to be
 # not None, as of now. We need an exclusive dictionary to map the
@@ -625,7 +625,7 @@ class PolyRep(object):
             # of the compute objects within a group.
 
             align, scale = \
-                schd.default_align_and_scale(sched_m, max_dim, shift=True)
+                aln_scl.default_align_and_scale(sched_m, max_dim, shift=True)
 
             if (isinstance(case, Case)):
                 # Dealing with != and ||. != can be replaced with < || >.
@@ -704,7 +704,7 @@ class PolyRep(object):
                                        level_no, schedule_names):
         sched_m = sched_map.copy()
         align, scale = \
-            schd.default_align_and_scale(sched_m, max_dim, shift=True)
+            aln_scl.default_align_and_scale(sched_m, max_dim, shift=True)
 
         assert(isinstance(comp.default, AbstractExpression))
         poly_part = PolyPart(sched_m, comp.default,
