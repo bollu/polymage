@@ -309,6 +309,9 @@ class Pipeline:
             # grouping and tiling
             fused_schedule(self, g, self._param_estimates)
 
+        self._grp_schedule = schedule_groups(self)
+
+        # use graphviz to create pipeline graph
         self._pipeline_graph = self.draw_pipeline_graph()
 
         ''' STORAGE OPTIMIZATION '''
@@ -347,8 +350,8 @@ class Pipeline:
         return self._level_order_groups
 
     @property
-    def level_order_groups(self):
-        return self._level_order_groups
+    def group_schedule(self):
+        return self._grp_schedule
 
     def get_parameters(self):
         params=[]

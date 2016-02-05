@@ -6,8 +6,8 @@ import time
 import pipe
 from constructs import *
 from expression import *
-from poly import *
 from schedule import *
+from poly import *
 import islpy as isl
 import expr_ast as expr
 import targetc as genc
@@ -888,12 +888,12 @@ def generate_code_for_group(pipeline, g, body, options,
 
     return group_freelist
 
-def generate_code_for_pipeline(pipeline,
+def generate_code_for_pipeline(pipeline, grp_schedule,
                                outputs_no_alloc=False,
                                is_extern_c_func=False,
                                are_io_void_ptrs=False):
-    grp_schedule = schedule_groups(pipeline)
-    sorted_groups = sort_scheuled_objs(grp_schedule)
+
+    sorted_groups = sort_scheduled_objs(pipeline.group_schedule)
 
     # Create a top level module for the pipeline
     m = genc.CModule('Pipeline')

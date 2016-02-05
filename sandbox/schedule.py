@@ -8,7 +8,7 @@ schedule_logger = logging.getLogger("schedule.py")
 schedule_logger.setLevel(logging.INFO)
 LOG = schedule_logger.log
 
-def sort_scheuled_objs(schedule):
+def sort_scheduled_objs(schedule):
     '''
     sorts the objects according to the schedule and returns a list of the
     sorted objects
@@ -22,7 +22,7 @@ def naive_sched_groups(pipeline):
     '''
     schedule in level order traversal of the group DAG
     '''
-    level_order = pipeline.level_order_groups
+    level_order = pipeline.get_ordered_groups
     return level_order
 
 def schedule_groups(pipeline):
