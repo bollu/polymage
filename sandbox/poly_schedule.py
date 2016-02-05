@@ -6,9 +6,9 @@ from utils import *
 from poly import *
 
 # LOG CONFIG #
-schedule_logger = logging.getLogger("schedule.py")
-schedule_logger.setLevel(logging.INFO)
-LOG = schedule_logger.log
+poly_sched_logger = logging.getLogger("poly_schedule.py")
+poly_sched_logger.setLevel(logging.INFO)
+LOG = poly_sched_logger.log
 
 def format_schedule_constraints(dim_in, dim_out, align, scale, level_no):
     ineq_coeff = []

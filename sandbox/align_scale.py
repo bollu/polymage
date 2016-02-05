@@ -2,7 +2,6 @@ from __future__ import absolute_import, division, print_function
 
 import logging
 from utils import *
-import poly as poly
 from poly import *
 
 # LOG CONFIG #

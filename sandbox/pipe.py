@@ -596,7 +596,6 @@ class Pipeline:
 
         return
 
-    # TODO printing the pipeline
     def __str__(self):
         return_str = "Final Group: " + self._name + "\n"
         for s in self._groups:
