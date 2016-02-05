@@ -23,14 +23,13 @@ class TypeSizeMap(object):
         assert typ_name in cls._type_size_map
         return cls._type_size_map[typ_name]
 
-def compute_liveness(pipeline, schedule):
+def compute_liveness(children_map, schedule):
     '''
     Given a schedule for a DAG of compute objects, this function computes the
     liveness range of each compute object. The output is a mapping from the
     timestamp in the schedule to a list of compute objects that are live only
     upto the corresponding time.
     '''
-    children_map = pipeline.comp_objs_children
     liveness_map = {}
     for comp in schedule:
         children = children_map[comp]
@@ -216,6 +215,8 @@ def storage_classification(comps):
         The classification can be further improved with the knowledge of param
         constraints or estimates, by not differentiating b/w dimensions of
         equal sizes.
+        NOTE: This module is unaware of whether the pipeline outputs must be
+        excluded from classification with other compute objects.
         '''
         storage_class_map = {}
         key_map = {}
