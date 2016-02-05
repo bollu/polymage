@@ -5,9 +5,23 @@ from expression import *
 from pipe import *
 
 # LOG CONFIG #
-pipe_logger = logging.getLogger("storage_mapping.py")
-pipe_logger.setLevel(logging.INFO)
-LOG = pipe_logger.log
+storage_logger = logging.getLogger("storage_mapping.py")
+storage_logger.setLevel(logging.INFO)
+LOG = storage_logger.log
+
+class TypeSizeMap(object):
+    _type_size_map = { "void":1,
+                       "int8":1, "uint8":1,
+                       "int16":2, "uint16":2,
+                       "int32":4, "uint32":4,
+                       "int64":8, "uint64":8,
+                       "float":4, "double":8 }
+
+    @classmethod
+    def getsize(cls, typ):
+        typ_name = typ.c_type_name()
+        assert typ_name in cls._type_size_map
+        return cls._type_size_map[typ_name]
 
 def compute_liveness(pipeline, schedule):
     '''
@@ -73,7 +87,8 @@ class Dimension:
         return self._param == '0'
 
 class Storage:
-    def __init__(self, _dims, _dim_sizes):
+    def __init__(self, _typ, _dims, _dim_sizes):
+        self._typ = _typ
         self._dims = _dims
         self._dim_sizes = _dim_sizes
 
@@ -84,6 +99,9 @@ class Storage:
         self._lookup_key = self.generate_key()
         self._offsets = self.gen_param_offsets()
 
+    @property
+    def typ(self):
+        return self._typ
     @property
     def dims(self):
         return self._dims
@@ -104,13 +122,14 @@ class Storage:
     def generate_key(self):
         '''
         To create class mapping, we generate keys this way -
-        - Field 0 : dimensionality 'dim' of the compute object
+        - Field 0 : size, in bytes, of data type of the compute object
+        - Field 1 : dimensionality 'dim' of the compute object
         - Following 'dim' fields are tuples of Parameter names with their
           respective coefficents. The fields are sorted using the parameter
           names.
         '''
 
-        key = [self.dims]
+        key = [TypeSizeMap.getsize(self.typ), self.dims]
 
         # get (param, coeff) key from each dim
         param_keys = []
@@ -160,7 +179,7 @@ def storage_classification(comps):
         for comp in comps:
             interval_sizes = []
             intervals = comp.domain
-            dim = 0
+            dims = comp.ndims
             for interval in intervals:
                 params = interval.collect(Parameter)
                 assert not len(params) > 1
@@ -170,8 +189,6 @@ def storage_classification(comps):
                     param = 0
                 size = interval.upperBound - interval.lowerBound + 1
                 interval_sizes.append((param, size))
-                dim += 1
-    
             comp_size[comp] = interval_sizes
 
         return comp_size
@@ -186,9 +203,10 @@ def storage_classification(comps):
 
         storage_map = {}
         for comp in comps:
+            typ = comp.typ
+            dims = comp.ndims
             dim_sizes = comp_size[comp]
-            dims = len(dim_sizes)
-            storage_map[comp] = Storage(dims, dim_sizes)
+            storage_map[comp] = Storage(typ, dims, dim_sizes)
 
         return storage_map
 
@@ -220,14 +238,27 @@ def storage_classification(comps):
         param constraints or estimates which suggests an exact measure of the
         size of each dimension.
         '''
+        # ***
+        log_level = logging.DEBUG
+        LOG(log_level, "Storage Classes:")
+        # ***
         new_storage_map = {}
         for key in storage_class_map:
             storage_class = storage_class_map[key]  # a list
+
+            # ***
+            log_level = logging.DEBUG
+            LOG(log_level, "_______")
+            LOG(log_level, key)
+            LOG(log_level, [comp.name for comp in storage_class])
+            # ***
+
             # pick a dummpy comp to get the total number of dimensions and the
             # original parameter associated with each dimesnion
             helper_comp = storage_class[0]
+            typ = helper_comp.typ
+            dims = helper_comp.ndims
             helper_storage = storage_map[helper_comp]
-            dims = helper_storage.dims
             # this list holds the maximal offset value for each dimension
             max_offset = [0 for dim in range(0, dims)]
             for comp in storage_class:
@@ -243,13 +274,13 @@ def storage_classification(comps):
             for dim in range(0, dims):
                 dim_storage = storage.get_dim(dim)
                 param = dim_storage.orig_param
-                size = (Fraction(dim_storage.coeff)) * dim_storage.orig_param + \
+                size = Fraction(dim_storage.coeff) * dim_storage.orig_param + \
                        max_offset[dim]
                 dim_sizes.append((param, size))
 
             # final maximal storage for this class
             max_storage = \
-                Storage(dims, dim_sizes)
+                Storage(typ, dims, dim_sizes)
 
             # all comps of this class now have identical storage
             for comp in storage_class:
