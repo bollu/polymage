@@ -56,6 +56,8 @@ def campipe(app_data):
         t1 = time.time()
 
     while it < runs :
+        print("")
+        print("[exec_pipe] : executing ...")
         call_pipe(app_data)
         it += 1
 

@@ -22,7 +22,7 @@ def codegen(pipe, file_name, app_data):
 
     return
 
-def graph_gen(pipe, file_name, app_data):
+def generate_graph(pipe, file_name, app_data):
     graph_file = file_name+".dot"
     png_graph = file_name+".png"
 
@@ -56,8 +56,8 @@ def build_campipe(pipe_data, app_data):
     p_estimates = [(R, app_data['rows']), (C, app_data['cols'])]
     p_constraints = [ Condition(R, "==", app_data['rows']), \
                       Condition(C, "==", app_data['cols']) ]
-    t_size = [32, 256]
-    g_size = 100
+    t_size = [64, 256]
+    g_size = 10
     opts = []
     if app_data['pool_alloc'] == True:
         opts += ['pool_alloc']
@@ -75,6 +75,8 @@ def build_campipe(pipe_data, app_data):
 def create_lib(build_func, pipe_name, impipe_data, app_data, mode):
     pipe_src  = pipe_name+".cpp"
     pipe_so   = pipe_name+".so"
+    app_args = app_data['app_args']
+    graph_gen = bool(app_args.graph_gen)
 
     if build_func != None:
         if mode == 'new':
@@ -82,7 +84,8 @@ def create_lib(build_func, pipe_name, impipe_data, app_data, mode):
             pipe = build_func(impipe_data, app_data)
 
             # draw the pipeline graph to a png file
-            graph_gen(pipe, pipe_name, app_data)
+            if graph_gen:
+                generate_graph(pipe, pipe_name, app_data)
 
             # generate pipeline cpp source
             codegen(pipe, pipe_src, app_data)
