@@ -553,17 +553,20 @@ class Function(object):
             assert(isinstance(_varDom[0][i], Variable))
             assert(isinstance(_varDom[1][i], Interval))
             assert(_varDom[0][i].typ ==  _varDom[1][i].typ)
-        # add check to ensure that upper bound and lower bound
-        # expressions for each variable are only defined in 
-        # terms of variables of the function and global parameters
+        # add check to ensure that upper bound and lower bound expressions
+        # for each variable are only defined in terms of the function and
+        # global parameters
 
-        # Should bounds be restricted only to parameters or function
-        # variables be allowed? No for now
+        # Should bounds be restricted only to parameters or function variables
+        # be allowed? No for now
 
         # Should the domain be restricted to the positive quadrant?
         # Can this be done automatically
         self._variables = _varDom[0]
         self._varDomain = _varDom[1]
+
+        # dimensionality of the Function
+        self._ndims = len(self._variables)
 
         # * Body of a function is composed of Case and Expression constructs.
         # * The Case constructs are expected to be non-overlapping. Therefore,
@@ -591,6 +594,10 @@ class Function(object):
     @property
     def variables(self):
         return self._variables
+
+    @property
+    def ndims(self):
+        return self._ndims
 
     @property
     def defn(self):

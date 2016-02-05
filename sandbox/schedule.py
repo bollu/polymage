@@ -9,7 +9,7 @@ from poly import *
 
 # LOG CONFIG #
 schedule_logger = logging.getLogger("schedule.py")
-schedule_logger.setLevel(logging.DEBUG)
+schedule_logger.setLevel(logging.INFO)
 LOG = schedule_logger.log
 
 class ASPacket(object):
