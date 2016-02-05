@@ -346,6 +346,10 @@ class Pipeline:
     def get_ordered_groups(self):
         return self._level_order_groups
 
+    @property
+    def level_order_groups(self):
+        return self._level_order_groups
+
     def get_parameters(self):
         params=[]
         for group in self._groups.values():
