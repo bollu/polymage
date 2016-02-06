@@ -113,6 +113,7 @@ def level_order(objs, parent_map):
 
 class ComputeObject:
     def __init__(self, _func):
+        assert isinstance(_func, Function)
         self._func = _func
         self._parents = []
         self._children = []
@@ -188,18 +189,21 @@ class Group:
         # All the computation constructs in the language derive from the
         # Function class. Input images cannot be part of a group.
         for comp in _comp_objs:
-            assert(isinstance(comp, Function))
+            assert(isinstance(comp, ComputeObject))
             #assert(not isinstance(comp, Image))
 
-        self._comp_objs  = _comp_objs
+        self._comps  = _comp_objs
+        self._parents = []
+        self._children = []
+
         self._level_order_comps = self.order_compute_objs()
-        self._root_comps = [comp for comp in self._comp_objs \
+        self._root_comps = [comp for comp in self.comps \
                                    if self._level_order_comps[comp] == 0]
         self._polyrep = None
         refs = []
 
-        for comp in self._comp_objs:
-            refs += comp.getObjects(Reference)
+        for comp in self.comps:
+            refs += comp.func.getObjects(Reference)
 
         self._inputs = list(set([ref.objectRef for ref in refs \
                             if isinstance(ref.objectRef, Image)]))
@@ -212,7 +216,14 @@ class Group:
 
     @property
     def comps(self):
-        return self._comp_objs
+        return self._comps
+    @property
+    def parents(self):
+        return self._parents
+    @property
+    def children(self):
+        return self._children
+
     @property
     def polyRep(self):
         return self._polyrep
@@ -226,6 +237,24 @@ class Group:
     @property
     def get_ordered_compobjs(self):
         return self._level_order_comps
+
+    def find_parents(self):
+        parents = []
+        for comp in self.comps:
+            comp_parent_groups = [p_comp.group for p_comp in comp.parents]
+            parents.extend(comp_parent_groups)
+        parents = list(set(parents))
+
+        return parents
+
+    def find_children(self):
+        children = []
+        for comp in self.comps:
+            comp_children_groups = [p_comp.group for p_comp in comp.children]
+            children.extend(comp_children_groups)
+        children = list(set(children))
+
+        return children
 
     # DEAD?
     def is_fused(self):
@@ -311,9 +340,6 @@ class Pipeline:
                     ref._replace_ref_object(self._clone_map[ref.objectRef])
 
         ''' DAG OF CLONES '''
-        _funcs, _func_parents, _func_children = \
-            get_funcs_and_dep_maps(self._outputs)
-
         self._comps = \
             self.create_compute_objects(_funcs, _funcs_parents, _func_children)
 
@@ -330,8 +356,8 @@ class Pipeline:
 
         # Make a list of all the input groups
         inputs = []
-        for f in self._groups:
-            inputs = inputs + self._groups[f].inputs
+        for comp in self.groups:
+            inputs = inputs + self.groups[comp].inputs
         self._inputs = list(set(inputs))
 
         # Checking bounds
@@ -443,6 +469,9 @@ class Pipeline:
         return list(set(params))
 
     def create_compute_objects(self, funcs, parents, children):
+        _funcs, _func_parents, _func_children = \
+            get_funcs_and_dep_maps(self._outputs)
+
         comps = []
         func_map = {}
         for func in funcs:
@@ -502,12 +531,8 @@ class Pipeline:
 
         for comp in comps:
             group = group_map[comp]
-            # set group parents
-            g_parents = [ group_map[p_comp] for p_comp in comp.parents ]
-            group.set_parents(g_parents)
-            # set group children
-            g_children = [ group_map[p_comp] for p_comp in comp.children ]
-            group.set_children(g_children)
+            group.find_parents()
+            group.find_children()
 
         return group_map
 
