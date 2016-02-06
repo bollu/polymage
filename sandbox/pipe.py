@@ -117,9 +117,10 @@ class ComputeObject:
         self._func = _func
         self._parents = []
         self._children = []
-        self._group = None
-        self._is_liveout = True
 
+        self._group = None
+
+        self._is_liveout = True
         self.set_flags()
 
     @property
@@ -176,6 +177,9 @@ class ComputeObject:
         assert isinstance(group, Group)
         self._group = group
 
+    def unset_group(self):
+        self._group = None
+
 class Group:
     """ 
         Group is a part of the pipeline which realizes a set of computation
@@ -195,6 +199,8 @@ class Group:
         self._comps  = _comp_objs
         self._parents = []
         self._children = []
+
+        self.set_comp_group()  # <- scepticsl
 
         self._level_order_comps = self.order_compute_objs()
         self._root_comps = [comp for comp in self.comps \
@@ -238,6 +244,10 @@ class Group:
     def get_ordered_compobjs(self):
         return self._level_order_comps
 
+    def set_comp_group(self):
+        for comp in self.comps:
+            comp.set_group(self)
+
     def find_parents(self):
         parents = []
         for comp in self.comps:
@@ -255,6 +265,16 @@ class Group:
         children = list(set(children))
 
         return children
+
+    def add_child(self, group):
+        self._children.append(group)
+    def add_parent(self, group):
+        self._parents.append(group)
+
+    def remove_child(self, group):
+        self._children.remove(group)
+    def remove_parent(self, group):
+        self._parents.remove(group)
 
     # DEAD?
     def is_fused(self):
@@ -340,8 +360,8 @@ class Pipeline:
                     ref._replace_ref_object(self._clone_map[ref.objectRef])
 
         ''' DAG OF CLONES '''
-        self._comps = \
-            self.create_compute_objects(_funcs, _funcs_parents, _func_children)
+        self._func_map, self._comps = \
+            self.create_compute_objects()
 
         self._level_order_comps = self.order_compute_objs()
 
@@ -361,19 +381,19 @@ class Pipeline:
         self._inputs = list(set(inputs))
 
         # Checking bounds
-        bounds_check_pass(self)
+        bounds_check_pass(self)  # <-
 
         # inline pass
-        #inline_pass(self)
+        #inline_pass(self)  # <-
 
         # make sure the set of functions to be inlined and those to be grouped
         # are disjoint
         if self._inline_directives and self._grouping:
             group_comps = []
             for g in self._grouping:
-                group_comps += g
+                group_funcs += g
             a = set(self._inline_directives)
-            b = set(group_comps)
+            b = set(group_funcs)
             assert a.isdisjoint(b)
 
         ''' GROUPING '''
@@ -382,13 +402,15 @@ class Pipeline:
             # for each group
             for g in self._grouping:
                 # get clones of all functions
+                clones = [self._clone_map[f] for f in g]
+                comps = [self._func_map[f] for f in clones]
+                # list of group objects to be grouped
                 merge_group_list = \
-                    [self._groups[self._clone_map[f]] for f in g]
+                    [self.groups[comp] for comp in comps]
                 if len(merge_group_list) > 1:
                      merged = merge_group_list[0]
                      for i in range(1, len(merge_group_list)):
-                        merged = \
-                            self.merge_groups(merged, merge_group_list[i])
+                        merged = self.merge_groups(merged, merge_group_list[i])
         else:
             # Run the grouping algorithm
             auto_group(self)
@@ -468,8 +490,8 @@ class Pipeline:
             params = params + group.getParameters()
         return list(set(params))
 
-    def create_compute_objects(self, funcs, parents, children):
-        _funcs, _func_parents, _func_children = \
+    def create_compute_objects(self):
+        funcs, func_parents, func_children = \
             get_funcs_and_dep_maps(self._outputs)
 
         comps = []
@@ -492,7 +514,7 @@ class Pipeline:
                 comp_children.append(func_map[c_func])
             comp.set_children(comp_children)
 
-        return comps
+        return func_map, comps
 
     def order_compute_objs(self):
         parents = {}
@@ -527,7 +549,6 @@ class Pipeline:
         for comp in comps:
             group = Group(self._ctx, [comp], self._param_constraints)
             group_map[comp] = group
-            comp.set_group(group)
 
         for comp in comps:
             group = group_map[comp]
@@ -613,31 +634,20 @@ class Pipeline:
         """
         add a new group to the pipeline
         """
-        if not group._comp_objs:
+        if not group.comps:
             return
 
-        parents = []
-        children = []
         for comp in group.comps:
-            # add group's parents
-            parents.extend( \
-                [self._groups[p] for p in self._comp_objs_parents[comp] \
-                                   if p not in group.comps] )
-            # add group's children
-            children.extend( \
-                [self._groups[c] for c in self._comp_objs_children[comp] \
-                                   if c not in group.comps] )
-            # add group to comp -> group mapping
             self._groups[comp] = group
-        self._group_parents[group] = list(set(parents))
-        self._group_children[group] = list(set(children))
+            group.find_parents()
+            group.find_children()
 
         # add group as child for all its parents
-        for parent_group in self._group_parents[group]:
-            self._group_children[parent_group].append(group)
+        for p_group in group.parents:
+            p_group.add_child(group)
         # add group as parent for all its children
-        for child_group in self._group_children[group]:
-            self._group_parents[child_group].append(group)
+        for c_group in group.children:
+            c_group.add_parent(group)
 
         return
 
@@ -646,27 +656,26 @@ class Pipeline:
         drop the group from the pipeline
         """
         # if group is a child of any other group
-        if group in self._group_parents:
-            for p_group in self._group_parents[group]:
-                self._group_children[p_group].remove(group)
-            self._group_parents.pop(group)
+        if group.parents:
+            for p_group in group.parents:
+                p_group.remove_child(group)
         # if group is a parent of any other group
-        if group in self._group_children:
-            for c_group in self._group_children[group]:
-                self._group_parents[c_group].remove(group)
-            self._group_children.pop(group)
+        if group.children:
+            for c_group in group.children:
+                c_group.remove_parent(group)
         # remove group from comp -> group mapping
         for comp in group.comps:
             self._groups.pop(comp)
+            comp.unset_group()
 
         return
 
     def merge_groups(self, g1, g2):
         # Get comp objects from both groups
-        comp_objs = g1.comps + g2.comps
-        comp_objs = list(set(comp_objs))
+        comps = g1.comps + g2.comps
+        comps = list(set(comp_objs))
         # Create a new group
-        merged = Group(self._ctx, comp_objs,
+        merged = Group(self._ctx, comps,
                        self._param_constraints)
 
         self.drop_group(g1)
