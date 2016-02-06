@@ -27,47 +27,69 @@ pipe_logger = logging.getLogger("pipe.py")
 pipe_logger.setLevel(logging.INFO)
 LOG = pipe_logger.log
 
-def get_parents_from_comp_obj(comp):
+def get_parents_from_func(comp):
     refs = comp.getObjects(Reference)
     # Filter out self and image references 
     refs = [ ref for ref in refs if not ref.objectRef == comp and \
                                  not isinstance(ref.objectRef, Image) ]
     return list(set([ref.objectRef for ref in refs]))
 
-def get_comp_objs_and_dep_maps(outputs):
+def get_funcs_and_dep_maps(outputs):
     """
     Find all the compute objects required for the outputs and
     also builds parent and children maps for the compute objects
     """
-    comp_objs = []
-    comp_objs_parents = {}
-    comp_objs_children = {}
+    funcs = []
+    funcs_parents = {}
+    funcs_children = {}
+    # queue of compute objects
     q = queue.Queue()
-    for comp_obj in outputs:
-        q.put(comp_obj)
+    for func in outputs:
+        q.put(func)
     while not q.empty():
         obj = q.get()
-        parent_objs = get_parents_from_comp_obj(obj)
-        if obj not in comp_objs:
-            comp_objs.append(obj)
-            comp_objs_parents[obj] = parent_objs
+        parent_objs = get_parents_from_func(obj)
+        if obj not in funcs:
+            funcs.append(obj)
+            funcs_parents[obj] = parent_objs
             for parobj in parent_objs:
-                if parobj in comp_objs_children:
-                    if obj not in comp_objs_children[parobj]:
-                        comp_objs_children[parobj].append(obj)
+                if parobj in funcs_children:
+                    if obj not in funcs_children[parobj]:
+                        funcs_children[parobj].append(obj)
                 else:
-                    comp_objs_children[parobj] = [obj]
+                    funcs_children[parobj] = [obj]
             if len(parent_objs) != 0:
                 for r in parent_objs:
                     q.put(r)
 
-    for comp in comp_objs:
-        if comp not in comp_objs_parents:
-            comp_objs_parents[comp] = []
-        if comp not in comp_objs_children:
-            comp_objs_children[comp] = []
+    for comp in funcs:
+        if comp not in funcs_parents:
+            funcs_parents[comp] = []
+        if comp not in funcs_children:
+            funcs_children[comp] = []
 
-    return comp_objs, comp_objs_parents, comp_objs_children
+    return funcs, funcs_parents, funcs_children
+
+def get_funcs(outputs):
+    """
+    Find all the compute objects required for the outputs and
+    also builds parent and children maps for the compute objects
+    """
+    funcs = []
+    # queue of compute objects
+    q = queue.Queue()
+    for func in outputs:
+        q.put(func)
+    while not q.empty():
+        obj = q.get()
+        parent_objs = get_parents_from_func(obj)
+        if obj not in funcs:
+            funcs.append(obj)
+            if len(parent_objs) != 0:
+                for r in parent_objs:
+                    q.put(r)
+
+    return funcs
 
 def level_order(objs, parent_map):
     # Order stores the numbering of each object when topologically sorted.
@@ -89,6 +111,70 @@ def level_order(objs, parent_map):
                     change = True
     return order
 
+class ComputeObject:
+    def __init__(self, _func):
+        self._func = _func
+        self._parents = []
+        self._children = []
+        self._group = None
+        self._is_liveout = True
+
+        self.set_flags()
+
+    @property
+    def func(self):
+        return self._func
+
+    @property
+    def is_parents_set(self):
+        return self._is_parents_set
+    @property
+    def is_children_set(self):
+        return self._is_children_set
+    @property
+    def is_group_set(self):
+        return self._is_group_set
+
+    @property
+    def parents(self):
+        assert self.is_parents_set
+        return self._parents
+    @property
+    def children(self):
+        assert self.is_children_set
+        return self._children
+    @property
+    def group(self):
+        assert self.is_group_set
+        return self._group
+
+    @property
+    def is_liveout(self):
+        return self._is_liveout
+
+    def set_flags(self):
+        self._is_parents_set = False
+        self._is_children_set = False
+        self._is_group_set = False
+
+    def set_parents(self, parents):
+        assert self._parents_set == False
+        # assert parents is a list of ComputeObject
+        for p in parents:
+            assert isinstance(p, ComputeObject)
+        self._parents = parents
+
+    def set_children(self, children):
+        assert self._children_set == False
+        # assert children is a list of ComputeObject
+        for p in children:
+            assert isinstance(p, ComputeObject)
+        self._children = children
+
+    def set_group(self, group):
+        assert isinstance(group, Group)
+        self._group = group
+
 class Group:
     """ 
         Group is a part of the pipeline which realizes a set of computation
@@ -97,7 +183,7 @@ class Group:
         computation objects when possible.
     """
     # Construct a group from a set of language functions / reductions
-    def __init__(self, _ctx, _comp_objs, _comp_objs_parents, \
+    def __init__(self, _ctx, _comp_objs, \
                  _param_constraints):
         # All the computation constructs in the language derive from the
         # Function class. Input images cannot be part of a group.
@@ -106,7 +192,6 @@ class Group:
             #assert(not isinstance(comp, Image))
 
         self._comp_objs  = _comp_objs
-        self._comp_objs_parents  = _comp_objs_parents
         self._level_order_comps = self.order_compute_objs()
         self._root_comps = [comp for comp in self._comp_objs \
                                    if self._level_order_comps[comp] == 0]
@@ -126,7 +211,7 @@ class Group:
             self._polyrep = PolyRep(_ctx, self, [], _param_constraints)
 
     @property
-    def compute_objs(self):
+    def comps(self):
         return self._comp_objs
     @property
     def polyRep(self):
@@ -136,30 +221,34 @@ class Group:
         return self._inputs
     @property
     def name(self):
-        return [comp.name for comp in self.compute_objs]
+        return [comp.func.name for comp in self.comps]
 
     @property
     def get_ordered_compobjs(self):
         return self._level_order_comps
 
+    # DEAD?
     def is_fused(self):
-        return len(self.compute_objs) > 1
+        return len(self.comps) > 1
 
     def getParameters(self):
         params = []
-        for comp in self._comp_objs:
-            params = params + comp.getObjects(Parameter)
+        for comp in self.comps:
+            params = params + comp.func.getObjects(Parameter)
         return list(set(params))
 
     def isPolyhedral(self):
         polyhedral = True
-        for comp in self._comp_objs:
-            if (not comp.hasBoundedIntegerDomain()):
+        for comp in self.comps:
+            if (not comp.func.hasBoundedIntegerDomain()):
                 polyhedral = False
         return polyhedral
 
     def order_compute_objs(self):
-        order = level_order(self._comp_objs, self._comp_objs_parents)
+        parents = {}
+        for comp in self.comps:
+            parents[comp] = comp.parents
+        order = level_order(self.comps, parents)
         return order
 
     def get_sorted_compobjs(self):
@@ -189,7 +278,7 @@ class Pipeline:
         self._name = _name
 
         self._ctx = _ctx
-        self._org_outputs = _outputs
+        self._orig_outputs = _outputs
         self._param_estimates = _param_estimates
         self._param_constraints = _param_constraints
         self._grouping = _grouping
@@ -204,41 +293,36 @@ class Pipeline:
         # backtracing starting from given live-out functions.
         # TODO: see if there is a cyclic dependency between the compute
         # objects. Self references are not treated as cycles.
-        self._org_comp_objs, \
-         _, \
-          _ = \
-            get_comp_objs_and_dep_maps(self._org_outputs)
+        self._orig_funcs = get_funcs(self._orig_outputs)
 
         ''' CLONING '''
         # Clone the computation objects i.e. functions and reductions
         self._clone_map = {}
-        for comp in self._org_comp_objs:
-            self._clone_map[comp] = comp.clone()
-        self._outputs = [self._clone_map[obj] for obj in self._org_outputs]
+        for func in self._orig_funcs:
+            self._clone_map[func] = func.clone()
+        self._outputs = [self._clone_map[obj] for obj in self._orig_outputs]
         # Modify the references in the cloned objects (which refer to
         # the original objects)
-        for comp in self._org_comp_objs:
-            cln = self._clone_map[comp]
+        for func in self._orig_funcs:
+            cln = self._clone_map[func]
             refs = cln.getObjects(Reference)
             for ref in refs:
                 if not isinstance(ref.objectRef, Image):
                     ref._replace_ref_object(self._clone_map[ref.objectRef])
 
         ''' DAG OF CLONES '''
-        self._comp_objs, \
-         self._comp_objs_parents, \
-          self._comp_objs_children = \
-            get_comp_objs_and_dep_maps(self._outputs)
+        _funcs, _func_parents, _func_children = \
+            get_funcs_and_dep_maps(self._outputs)
+
+        self._comps = \
+            self.create_compute_objects(_funcs, _funcs_parents, _func_children)
 
         self._level_order_comps = self.order_compute_objs()
 
         ''' INITIAL GROUPING '''
         # Create a group for each pipeline function / reduction and compute
         # maps for parent and child relations between the groups
-        self._groups, \
-         self._group_parents, \
-          self._group_children = \
-            self.build_initial_groups()
+        self._groups = self.build_initial_groups()
 
         # Store the initial pipeline graph. The compiler can modify 
         # the pipeline by inlining functions.
@@ -295,7 +379,7 @@ class Pipeline:
         LOG(log_level, "Grouped compute objects:")
         glist = list(set([g for g in self._groups.values()]))
         for g in glist:
-            LOG(log_level, [comp.name for comp in g.compute_objs])
+            LOG(log_level, [comp.name for comp in g.comps])
         # ***
 
         ''' SCHEDULING '''
@@ -315,40 +399,39 @@ class Pipeline:
         self._pipeline_graph = self.draw_pipeline_graph()
 
         ''' STORAGE OPTIMIZATION '''
+
+        # storage opt for liveout (full array) allocations
+        # 1. derive liveout comps schedule from group schedule
+        # 2. classify the storage based on type, dimensionality and size
         self.create_storage_classes()
 
     @property
+    def comps(self):
+        return self._comps
+    @property
     def groups(self):
         return self._groups
-
     @property
     def name(self):
         return self._name
-
     @property
     def inputs(self):
         return self._inputs
-
     @property
     def outputs(self):
         return self._outputs
-
     @property
     def original_graph(self):
         return self._initial_graph
-
     @property
     def pipeline_graph(self):
         return self._pipeline_graph
-
     @property
     def get_ordered_compobjs(self):
         return self._level_order_comps
-
     @property
     def get_ordered_groups(self):
         return self._level_order_groups
-
     @property
     def group_schedule(self):
         return self._grp_schedule
@@ -359,8 +442,34 @@ class Pipeline:
             params = params + group.getParameters()
         return list(set(params))
 
+    def create_compute_objects(self, funcs, parents, children):
+        comps = []
+        func_map = {}
+        for func in funcs:
+            comp = ComputeObject(func, parents[func], children[func])
+            func_map[func] = comp
+            comps.append(comp)
+
+        for func in func_map:
+            comp = func_map[func]
+            # set parents
+            comp_parents = []
+            for p_func in parents[func]:
+                comp_parents.append(func_map[p_func])
+            comp.set_parents(comp_parents)
+            # set children
+            comp_children = []
+            for c_func in children[func]:
+                comp_children.append(func_map[c_func])
+            comp.set_children(comp_children)
+
+        return comps
+
     def order_compute_objs(self):
-        order = level_order(self._comp_objs, self._comp_objs_parents)
+        parents = {}
+        for comp in comps:
+            parents[comp] = comp.parents
+        order = level_order(self._comps, parents)
         return order
 
     def order_group_objs(self):
@@ -384,42 +493,41 @@ class Pipeline:
         Place each compute object of the pipeline in its own Group, and set the
         dependence relations between the created Group objects.
         """
-        comp_objs = self._comp_objs
-        comp_parents = self._comp_objs_parents
-        comp_children = self._comp_objs_children
+        comps = self.comps
         group_map = {}
-        group_parents = {}
-        group_children = {}
-        for comp in comp_objs:
-            group_map[comp] = \
-                Group(self._ctx, [comp], self._comp_objs_parents,
-                      self._param_constraints)
+        for comp in comps:
+            group = Group(self._ctx, [comp], self._param_constraints)
+            group_map[comp] = group
+            comp.set_group(group)
 
-        for comp in group_map:
-            group_parents[group_map[comp]] = \
-                [ group_map[p] for p in comp_parents[comp] ]
-            group_children[group_map[comp]] = \
-                [ group_map[c] for c in comp_children[comp] ]
+        for comp in comps:
+            group = group_map[comp]
+            # set group parents
+            g_parents = [ group_map[p_comp] for p_comp in comp.parents ]
+            group.set_parents(g_parents)
+            # set group children
+            g_children = [ group_map[p_comp] for p_comp in comp.children ]
+            group.set_children(g_children)
 
-        return group_map, group_parents, group_children
+        return group_map
 
     def draw_pipeline_graph(self):
         gr = pgv.AGraph(strict=False, directed=True)
-        group_list = list(set([self._groups[f] for f in self._groups]))
+        group_list = list(set([self.groups[comp] for comp in self.groups]))
 
         # TODO add input nodes to the graph
         for i in range(0, len(group_list)):
             sub_graph_nodes = []
-            for obj in self._comp_objs:
-                if self._groups[obj] == group_list[i]:
-                    sub_graph_nodes.append(obj.name)
+            for comp in self.comps:
+                if self.groups[comp] == group_list[i]:
+                    sub_graph_nodes.append(comp.func.name)
             gr.add_nodes_from(sub_graph_nodes)
             gr.add_subgraph(nbunch = sub_graph_nodes,
                            name = "cluster_" + str(i))
 
-        for obj in self._comp_objs:
-            for pobj in self._comp_objs_parents[obj]:
-                gr.add_edge(pobj.name, obj.name)
+        for comp in self.comps:
+            for p_comp in comp.parents:
+                gr.add_edge(p_comp.func.name, comp.func.name)
 
         gr.layout(prog='dot')
         return gr
@@ -485,15 +593,15 @@ class Pipeline:
 
         parents = []
         children = []
-        for comp in group.compute_objs:
+        for comp in group.comps:
             # add group's parents
             parents.extend( \
                 [self._groups[p] for p in self._comp_objs_parents[comp] \
-                                   if p not in group.compute_objs] )
+                                   if p not in group.comps] )
             # add group's children
             children.extend( \
                 [self._groups[c] for c in self._comp_objs_children[comp] \
-                                   if c not in group.compute_objs] )
+                                   if c not in group.comps] )
             # add group to comp -> group mapping
             self._groups[comp] = group
         self._group_parents[group] = list(set(parents))
@@ -523,17 +631,17 @@ class Pipeline:
                 self._group_parents[c_group].remove(group)
             self._group_children.pop(group)
         # remove group from comp -> group mapping
-        for comp in group.compute_objs:
+        for comp in group.comps:
             self._groups.pop(comp)
 
         return
 
     def merge_groups(self, g1, g2):
         # Get comp objects from both groups
-        comp_objs = g1.compute_objs + g2.compute_objs
+        comp_objs = g1.comps + g2.comps
         comp_objs = list(set(comp_objs))
         # Create a new group
-        merged = Group(self._ctx, comp_objs, self._comp_objs_parents, \
+        merged = Group(self._ctx, comp_objs,
                        self._param_constraints)
 
         self.drop_group(g1)
@@ -555,7 +663,7 @@ class Pipeline:
                 self._group_parents[new_group].append(parent)
 
         # replace old_group with new_group in groups list
-        comp = old_group.compute_objs[0]
+        comp = old_group.comps[0]
         self.drop_group(old_group)
         self._groups[comp] = new_group
 
