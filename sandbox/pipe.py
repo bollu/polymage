@@ -159,16 +159,28 @@ class ComputeObject:
         self._is_children_set = False
         self._is_group_set = False
 
+    def add_child(self, comp):
+        assert isinstance(comp, ComputeObject)
+        self._children.append(comp)
+        self._children = list(set(self._children))
+    def add_parent(self, comp):
+        assert isinstance(comp, ComputeObject)
+        self._parents.append(comp)
+        self._parents = list(set(self._parents))
+
+    def remove_child(self, comp):
+        if comp in self._children:
+            self._children.remove(comp)
+    def remove_parent(self, comp):
+        if comp in self._parents:
+            self._parents.remove(comp)
+
     def set_parents(self, parents):
-        assert self._parents_set == False
-        # assert parents is a list of ComputeObject
         for p in parents:
             assert isinstance(p, ComputeObject)
         self._parents = parents
 
     def set_children(self, children):
-        assert self._children_set == False
-        # assert children is a list of ComputeObject
         for p in children:
             assert isinstance(p, ComputeObject)
         self._children = children
@@ -267,14 +279,29 @@ class Group:
         return children
 
     def add_child(self, group):
+        assert isinstance(group, Group)
         self._children.append(group)
+        self._children = list(set(self._children))
     def add_parent(self, group):
+        assert isinstance(group, Group)
         self._parents.append(group)
+        self._parents = list(set(self._parents))
 
     def remove_child(self, group):
-        self._children.remove(group)
+        if group in self._children:
+            self._children.remove(group)
     def remove_parent(self, group):
-        self._parents.remove(group)
+        if group in self._parents:
+            self._parents.remove(group)
+
+    def set_parents(self, parents):
+        for group in parents:
+            assert isinstance(group, Group)
+        self._parents = parents
+    def set_children(self, children):
+        for group in children:
+            assert isinstance(group, Group)
+        self._children = children
 
     # DEAD?
     def is_fused(self):
@@ -614,19 +641,19 @@ class Pipeline:
     Pipelne graph operations
     '''
 
-    def drop_compute_obj(self, comp_obj):
+    def drop_comp(self, comp):
         # if the compute object is a child of any other
-        if comp_obj in self._comp_objs_parents:
-            for p_comp in self._comp_objs_parents[comp_obj]:
-                self._comp_objs_children[p_comp].remove(comp_obj)
-            self._comp_objs_parents.pop(comp_obj)
+        if comp.parents:
+            for p_comp in comp.parents:
+                p_comp.remove_child(comp)
         # if the compute object is a parent of any other
-        if comp_obj in self._comp_objs_children:
-            for c_comp in self._comp_objs_children[comp_obj]:
-                self._comp_objs_parents[c_comp].remove(comp_obj)
-            self._comp_objs_children.pop(comp_obj)
+        if comp.children:
+            for c_comp in comp.children:
+                c_comp.remove_parent(comp)
         # remove comp_obj
-        self._comp_objs.remove(comp_obj)
+        self._comps.remove(comp)
+        func = comp.func
+        self._func_map.pop(func)
 
         return
 
@@ -686,15 +713,15 @@ class Pipeline:
 
     def replace_group(self, old_group, new_group):
         # if old_group has any child
-        if old_group in self._group_children:
-            for child in self._group_children[old_group]:
-                self._group_parents[child].append(new_group)
-                self._group_children[new_group].append(child)
+        if old_group.children:
+            for child in old_group.children:
+                child.add_parent(new_group)
+                new_group.add_child(child)
         # if old_group has any parent
-        if old_group in self._group_parents:
-            for parent in self._group_parents[old_group]:
-                self._group_children[parent].append(new_group)
-                self._group_parents[new_group].append(parent)
+        if old_group.parents:
+            for parent in old_group.parents:
+                parent.add_child(new_group)
+                new_group.add_parent(parent)
 
         # replace old_group with new_group in groups list
         comp = old_group.comps[0]
@@ -703,46 +730,47 @@ class Pipeline:
 
         return
 
-    def make_comp_independent(self, comp_a, comp_b):
+    def make_func_independent(self, func_a, func_b):
         """
-        makes comp_b independent of comp_b and updates parent children
+        makes func_b independent of func_b and updates parent children
         relations in the graph structure
-        [ assumes that comp_b is a child of comp_a, and that comp_a is inlined
-        into comp_b ]
+        [ assumes that func_b is a child of func_a, and that func_a is inlined
+        into func_b ]
         """
-        group_a = self._groups[comp_a]
-        group_b = self._groups[comp_b]
+        comp_a = self._func_map[func_a]
+        comp_b = self._func_map[func_b]
+        group_a = self.groups[comp_a]
+        group_b = self.groups[comp_b]
         # if parent_comp has any parent
-        if comp_a in self._comp_objs_parents:
-            parents_of_a = self._comp_objs_parents[comp_a]
-            parents_of_b = self._comp_objs_parents[comp_b]
-            parents_of_grp_a = self._group_parents[group_a]
-            parents_of_grp_b = self._group_parents[group_b]
+        if comp_a.parents:
+            parents_of_a = comp_a.parents
+            parents_of_b = comp_b.parents
+            parents_of_grp_a = group_a.parents
+            parents_of_grp_b = group_b.parents
 
             # remove relation between a and b
-            self._comp_objs_children[comp_a].remove(comp_b)
-            self._group_children[group_a].remove(group_b)
+            comp_a.remove_child(comp_b)
+            group_a.remove_child(group_b)
+
             parents_of_b.remove(comp_a)
             parents_of_grp_b.remove(group_a)
 
             # new parents list for b
+            # compute object
             parents_of_b.extend(parents_of_a)
             parents_of_b = list(set(parents_of_b))
+            # group object
             parents_of_grp_b.extend(parents_of_grp_a)
             parents_of_grp_b = list(set(parents_of_grp_b))
 
-            self._comp_objs_parents[comp_b] = parents_of_b
-            self._group_parents[group_b] = parents_of_grp_b
+            comp_b.set_parents(parents_of_b)
+            group_b.set_parents(parents_of_grp_b)
 
             # new children list for parents_of_b
-            for p in parents_of_b:
-                children_of_p = self._comp_objs_children[p]
-                children_of_p.append(comp_b)
-                self._comp_objs_children[p] = list(set(children_of_p))
-            for gp in parents_of_grp_b:
-                children_of_gp = self._group_children[gp]
-                children_of_gp.append(group_b)
-                self._group_children[gp] = list(set(children_of_gp))
+            for p_comp in parents_of_b:
+                p_comp.add_child(comp_b)
+            for p_group in parents_of_grp_b:
+                p_group.add_child(group_b)
 
         return
 
@@ -753,4 +781,4 @@ class Pipeline:
         return return_str
 
     def create_storage_classes(self):
-        return storage_classification(self._comp_objs)
+        return storage_classification(self.comps)
