@@ -21,28 +21,6 @@ def get_group_dep_vecs(group, parts_list=[], scale_map = None):
                     dep_vecs.append(dep_vec)
     return dep_vecs
 
-def isGroupDependentOnPart(self, group, parentPart):
-    for part in group:
-        refs = part.refs
-        # This can be more precise
-        objRefs = [ ref.objectRef for ref in refs\
-                     if ref.objectRef == parentPart.comp]
-        if len(objRefs) > 0:
-            return True
-    return False
-
-def findLeafGroups(self, groups):
-    leafGroups = []
-    for i in range(0, len(groups)):
-        isLeaf = True
-        for p in groups[i]:
-            for j in range(0, len(groups)):
-                if j!=i and self.isGroupDependentOnPart(groups[j], p):
-                    isLeaf = False
-        if isLeaf:
-            leafGroups.append(groups[i])
-    return leafGroups
-
 def auto_group(pipeline):
     param_est = pipeline._param_estimates
     size_thresh = pipeline._size_threshold
