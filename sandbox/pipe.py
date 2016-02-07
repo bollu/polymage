@@ -311,6 +311,7 @@ class Group:
     def set_comp_group(self):
         for comp in self.comps:
             comp.set_group(self)
+        return
 
     def find_parents(self):
         parents = []
@@ -318,42 +319,53 @@ class Group:
             comp_parent_groups = [p_comp.group for p_comp in comp.parents]
             parents.extend(comp_parent_groups)
         parents = list(set(parents))
-
         return parents
-
     def find_children(self):
         children = []
         for comp in self.comps:
             comp_children_groups = [p_comp.group for p_comp in comp.children]
             children.extend(comp_children_groups)
         children = list(set(children))
-
         return children
 
     def add_child(self, group):
         assert isinstance(group, Group)
         self._children.append(group)
         self._children = list(set(self._children))
+        return
     def add_parent(self, group):
         assert isinstance(group, Group)
         self._parents.append(group)
         self._parents = list(set(self._parents))
+        return
 
     def remove_child(self, group):
         if group in self._children:
             self._children.remove(group)
+        return
     def remove_parent(self, group):
         if group in self._parents:
             self._parents.remove(group)
+        return
 
     def set_parents(self, parents):
         for group in parents:
             assert isinstance(group, Group)
         self._parents = parents
+        return
     def set_children(self, children):
         for group in children:
             assert isinstance(group, Group)
         self._children = children
+        return
+
+    def compute_liveness(self):
+        for comp in comps:
+            comp.compute_liveness()
+            parts = self.polyRep.poly_parts[comp]
+            for part in parts:
+                part.compute_liveness()
+        return
 
     # DEAD?
     def is_fused(self):
@@ -504,8 +516,7 @@ class Pipeline:
 
         # update liveness of compute objects in each new group
         for group in self._group_list:
-            for comp in group.comps:
-                comp.compute_liveness()
+            group.compute_liveness()
 
         # ***
         log_level = logging.INFO
