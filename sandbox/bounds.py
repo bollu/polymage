@@ -28,6 +28,8 @@ def bounds_check_pass(pipeline):
             # currently abusing group for construction of a polyhedral
             # representation
             inp_comp = pipe.ComputeObject(inp)
+            inp_comp.set_parents([])
+            inp_comp.set_children([])  # <- needs attention
             inp_group = \
                 pipe.Group(pipeline._ctx, [inp_comp], \
                            pipeline._param_constraints)

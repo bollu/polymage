@@ -124,6 +124,8 @@ class ComputeObject:
         self._is_liveout = True
         self.set_flags()
 
+        self._level_no = 0
+
     @property
     def func(self):
         return self._func
@@ -154,6 +156,9 @@ class ComputeObject:
         assert self.is_group_set
         return self._group
 
+    @property
+    def level(self):
+        return self._level_no
     @property
     def is_liveout(self):
         return self._is_liveout
@@ -235,6 +240,9 @@ class ComputeObject:
 
         return
 
+    def set_level(self, _level_no):
+        self._level_no = _level_no
+
 
 class Group:
     """ 
@@ -261,10 +269,9 @@ class Group:
 
         self.set_comp_group()  # <- scepticsl
 
-        if not self.is_image_typ:
-            self._level_order_comps = self.order_compute_objs()
-            self._root_comps = [comp for comp in self.comps \
-                                       if self._level_order_comps[comp] == 0]
+        self._level_order_comps = self.order_compute_objs()
+        self._root_comps = self.find_root_comps()
+
         self._polyrep = None
         refs = []
 
@@ -305,8 +312,11 @@ class Group:
         return [comp.func.name for comp in self.comps]
 
     @property
-    def get_ordered_compobjs(self):
+    def get_ordered_comps(self):  # <- cant have such a name for property
         return self._level_order_comps
+    @property
+    def root_comps(self):
+        return self._root_comps
 
     def set_comp_group(self):
         for comp in self.comps:
@@ -360,7 +370,7 @@ class Group:
         return
 
     def compute_liveness(self):
-        for comp in comps:
+        for comp in self.comps:
             comp.compute_liveness()
             parts = self.polyRep.poly_parts[comp]
             for part in parts:
@@ -391,7 +401,12 @@ class Group:
         order = level_order(self.comps, parents)
         return order
 
-    def get_sorted_compobjs(self):
+    def find_root_comps(self):
+        root_comps = [comp for comp in self.comps \
+                             if self._level_order_comps[comp] == 0]
+        return root_comps
+
+    def get_sorted_comps(self):
         sorted_comps = sorted(self._level_order_comps.items(),
                               key=lambda x: x[1])
         sorted_comps = [c[0] for c in sorted_comps]
@@ -526,7 +541,6 @@ class Pipeline:
         # ***
 
         ''' SCHEDULING '''
-        '''
         for g in self._group_list:
             # alignment and scaling
             align_and_scale(self, g)
@@ -541,7 +555,6 @@ class Pipeline:
 
         # use graphviz to create pipeline graph
         self._pipeline_graph = self.draw_pipeline_graph()
-        '''
 
         ''' STORAGE OPTIMIZATION '''
         '''
@@ -616,10 +629,16 @@ class Pipeline:
         for comp in self.comps:
             parents[comp] = comp.parents
         order = level_order(self.comps, parents)
+        for comp in order:
+            comp.set_level(order[comp])
         return order
 
     def order_group_objs(self):
-        order = level_order(self._group_list, self._group_parents)
+        groups = self._group_list
+        parents = {}
+        for group in groups:
+            parents[group] = group.parents
+        order = level_order(groups, parents)
         return order
 
     def get_sorted_compobjs(self):

@@ -7,7 +7,7 @@ import islpy as isl
 from constructs import *
 from expression import *
 from utils import *
-from pipe import *
+import pipe
 import align_scale as aln_scl
 
 # Static method 'alloc' for isl Id does not allow the user to be
@@ -207,6 +207,9 @@ class PolyPart(object):
     @property
     def is_liveout(self):
         return self._is_liveout
+    @property
+    def level(self):
+        return self._level_no
 
     def set_align(self, align):
         self._align = [i for i in align]
@@ -232,7 +235,7 @@ class PolyPart(object):
     def get_size(self, param_estimates):
         # returns the size of the computation that contains this poly part
         size = None
-        domain = self.comp.domain
+        domain = self.comp.func.domain
         if isinstance(self.comp.func, Reduction):
             domain = self.comp.func.reductionDomain
         for interval in domain:
@@ -271,11 +274,11 @@ class PolyPart(object):
         dim_out = parent_part.sched.dim(isl._isl.dim_type.out)
         dep_vec = [ NULL for i in range(0, dim_out) ]
 
-        if isinstance(parent_part.comp, Reduction):
+        if isinstance(parent_part.comp.func, Reduction):
             for i in range(1, dim_out):
                 dep_vec[i] = '*'
-            dep_vec[0] = self._level_no - parent_part._level_no
-            return (dep_vec, parent_part._level_no)
+            dep_vec[0] = self.level - parent_part.level
+            return (dep_vec, parent_part.level)
 
         # else
         for i in range(0, num_args):
@@ -378,7 +381,7 @@ class PolyPart(object):
                 dep_vec[pvar_sched_dim] = '*'
 
         assert dep_vec[0] == NULL
-        dep_vec[0] = self._level_no - parent_part._level_no
+        dep_vec[0] = self.level - parent_part.level
         for i in range(0, dim_out):
             if (dep_vec[i] == NULL):
                 dep_vec[i] = 0
@@ -398,7 +401,7 @@ class PolyPart(object):
         #                aff = (dim_diff.get_pieces())[0][1]
         #                val = aff.get_constant_val()
         #                dep_vec[i] = (val.get_num_si())/(val.get_den_si())
-        return (dep_vec, parent_part._level_no)
+        return (dep_vec, parent_part.level)
 
     def __str__(self):
         partStr = "Schedule: " + self.sched.__str__() + '\n'\
@@ -411,17 +414,39 @@ class PolyPart(object):
 
 class PolyDomain(object):
     def __init__(self, _dom_set, _comp):
-        self.dom_set = _dom_set
-        self.comp = _comp
+        self._dom_set = _dom_set
+        assert isinstance(_comp, pipe.ComputeObject)
+        self._comp = _comp
+
+    @property
+    def dom_set(self):
+        return self._dom_set
+    @property
+    def comp(self):
+        return self._comp
+
+    def set_tuple_id(self, _id):
+        self._dom_set.set_tuple_id(_id)
+        return
 
     def __str__(self):
         return "Domain: " + self.dom_set.__str__()
 
 class PolyDep(object):
-    def __init__(self, _producer_obj, _consumer_obj, _rel):
-        self.producer_obj = _producer_obj
-        self.consumer_obj = _consumer_obj
-        self.rel         = _rel
+    def __init__(self, _producer, _consumer, _rel):
+        self._producer = _producer
+        self._consumer = _consumer
+        self._rel = _rel
+
+    @property
+    def producer_obj(self):
+        return self._producer
+    @property
+    def consumer_obj(self):
+        return self._consumei
+    @property
+    def rel(self):
+        return self._rel
 
     def __str__(self):
         return self.rel.__str__()
@@ -435,6 +460,7 @@ class PolyRep(object):
     def __init__(self, _ctx, _group, _outputs,
                  _param_constraints):
 
+        assert isinstance(_group, pipe.Group)
         self.group = _group
         self.outputs = _outputs
         self.param_constraints = _param_constraints
@@ -454,26 +480,26 @@ class PolyRep(object):
 
     def extract_polyrep_from_group(self, param_constraints):
         # dict: comp_obj -> level_no
-        comp_objs = self.group.order_compute_objs()
-        num_objs = len(comp_objs.items())
+        comp_map = self.group.get_ordered_comps
+        num_objs = len(comp_map.items())
 
         # Comute the max dimensionality of the compute objects
-        def max_dim(objs):
+        def max_dim(comps):
             dim = 0
-            for comp in objs:
-                if type(comp) == Reduction:
-                    dim = max(dim, len(comp.reductionVariables))
-                    dim = max(dim, len(comp.variables))
-                elif type(comp) == Function or type(comp) == Image:
-                    dim = max(dim, len(comp.variables))
+            for comp in comps:
+                if type(comp.func) == Reduction:
+                    dim = max(dim, len(comp.func.reductionVariables))
+                    dim = max(dim, len(comp.func.variables))
+                elif type(comp.func) == Function or type(comp.func) == Image:
+                    dim = max(dim, len(comp.func.variables))
             return dim
 
-        dim = max_dim(comp_objs)
+        dim = max_dim(comp_map)
 
         # Get all the parameters used in the group compute objects
         grp_params = []
-        for comp in comp_objs:
-            grp_params = grp_params + comp.getObjects(Parameter)
+        for comp in comp_map:
+            grp_params = grp_params + comp.func.getObjects(Parameter)
         grp_params = list(set(grp_params))
 
         param_names = [param.name for param in grp_params]
@@ -487,16 +513,16 @@ class PolyRep(object):
         schedule_names = ['_t'] + \
                          [ self.getVarName()  for i in range(0, dim) ]
 
-        for comp in comp_objs:
-            if (type(comp) == Function or type(comp) == Image):
+        for comp in comp_map:
+            if (type(comp.func) == Function or type(comp.func) == Image):
                 self.extract_polyrep_from_function(comp, dim, schedule_names,
                                                    param_names, context_conds,
-                                                   comp_objs[comp]+1,
+                                                   comp_map[comp]+1,
                                                    param_constraints)
-            elif (type(comp) == Reduction):
+            elif (type(comp.func) == Reduction):
                 self.extract_polyrep_from_reduction(comp, dim, schedule_names,
                                                     param_names, context_conds,
-                                                    comp_objs[comp]+1,
+                                                    comp_map[comp]+1,
                                                     param_constraints)
             else:
                 assert False
@@ -519,11 +545,11 @@ class PolyRep(object):
         return context_conds
 
     def extract_poly_dom_from_comp(self, comp, param_constraints):
-        var_names = [ var.name for var in comp.variables ]
+        var_names = [ var.name for var in comp.func.variables ]
         dom_map_names = [ name +'\'' for name in var_names ]
 
         params = []
-        for interval in comp.domain:
+        for interval in comp.func.domain:
             params = params + interval.collect(Parameter)
         params = list(set(params))
         param_names = [ param.name for param in params ]
@@ -533,7 +559,7 @@ class PolyRep(object):
                                                       params = param_names)
         dom_map = isl.BasicMap.universe(space)
         # Adding the domain constraints
-        [ineqs, eqs] = format_domain_constraints(comp.domain, var_names)
+        [ineqs, eqs] = format_domain_constraints(comp.func.domain, var_names)
         dom_map = add_constraints(dom_map, ineqs, eqs)
 
         param_conds = self.format_param_constraints(param_constraints, params)
@@ -541,8 +567,8 @@ class PolyRep(object):
         dom_map = add_constraints(dom_map, param_ineqs, param_eqs)
 
         poly_dom = PolyDomain(dom_map.domain(), comp)
-        id_ = isl_alloc_id_for(self.ctx, comp.name, poly_dom)
-        poly_dom.dom_set = poly_dom.dom_set.set_tuple_id(id_)
+        id_ = isl_alloc_id_for(self.ctx, comp.func.name, poly_dom)
+        poly_dom.set_tuple_id(id_)
         isl_set_id_user(id_, poly_dom)
 
         return poly_dom
@@ -553,12 +579,13 @@ class PolyRep(object):
                                       param_constraints):
         self.poly_doms[comp] = \
             self.extract_poly_dom_from_comp(comp, param_constraints)
-        sched_map = self.create_sched_space(comp.variables, comp.domain,
+        sched_map = self.create_sched_space(comp.func.variables,
+                                            comp.func.domain,
                                             schedule_names, param_names,
                                             context_conds)
-        self.create_poly_parts_from_definition(comp, max_dim,
-                                               sched_map, level_no,
-                                               schedule_names, comp.domain)
+        self.create_poly_parts_from_definition(comp, max_dim, sched_map,
+                                               level_no, schedule_names,
+                                               comp.func.domain)
 
     def extract_polyrep_from_reduction(self, comp, max_dim,
                                        schedule_names, param_names,
@@ -566,15 +593,16 @@ class PolyRep(object):
                                        param_constraints):
         self.poly_doms[comp] = \
             self.extract_poly_dom_from_comp(comp, param_constraints)
-        sched_map = self.create_sched_space(comp.reductionVariables,
-                                            comp.reductionDomain,
+        sched_map = self.create_sched_space(comp.func.reductionVariables,
+                                            comp.func.reductionDomain,
                                             schedule_names, param_names,
                                             context_conds)
         self.create_poly_parts_from_definition(comp, max_dim,
                                                sched_map, level_no,
                                                schedule_names,
-                                               comp.reductionDomain)
-        dom_map = self.create_sched_space(comp.variables, comp.domain,
+                                               comp.func.reductionDomain)
+        dom_map = self.create_sched_space(comp.func.variables,
+                                          comp.func.domain,
                                           schedule_names, param_names,
                                           context_conds)
 
@@ -605,7 +633,7 @@ class PolyRep(object):
                                           sched_map, level_no,
                                           schedule_names, domain):
         self.poly_parts[comp] = []
-        for case in comp.defn:
+        for case in comp.func.defn:
             sched_m = sched_map.copy()
 
             # The basic schedule is an identity schedule appended with
@@ -694,12 +722,12 @@ class PolyRep(object):
         align, scale = \
             aln_scl.default_align_and_scale(sched_m, max_dim, shift=True)
 
-        assert(isinstance(comp.default, AbstractExpression))
-        poly_part = PolyPart(sched_m, comp.default,
+        assert(isinstance(comp.func.default, AbstractExpression))
+        poly_part = PolyPart(sched_m, comp.func.default,
                              None, comp,
                              align, scale, level_no-1)
 
-        id_ = isl_alloc_id_for(self.ctx, comp.name, poly_part)
+        id_ = isl_alloc_id_for(self.ctx, comp.func.name, poly_part)
         poly_part.sched = \
                 poly_part.sched.set_tuple_id(isl._isl.dim_type.in_, id_)
         isl_set_id_user(id_, poly_part)
@@ -808,7 +836,7 @@ class PolyRep(object):
             poly_part = PolyPart(sched_map, expr, pred, comp,
                                  list(align), list(scale), level_no)
             # Create a user pointer, tuple name and add it to the map
-            id_ = isl_alloc_id_for(self.ctx, comp.name, poly_part)
+            id_ = isl_alloc_id_for(self.ctx, comp.func.name, poly_part)
             poly_part.sched = poly_part.sched.set_tuple_id(
                                           isl._isl.dim_type.in_, id_)
             isl_set_id_user(id_, poly_part)
@@ -818,7 +846,7 @@ class PolyRep(object):
                 poly_part = PolyPart(bsched_map, bexpr, pred, comp,
                                      list(align), list(scale), level_no)
                 # Create a user pointer, tuple name and add it to the map
-                id_ = isl_alloc_id_for(self.ctx, comp.name, poly_part)
+                id_ = isl_alloc_id_for(self.ctx, comp.func.name, poly_part)
                 poly_part.sched = poly_part.sched.set_tuple_id( \
                                         isl._isl.dim_type.in_, id_)
                 isl_set_id_user(id_, poly_part)
@@ -877,29 +905,9 @@ class PolyRep(object):
         astbld = astbld.set_iterators(ids)
         self.polyast.append(astbld.ast_from_schedule(sched_map))
 
-    def is_comp_self_dependent(self, comp):
-        parts = self.poly_parts[comp]
-        for p in parts:
-            if p.is_self_dependent():
-                return True
-        return False
-
-    def isParent(self, part1, part2): 
-        refs    = part2.refs
-        objRefs = [ ref.objectRef for ref in refs\
-                         if ref.objectRef == part1.comp]
-        if len(objRefs) > 0:
-            return True
-        return False
-
     def getVarName(self):
         name = "_i" + str(self._var_count)
         self._var_count+=1
-        return name
-
-    def getFuncName(cls):
-        name = "_f" + str(self._func_count)
-        self._func_count+=1
         return name
 
     def __str__(self):
