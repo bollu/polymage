@@ -26,10 +26,8 @@ def auto_group(pipeline):
     size_thresh = pipeline._size_threshold
     grp_size = pipeline._group_size
 
-    comps = pipeline._comp_objs
-    group_map = pipeline._groups
-    g_child_par_map = pipeline._group_parents
-    g_par_child_map = pipeline._group_children
+    comps = pipeline.comps
+    group_map = pipeline.groups
     groups = list(set([group_map[comp] for comp in group_map]))
 
     def get_group_cost(group):
@@ -43,7 +41,7 @@ def auto_group(pipeline):
     # benefit from tiling or parallelization. The parents are included so that
     # we do not miss out on storage optimzations.
     def get_small_comps(pipeline, comps):
-        comp_parents = pipeline._comp_objs_parents
+        funcs = [comp.func for comp in comps]
 
         small_comps = []
         # Currentlty the size is just being estimated by the number of points
@@ -66,7 +64,7 @@ def auto_group(pipeline):
             if comp_size_map[comp] != '*':
                 is_small_comp = (comp_size_map[comp] <= size_thresh)
             # iterate over parents of comp
-            for pcomp in comp_parents:
+            for pcomp in comp.parents:
                 if comp_size_map[pcomp] != '*':
                     is_small_comp = is_small_comp and \
                         (comp_size_map[pcomp] > size_thresh)
@@ -85,22 +83,28 @@ def auto_group(pipeline):
     while opt:
         opt = False
 
-        for group in pipeline._group_children:
+        # list groups which have children
+        parents = []
+        for group in groups:
+            if group.children:
+               parents.append(group)
+
+        for group in parents:
             is_small_grp = True
             is_reduction_grp = False
             is_const_grp = False
-            for comp in group._comp_objs:
+            for comp in group.comps:
                 if not comp in small_comps:
                     is_small_grp = False
-                if isinstance(comp, Reduction):
+                if isinstance(comp.func, Reduction):
                     is_reduction_grp = True
-                if comp.is_const_func:
+                if comp.func.is_const_func:
                     is_const_grp = True
-            for g_child in pipeline._group_children[group]:
-                for comp in g_child._comp_objs:
-                    if isinstance(comp, Reduction):
+            for g_child in group.children:
+                for comp in g_child.comps:
+                    if isinstance(comp.func, Reduction):
                         is_reduction_grp = True
-                    if comp.is_const_func:
+                    if comp.func.is_const_func:
                         is_const_grp = True
 
             # merge if
@@ -111,48 +115,46 @@ def auto_group(pipeline):
             if not is_small_grp and \
                not is_reduction_grp and \
                not is_const_grp and \
-               len(group._comp_objs) < grp_size:
+               len(group.comps) < grp_size:
                 merge = True
-
-                all_children_of_g = pipeline._group_children[group]
 
                 # check if group and its children are merged the total
                 # group size exceeds grp_size
                 child_comps_count = 0
-                for g_child in all_children_of_g:
+                for g_child in group.children:
                     child_comps_count += len(g_child._comp_objs)
 
                 '''
-                merge_count = len(group._comp_objs)+child_comps_count
+                merge_count = len(group.comps)+child_comps_count
                 if merge_count > grp_size:
                     merge = False
                 '''
 
                 # - if group has many children
-                if (len(all_children_of_g) > 1):
+                if (len(group.children) > 1):
                     if merge:
                         # check if its possible to group with all children.
                         # collect all the parents of all children of group
                         all_parents = []
-                        for g_child in all_children_of_g:
-                            all_parents += pipeline._group_parents[g_child]
-                        all_parents = list(set(all_parents))
+                        for g_child in group.children:
+                            all_parents += g_child.parents
+                        all_parents = set(all_parents)
                         all_parents.remove(group)
 
                         # if all_parents are children of group => OK to merge
-                        if not set(all_parents).issubset(set(all_children_of_g)):
+                        if not all_parents.issubset(set(group.children)):
                             merge = False
 
                     if merge:
                         new_grp = group
-                        for g_child in all_children_of_g:
+                        for g_child in group.children:
                             new_grp = pipeline.merge_groups(new_grp, g_child)
                         opt = True
                         break
                 # - if group has only one child
-                elif (len(all_children_of_g) == 1):
+                elif (len(group.children) == 1):
                     if merge:
-                        pipeline.merge_groups(group, all_children_of_g[0])
+                        pipeline.merge_groups(group, group.children[0])
                         opt = True
                         break
 
