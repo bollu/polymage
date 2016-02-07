@@ -111,6 +111,7 @@ def level_order(objs, parent_map):
                     change = True
     return order
 
+
 class ComputeObject:
     def __init__(self, _func):
         assert isinstance(_func, Function)
@@ -218,6 +219,23 @@ class ComputeObject:
         self._group = None
         return
 
+    def compute_liveness(self):
+        # if there any children
+        if not self.children:
+            # no child => live_out
+            self._is_liveout = True
+            return
+
+        self._is_liveout = False
+        for child in self.children:
+            # if any child is in another group
+            if child.group != self.group:
+                self._is_liveout = True
+                break
+
+        return
+
+
 class Group:
     """ 
         Group is a part of the pipeline which realizes a set of computation
@@ -256,13 +274,11 @@ class Group:
         self._inputs = list(set([ref.objectRef for ref in refs \
                             if isinstance(ref.objectRef, Image)]))
 
-        '''
         # Create a polyhedral representation if possible.
         # Currently doing extraction only when all the compute_objs
         # domains are affine. This can be revisited later.
         if self.isPolyhedral():
             self._polyrep = PolyRep(_ctx, self, [], _param_constraints)
-        '''
 
     @property
     def comps(self):
@@ -376,6 +392,7 @@ class Group:
                     ']'
         return comp_str
 
+
 class Pipeline:
     def __init__(self, _ctx, _outputs,
                  _param_estimates, _param_constraints,
@@ -479,12 +496,16 @@ class Pipeline:
             auto_group(self)
             pass
 
-        '''
         # create list of Groups
         self._group_list = list(set(self._groups.values()))
 
         # level order traversal of groups
         self._level_order_groups = self.order_group_objs()
+
+        # update liveness of compute objects in each new group
+        for group in self._group_list:
+            for comp in group.comps:
+                comp.compute_liveness()
 
         # ***
         log_level = logging.INFO
@@ -492,7 +513,6 @@ class Pipeline:
         for g in self._group_list:
             LOG(log_level, g.name)
         # ***
-        '''
 
         ''' SCHEDULING '''
         '''

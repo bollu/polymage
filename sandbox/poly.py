@@ -7,6 +7,7 @@ import islpy as isl
 from constructs import *
 from expression import *
 from utils import *
+from pipe import *
 import align_scale as aln_scl
 
 # Static method 'alloc' for isl Id does not allow the user to be
@@ -27,7 +28,7 @@ def isl_alloc_id_for(ctx, name, user):
 
     return id_
 
-def optimizeSchedule(partScheds, dependencies):
+def optimize_schedule(part_scheds, dependencies):
     # The pluto optimizer can be used to optimize the schedule for
     # comparision.
     pass
@@ -153,7 +154,9 @@ class PolyPart(object):
         self.sched = _sched
         self.expr = _expr
         self.pred = _pred
+        assert isinstance(_comp, pipe.ComputeObject)
         self.comp = _comp
+        self.func = self.comp.func
 
         # Dependencies between values of computation objects
         self.deps = []
@@ -187,23 +190,23 @@ class PolyPart(object):
         self.vector_sched_dim = []
 
         # liveness in the group containing the part
-        self.is_liveout = _liveout
+        self._is_liveout = _liveout
 
     @property
     def align(self):
         return list(self._align)
-
     @property
     def scale(self):
         return list(self._scale)
-
     @property
     def refs(self):
         return list(self._refs)
-
     @property
     def is_self_dependent(self):
         return self._self_dep
+    @property
+    def is_liveout(self):
+        return self._is_liveout
 
     def set_align(self, align):
         self._align = [i for i in align]
@@ -221,7 +224,7 @@ class PolyPart(object):
 
     def check_self_dep(self):
         obj_refs = [ ref.objectRef for ref in self.refs \
-                         if ref.objectRef == self.comp ]
+                         if ref.objectRef == self.comp.func ]
         if len(obj_refs) > 0:
             return True
         return False
@@ -230,8 +233,8 @@ class PolyPart(object):
         # returns the size of the computation that contains this poly part
         size = None
         domain = self.comp.domain
-        if isinstance(self.comp, Reduction):
-            domain = self.comp.reductionDomain
+        if isinstance(self.comp.func, Reduction):
+            domain = self.comp.func.reductionDomain
         for interval in domain:
             subs_size = get_dim_size(interval, param_estimates)
             if is_constant_expr(subs_size):
@@ -253,23 +256,8 @@ class PolyPart(object):
 
         return refs
 
-    def compute_liveness(self, pipeline):
-        # if there any children
-        if self.comp in pipeline._comp_objs_children:
-            children = pipeline._comp_objs_children[self.comp]
-        else:
-            # no child => not live_out
-            self.is_liveout = True
-            return
-
-        self.is_liveout = False
-        group = pipeline._groups[self.comp]
-        for child in children:
-            # if any child is in another group
-            if pipeline._groups[child] != group:
-                self.is_liveout = True
-                break
-
+    def compute_liveness(self):
+        self._is_liveout = self.comp.is_liveout
         return
 
     def compute_dependence_vector(self, parent_part,
