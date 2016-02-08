@@ -621,15 +621,9 @@ def align_and_scale(pipeline, group):
         if children == []:
             return
 
-        children_map = info.pipe._comp_objs_children
-        poly_parts = info.group.polyRep.poly_parts
-        child_order = {}
-        for child in children:
-            if child in info.group._comp_objs:
-                child_order[child] = poly_parts[child][0]._level_no
-                # index 0 picks the fist poly part
-        sorted_order = sorted(child_order.items(), key=lambda x: x[1])
-        sorted_children = [x[0] for x in sorted_order]
+        group = info.group
+        poly_parts = group.polyRep.poly_parts
+        sorted_children = group.get_sorted_comps()
 
         for child in sorted_children:
             solve_comp_from_parents(child, info)
@@ -638,10 +632,10 @@ def align_and_scale(pipeline, group):
         # collect unsolved children of children within the group
         all_grand_children = []
         for child in sorted_children:
-            if child in children_map:
-                grand_children = [gc for gc in children_map[child] \
+            if child.children:
+                grand_children = [gc for gc in child.children \
                                        if gc not in info.solved and \
-                                          gc in info.group._comp_objs]
+                                          gc in info.group.comps]
                 all_grand_children += grand_children
         all_grand_children = list(set(all_grand_children))
 
@@ -663,6 +657,7 @@ def align_and_scale(pipeline, group):
             for part in part_map[comp]:
                 plus_align = plus_one(part.align)
                 part.set_align(plus_align)
+        return
 
     def find_scale_norm(info):
         '''
@@ -698,6 +693,7 @@ def align_and_scale(pipeline, group):
                 else:
                     new_scale[dim] = NULL
             part.set_scale(new_scale)
+        return
 
     ''' main '''
     comps = group.get_sorted_comps()
