@@ -132,17 +132,17 @@ def isl_cond_to_cgen(cond, prologue_stmts = None):
     assert("Unsupported isl conditional type:"+str(cond.get_op_type())+\
            " of condition:"+str(cond) and \
            cond.get_op_type() in comp_dict)
-    comp = comp_dict[cond.get_op_type()]
+    comp_op = comp_dict[cond.get_op_type()]
     assert("Conditional expressions must have exactly 2 arguments!" and \
            cond.get_op_n_arg() == 2)
-    if (comp == '&&' or comp == '||'):
+    if (comp_op == '&&' or comp_op == '||'):
         left = isl_cond_to_cgen(cond.get_op_arg(0), prologue_stmts)
         right = isl_cond_to_cgen(cond.get_op_arg(1), prologue_stmts)
     else:
         left = isl_expr_to_cgen(cond.get_op_arg(0), prologue_stmts)
         right = isl_expr_to_cgen(cond.get_op_arg(1), prologue_stmts)
 
-    return genc.CCond(left, comp, right)
+    return genc.CCond(left, comp_op, right)
 
 def is_inner_most_parallel(node):
     # Check if there are no parallel loops within the node
@@ -217,7 +217,7 @@ def get_arrays_for_user_nodes(polyrep, user_nodes, cfunc_map):
     for node in user_nodes:
         part_id = node.user_get_expr().get_op_arg(0).get_id()
         part = isl_get_id_user(part_id)
-        array, scratch = cfunc_map[part.comp]
+        array, scratch = cfunc_map[part.comp.func]
         if (array not in arrays) and (True in scratch):
             arrays.append(array)
     return arrays
@@ -271,7 +271,7 @@ def generate_c_naive_from_expression_node(polyrep, node, body,
     dom_len = len(variables)
 
     # Get the mapping to the array
-    array, scratch = cfunc_map[poly_part.comp]
+    array, scratch = cfunc_map[poly_part.comp.func]
 
     acc_scratch = [ False for i in range(0, dom_len) ]
     for i in range(0, dom_len):
@@ -627,8 +627,8 @@ def create_perfect_nested_loop(group, pipe_body, variables, domains,
                              cparam_map, cvar_map, cfunc_map)
 
         var_decl = genc.CDeclaration(var.typ, var, lb)
-        comp = '<='
-        cond = genc.CCond(var, comp, ub)
+        comp_op = '<='
+        cond = genc.CCond(var, comp_op, ub)
         incr = genc.CAssign(var, var+1)
 
         loop = genc.CFor(var_decl, cond, incr)
@@ -827,7 +827,7 @@ def generate_code_for_group(pipeline, g, body, options,
             if flatten_scratchpad:
                 array.layout = 'contiguous_static'
 
-        cfunc_map[comp] = (array, scratch)
+        cfunc_map[func] = (array, scratch)
 
         # array is freed, if comp is a group liveout and not an output
         if not comp.is_output and comp.is_liveout:
@@ -925,7 +925,7 @@ def generate_code_for_pipeline(pipeline,
             # Bind input functions to C arrays
             carr = genc.CArray(img_type, img.name, img.dimensions,
                                'contiguous')
-            cfunc_map[img] = (carr, [])  # <-
+            cfunc_map[img] = (carr, [])
 
         # 2.3. collect outputs
         outputs = sorted(pipeline.outputs, key=lambda x: x.name)
