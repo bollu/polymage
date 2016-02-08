@@ -2,7 +2,6 @@ import optparse
 import sys
 
 def parse_args():
-    print("KUMUDHA: Inside Arg parser")
     parser = optparse.OptionParser()
 
     help_str = \
