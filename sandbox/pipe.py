@@ -113,7 +113,7 @@ def level_order(objs, parent_map):
 
 
 class ComputeObject:
-    def __init__(self, _func):
+    def __init__(self, _func, _is_output=False):
         assert isinstance(_func, Function)
         self._func = _func
         self._parents = []
@@ -121,6 +121,7 @@ class ComputeObject:
 
         self._group = None
 
+        self._is_output = _is_output
         self._is_liveout = True
         self.set_flags()
 
@@ -159,6 +160,9 @@ class ComputeObject:
     @property
     def level(self):
         return self._level_no
+    @property
+    def is_output(self):
+        return self._is_output
     @property
     def is_liveout(self):
         return self._is_liveout
@@ -612,7 +616,10 @@ class Pipeline:
         comps = []
         func_map = {}
         for func in funcs:
-            comp = ComputeObject(func)
+            output = False
+            if func in self._outputs:
+                output = True
+            comp = ComputeObject(func, output)
             func_map[func] = comp
             comps.append(comp)
 
