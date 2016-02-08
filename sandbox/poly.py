@@ -263,6 +263,9 @@ class PolyPart(object):
         self._is_liveout = self.comp.is_liveout
         return
 
+    def set_liveness(self, _is_liveout):
+        self._is_liveout = _is_liveout
+
     def compute_dependence_vector(self, parent_part,
                                   ref, scale_map = None):
         def get_scale(s_map, p, i):

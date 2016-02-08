@@ -56,7 +56,7 @@ def base_schedule(group):
         [ineqs, eqs] = format_schedule_constraints(dim_in, dim_out,
                                                    part.align,
                                                    part.scale,
-                                                   part._level_no)
+                                                   part.level)
         part.sched = add_constraints(part.sched, ineqs, eqs)
 
     return parts
@@ -247,10 +247,11 @@ def mark_par_and_vec(poly_part, param_estimates):
     # the inner most dim and mark it as vector
     parallel_dim = None
     vec_dim = None
-    for dim in range(0, len(p.align)):
-        interval = p.comp.domain[dim]
-        if isinstance(p.comp, Reduction):
-            interval = p.comp.reductionDomain[dim]
+    dim_in = p.sched.dim(isl._isl.dim_type.in_)
+    for dim in range(0, dim_in):
+        interval = p.comp.func.domain[dim]
+        if isinstance(p.comp.func, Reduction):
+            interval = p.comp.func.reductionDomain[dim]
         # Since size could be estimated so can interval size be
         intr_size = \
             get_dim_size(interval, param_estimates)
@@ -383,12 +384,12 @@ def fused_schedule(pipeline, group, param_estimates):
     for p in g_all_parts:
         is_liveout = not is_stencil
         #is_liveout = True
-        p.is_liveout = p.is_liveout or is_liveout
+        p.set_liveness(p.is_liveout or is_liveout)
 
     if is_stencil:
         assert(len(g_all_parts) > 1)
-        hmax = max( [ p._level_no for p in g_all_parts ] )
-        hmin = min( [ p._level_no for p in g_all_parts ] )
+        hmax = max( [ p.level for p in g_all_parts ] )
+        hmin = min( [ p.level for p in g_all_parts ] )
         slope_min, slope_max = compute_tile_slope(comp_deps, hmax)
 
         #splitTile(stageGroups[gi], slopeMin, slopeMax)
@@ -429,8 +430,8 @@ def move_independent_dim(dim, group_parts, stageDim):
                                 stageDim, noDepName)
 
 def get_group_height(group_parts):
-    min_height = min( [ part._level_no for part in group_parts ] )
-    max_height = max( [ part._level_no for part in group_parts ] )
+    min_height = min( [ part.level for part in group_parts ] )
+    max_height = max( [ part.level for part in group_parts ] )
     return max_height - min_height
 
 def overlap_tile(pipeline, group_parts, slope_min, slope_max):

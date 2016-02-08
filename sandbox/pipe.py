@@ -516,7 +516,7 @@ class Pipeline:
             for g in self._grouping:
                 # get clones of all functions
                 clones = [self._clone_map[f] for f in g]
-                comps = [self._func_map[f] for f in clones]
+                comps = [self.func_map[f] for f in clones]
                 # list of group objects to be grouped
                 merge_group_list = \
                     [self.groups[comp] for comp in comps]
@@ -565,6 +565,9 @@ class Pipeline:
         self.create_storage_classes()
         '''
 
+    @property
+    def func_map(self):
+        return self._func_map
     @property
     def comps(self):
         return self._comps
@@ -823,8 +826,8 @@ class Pipeline:
         [ assumes that func_b is a child of func_a, and that func_a is inlined
         into func_b ]
         """
-        comp_a = self._func_map[func_a]
-        comp_b = self._func_map[func_b]
+        comp_a = self.func_map[func_a]
+        comp_b = self.func_map[func_b]
         group_a = comp_a.group
         group_b = comp_b.group
         # if parent_comp has any parent

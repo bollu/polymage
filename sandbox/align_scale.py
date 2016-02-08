@@ -415,7 +415,7 @@ def align_and_scale(pipeline, group):
 
         # var:dim map of variable domain of the child part
         child_map = get_domain_dims(child_part.sched, \
-                                    child_part.comp.variableDomain[0])
+                                    child_part.comp.func.variableDomain[0])
         # var:dim map of parent part in argument order
         parent_map = get_argvar_order(ref_arg_vars)
 
@@ -474,7 +474,7 @@ def align_and_scale(pipeline, group):
         reverse = False : solve for child
         '''
         max_dim = info.max_dim
-        ref_comp = ref.objectRef
+        ref_comp = info.pipe.func_map[ref.objectRef]
 
         ref_poly_parts = group.polyRep.poly_parts[ref_comp]
         for ref_part in ref_poly_parts:
@@ -490,17 +490,12 @@ def align_and_scale(pipeline, group):
         child comps.
         """
 
-        def collect_child_refs(children):
-            refs = []
-            for child in children:
-                refs[child_part] = [ref for ref in child.refs]
-
         # if already visited
         if comp in info.solved:
             return
 
         part_map = info.group.polyRep.poly_parts
-        all_children = info.pipe._comp_objs_children[comp]
+        all_children = info.pipe.comp.children
         solved_children = [child for child in all_children \
                                    if child in info.solved]
 
@@ -508,7 +503,7 @@ def align_and_scale(pipeline, group):
             for child_part in part_map[child]:
                 # collect the references made only to comp
                 refs = [ref for ref in child_part.refs
-                              if ref.objectRef == comp]
+                              if ref.objectRef == comp.func]
 
                 # if the poly part makes no reference to any other compute object
                 if not refs:
@@ -536,11 +531,10 @@ def align_and_scale(pipeline, group):
         if parents == []:
             return
 
-        parent_map = info.pipe._comp_objs_parents
         poly_parts = info.group.polyRep.poly_parts
         parent_order = {}
         for parent in parents:
-            parent_order[parent] = poly_parts[parent][0]._level_no
+            parent_order[parent] = poly_parts[parent][0].level
             # index 0 picks the fist poly part
 
         # parents near leaf level shall be solved at the earliest
@@ -555,10 +549,10 @@ def align_and_scale(pipeline, group):
         # collect unsolved parents of parents within the group
         all_grand_parents = []
         for parent in sorted_parents:
-            if parent in parent_map:
-                grand_parents = [gp for gp in parent_map[parent] \
+            if parent.parents:
+                grand_parents = [gp for gp in parent.parents \
                                       if gp not in info.solved and \
-                                         gp in info.group._comp_objs]
+                                         gp.group == info.group]
                 all_grand_parents += grand_parents
         all_grand_parents = list(set(all_grand_parents))
 
@@ -577,9 +571,11 @@ def align_and_scale(pipeline, group):
         if comp in info.solved:
             return
 
+        func_map = info.pipe.func_map
+
         comp_parts = info.group.polyRep.poly_parts[comp]
-        all_parents = [p for p in info.pipe._comp_objs_parents[comp] \
-                           if p in info.group._comp_objs]
+        all_parents = [p for p in comp.parents \
+                           if p.group == info.group]
         solved_pars = [par for par in all_parents \
                              if par in info.solved]
 
@@ -591,7 +587,7 @@ def align_and_scale(pipeline, group):
         for p in comp_parts:
             # collect the references to solved parents
             refs = [ref for ref in p.refs
-                          if ref.objectRef in solved_pars]
+                          if func_map[ref.objectRef] in solved_pars]
 
             # if the poly part makes no reference to any other compute object
             if not refs:
