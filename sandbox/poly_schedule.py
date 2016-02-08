@@ -362,7 +362,7 @@ def fused_schedule(pipeline, group, param_estimates):
 
     # get dependence vectors between each part of the group and each of its
     # parents' part
-    comp_deps = get_group_dep_vecs(group, g_all_parts)
+    comp_deps = get_group_dep_vecs(pipeline, group, g_all_parts)
 
     # No point in tiling a group that has no dependencies
     is_stencil = len(comp_deps) > 0 and len(g_all_parts) > 1

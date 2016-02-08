@@ -145,7 +145,7 @@ def extract_value_dependence(part, ref, ref_poly_dom):
             coeff[source_dims[i]] = -1
             rel = add_constraints(rel, [], [coeff])
     if not rel.is_empty():
-        deps.append(PolyDep(ref.objectRef, part.comp, rel))
+        deps.append(PolyDep(ref.objectRef, part.comp.func, rel))
     return deps 
 
 class PolyPart(object):
@@ -227,7 +227,7 @@ class PolyPart(object):
 
     def check_self_dep(self):
         obj_refs = [ ref.objectRef for ref in self.refs \
-                         if ref.objectRef == self.comp.func ]
+                         if ref.objectRef == self.func ]
         if len(obj_refs) > 0:
             return True
         return False
@@ -235,9 +235,9 @@ class PolyPart(object):
     def get_size(self, param_estimates):
         # returns the size of the computation that contains this poly part
         size = None
-        domain = self.comp.func.domain
-        if isinstance(self.comp.func, Reduction):
-            domain = self.comp.func.reductionDomain
+        domain = self.func.domain
+        if isinstance(self.func, Reduction):
+            domain = self.func.reductionDomain
         for interval in domain:
             subs_size = get_dim_size(interval, param_estimates)
             if is_constant_expr(subs_size):
@@ -277,7 +277,7 @@ class PolyPart(object):
         dim_out = parent_part.sched.dim(isl._isl.dim_type.out)
         dep_vec = [ NULL for i in range(0, dim_out) ]
 
-        if isinstance(parent_part.comp.func, Reduction):
+        if isinstance(parent_part.func, Reduction):
             for i in range(1, dim_out):
                 dep_vec[i] = '*'
             dep_vec[0] = self.level - parent_part.level
@@ -446,7 +446,7 @@ class PolyDep(object):
         return self._producer
     @property
     def consumer_obj(self):
-        return self._consumei
+        return self._consumer
     @property
     def rel(self):
         return self._rel
@@ -712,8 +712,8 @@ class PolyRep(object):
         #    else:
         #        sched_m.foreach_basic_map(bmap_list.append)
         #    for bmap in bmap_list:
-        #        poly_part = PolyPart(bmap, comp.default, None, comp)
-        #        id_ = isl_alloc_id_for(self.ctx, comp.name, poly_part)
+        #        poly_part = PolyPart(bmap, comp.func.default, None, comp)
+        #        id_ = isl_alloc_id_for(self.ctx, comp.func.name, poly_part)
         #        poly_part.sched = poly_part.sched.set_tuple_id(
         #                                   isl._isl.dim_type.in_, id_)
         #        isl_set_id_user(id_, poly_part)

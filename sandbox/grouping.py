@@ -8,18 +8,21 @@ grouping_logger = logging.getLogger("grouping.py")
 grouping_logger.setLevel(logging.DEBUG)
 LOG = grouping_logger.log
 
-def get_group_dep_vecs(group, parts_list=[], scale_map = None):
+def get_group_dep_vecs(pipe, group, parts_list=[], scale_map = None):
+    func_map = pipe.func_map
     dep_vecs = []
     g_poly_rep = group.polyRep
     g_poly_parts = g_poly_rep.poly_parts
+    gcomps = group.comps
+    gfuncs = [comp.func for comp in gcomps]
     if parts_list == []:
-        for comp in g_poly_parts:
+        for comp in gcomps:
             parts_list.extend(g_poly_parts[comp])
     for part in parts_list:
         for ref in part.refs:
-            # if the parent is in the same group
-            if ref.objectRef in g_poly_parts:
-                for pp in g_poly_parts[ref.objectRef]:
+            if ref.objectRef in gfuncs:
+                ref_comp = func_map[ref.objectRef]
+                for pp in g_poly_parts[ref_comp]:
                     if pp not in parts_list:
                         continue
                     dep_vec = \

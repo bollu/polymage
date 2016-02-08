@@ -6,7 +6,7 @@ from poly import *
 
 # LOG CONFIG #
 align_scale_logger = logging.getLogger("align_scale.py")
-align_scale_logger.setLevel(logging.INFO)
+align_scale_logger.setLevel(logging.DEBUG)
 LOG = align_scale_logger.log
 
 class ASPacket(object):
@@ -586,8 +586,9 @@ def align_and_scale(pipeline, group):
         # solve for each part
         for p in comp_parts:
             # collect the references to solved parents
-            refs = [ref for ref in p.refs
-                          if func_map[ref.objectRef] in solved_pars]
+            refs = [ref for ref in p.refs \
+                          if not isinstance(ref.objectRef, Image) and \
+                             func_map[ref.objectRef] in solved_pars]
 
             # if the poly part makes no reference to any other compute object
             if not refs:

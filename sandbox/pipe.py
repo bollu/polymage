@@ -597,7 +597,7 @@ class Pipeline:
     def get_ordered_compobjs(self):
         return self._level_order_comps
     @property
-    def get_ordered_groups(self):
+    def get_ordered_groups(self):  # <- naming
         return self._level_order_groups
     @property
     def group_schedule(self):
