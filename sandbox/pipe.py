@@ -267,7 +267,7 @@ class Group:
         self._parents = []
         self._children = []
 
-        self.set_comp_group()  # <- scepticsl
+        self.set_comp_group()
 
         self._level_order_comps = self.order_compute_objs()
         self._root_comps = self.find_root_comps()
@@ -309,7 +309,7 @@ class Group:
         return self._inputs
     @property
     def name(self):
-        return [comp.func.name for comp in self.comps]
+        return str([comp.func.name for comp in self.comps])
 
     @property
     def get_ordered_comps(self):  # <- cant have such a name for property
@@ -323,19 +323,25 @@ class Group:
             comp.set_group(self)
         return
 
-    def find_parents(self):
+    def find_and_set_parents(self):
         parents = []
         for comp in self.comps:
             comp_parent_groups = [p_comp.group for p_comp in comp.parents]
             parents.extend(comp_parent_groups)
         parents = list(set(parents))
+        if self in parents:
+            parents.remove(self)
+        self.set_parents(parents)
         return parents
-    def find_children(self):
+    def find_and_set_children(self):
         children = []
         for comp in self.comps:
-            comp_children_groups = [p_comp.group for p_comp in comp.children]
+            comp_children_groups = [c_comp.group for c_comp in comp.children]
             children.extend(comp_children_groups)
         children = list(set(children))
+        if self in children:
+            children.remove(self)
+        self.set_children(children)
         return children
 
     def add_child(self, group):
@@ -414,8 +420,8 @@ class Group:
 
     def __str__(self):
         comp_str  = '[' + \
-                    ', '.join([comp.name \
-                        for comp in self._comp_objs]) + \
+                    ', '.join([comp.func.name \
+                        for comp in self.comps]) + \
                     ']'
         return comp_str
 
@@ -483,8 +489,8 @@ class Pipeline:
 
         # Make a list of all the input groups
         inputs = []
-        for comp in self.groups:
-            inputs = inputs + self.groups[comp].inputs
+        for comp in self.comps:
+            inputs = inputs + comp.group.inputs
         self._inputs = list(set(inputs))
 
         # Checking bounds
@@ -523,31 +529,26 @@ class Pipeline:
             auto_group(self)
             pass
 
-        # create list of Groups
-        self._group_list = list(set(self._groups.values()))
-
         # level order traversal of groups
         self._level_order_groups = self.order_group_objs()
 
         # update liveness of compute objects in each new group
-        for group in self._group_list:
+        for group in self.groups:
             group.compute_liveness()
 
         # ***
         log_level = logging.INFO
         LOG(log_level, "Grouped compute objects:")
-        for g in self._group_list:
+        for g in self.groups:
             LOG(log_level, g.name)
         # ***
 
         ''' SCHEDULING '''
-        for g in self._group_list:
+        for g in self.groups:
             # alignment and scaling
             align_and_scale(self, g)
             # base schedule
             gparts = base_schedule(g)
-            for p in gparts:
-                p.compute_liveness(self)
             # grouping and tiling
             fused_schedule(self, g, self._param_estimates)
 
@@ -634,11 +635,10 @@ class Pipeline:
         return order
 
     def order_group_objs(self):
-        groups = self._group_list
         parents = {}
-        for group in groups:
+        for group in self.groups:
             parents[group] = group.parents
-        order = level_order(groups, parents)
+        order = level_order(self.groups, parents)
         return order
 
     def get_sorted_compobjs(self):
@@ -659,27 +659,25 @@ class Pipeline:
         dependence relations between the created Group objects.
         """
         comps = self.comps
-        group_map = {}
+        groups = []
         for comp in comps:
             group = Group(self._ctx, [comp], self._param_constraints)
-            group_map[comp] = group
+            groups.append(group)
 
-        for comp in comps:
-            group = group_map[comp]
-            group.find_parents()
-            group.find_children()
+        for group in groups:
+            group.find_and_set_parents()
+            group.find_and_set_children()
 
-        return group_map
+        return groups
 
     def draw_pipeline_graph(self):
         gr = pgv.AGraph(strict=False, directed=True)
-        group_list = list(set([self.groups[comp] for comp in self.groups]))
 
         # TODO add input nodes to the graph
-        for i in range(0, len(group_list)):
+        for i in range(0, len(self.groups)):
             sub_graph_nodes = []
             for comp in self.comps:
-                if self.groups[comp] == group_list[i]:
+                if comp.group == self.groups[i]:
                     sub_graph_nodes.append(comp.func.name)
             gr.add_nodes_from(sub_graph_nodes)
             gr.add_subgraph(nbunch = sub_graph_nodes,
@@ -751,10 +749,10 @@ class Pipeline:
         if not group.comps:
             return
 
-        for comp in group.comps:
-            self._groups[comp] = group
-            group.find_parents()
-            group.find_children()
+        self._groups.append(group)
+
+        group.find_and_set_parents()
+        group.find_and_set_children()
 
         # add group as child for all its parents
         for p_group in group.parents:
@@ -777,9 +775,8 @@ class Pipeline:
         if group.children:
             for c_group in group.children:
                 c_group.remove_parent(group)
-        # remove group from comp -> group mapping
+        self._groups.remove(group)
         for comp in group.comps:
-            self._groups.pop(comp)
             comp.unset_group()
 
         return
@@ -787,13 +784,15 @@ class Pipeline:
     def merge_groups(self, g1, g2):
         # Get comp objects from both groups
         comps = g1.comps + g2.comps
-        comps = list(set(comp_objs))
+        comps = list(set(comps))
+
+        self.drop_group(g1)
+        self.drop_group(g2)
+
         # Create a new group
         merged = Group(self._ctx, comps,
                        self._param_constraints)
 
-        self.drop_group(g1)
-        self.drop_group(g2)
         self.add_group(merged)
 
         return merged
@@ -826,8 +825,8 @@ class Pipeline:
         """
         comp_a = self._func_map[func_a]
         comp_b = self._func_map[func_b]
-        group_a = self.groups[comp_a]
-        group_b = self.groups[comp_b]
+        group_a = comp_a.group
+        group_b = comp_b.group
         # if parent_comp has any parent
         if comp_a.parents:
             parents_of_a = comp_a.parents

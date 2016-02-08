@@ -1,6 +1,12 @@
 from __future__ import absolute_import, division, print_function
 
 from constructs import *
+import logging
+
+# LOG CONFIG #
+grouping_logger = logging.getLogger("grouping.py")
+grouping_logger.setLevel(logging.DEBUG)
+LOG = grouping_logger.log
 
 def get_group_dep_vecs(group, parts_list=[], scale_map = None):
     dep_vecs = []
@@ -27,8 +33,6 @@ def auto_group(pipeline):
     grp_size = pipeline._group_size
 
     comps = pipeline.comps
-    group_map = pipeline.groups
-    groups = list(set([group_map[comp] for comp in group_map]))
 
     def get_group_cost(group):
         return 1
@@ -49,7 +53,7 @@ def auto_group(pipeline):
         # arithmetic intensity in the expressions.
         comp_size_map = {}
         for comp in comps:
-            parts = group_map[comp].polyRep.poly_parts[comp]
+            parts = comp.group.polyRep.poly_parts[comp]
             p_sizes = []
             for p in parts:
                 p_size = p.get_size(param_est)
@@ -80,16 +84,32 @@ def auto_group(pipeline):
 
     # loop termination boolean
     opt = True
+    it = 0
     while opt:
         opt = False
 
+        # ***
+        log_level = logging.DEBUG
+        LOG(log_level, "---------------")
+        LOG(log_level, "iter = "+str(it))
+        LOG(log_level, "Current Groups:")
+        for g in pipeline.groups:
+            LOG(log_level, g.name)
+        # ***
+
+        it += 1
         # list groups which have children
-        parents = []
-        for group in groups:
-            if group.children:
-               parents.append(group)
+        parents = [group for group in pipeline.groups \
+                           if group.children]
 
         for group in parents:
+            # ***
+            log_level = logging.DEBUG-1
+            LOG(log_level, "-----")
+            LOG(log_level, "group : "+group.name)
+            LOG(log_level, "group children : "+str([c.name for c in group.children]))
+            # ***
+
             is_small_grp = True
             is_reduction_grp = False
             is_const_grp = False
@@ -122,7 +142,7 @@ def auto_group(pipeline):
                 # group size exceeds grp_size
                 child_comps_count = 0
                 for g_child in group.children:
-                    child_comps_count += len(g_child._comp_objs)
+                    child_comps_count += len(g_child.comps)
 
                 '''
                 merge_count = len(group.comps)+child_comps_count
