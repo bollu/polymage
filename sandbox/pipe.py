@@ -562,12 +562,10 @@ class Pipeline:
         self._pipeline_graph = self.draw_pipeline_graph()
 
         ''' STORAGE OPTIMIZATION '''
-        '''
         # storage opt for liveout (full array) allocations
         # 1. derive liveout comps schedule from group schedule
         # 2. classify the storage based on type, dimensionality and size
         self.create_storage_classes()
-        '''
 
     @property
     def func_map(self):

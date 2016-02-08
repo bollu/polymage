@@ -6,7 +6,7 @@ from poly import *
 
 # LOG CONFIG #
 align_scale_logger = logging.getLogger("align_scale.py")
-align_scale_logger.setLevel(logging.DEBUG)
+align_scale_logger.setLevel(logging.INFO)
 LOG = align_scale_logger.log
 
 class ASPacket(object):
