@@ -20,15 +20,18 @@ def bounds_check_pass(pipeline):
     references.
     """
     for group in pipeline._groups.values():
-        for child in pipeline._group_children[group]:
+        for child in group.children:
             check_refs(child, group)
         for inp in group.inputs:
             # Creating a computation group for an input which is given
             # is meaningless. Ideally it should be done in a clean way
             # currently abusing group for construction of a polyhedral
             # representation
+            inp_comp = pipe.ComputeObject(inp)
+            inp_comp.set_parents([])
+            inp_comp.set_children([])  # <- needs attention
             inp_group = \
-                pipe.Group(pipeline._ctx, [inp], {inp:[]}, \
+                pipe.Group(pipeline._ctx, [inp_comp], \
                            pipeline._param_constraints)
 
             check_refs(group, inp_group)
@@ -42,13 +45,15 @@ def check_refs(child_group, parent_group):
     # assert (not child_group.isFused() and not parent_group.isFused())
 
     # get the only comp_obj in child and parent groups
-    parent_func = parent_group._comp_objs[0]
-    child_obj = child_group._comp_objs[0]
+    parent_comp = parent_group.comps[0]
+    parent_func = parent_comp.func
+    child_comp = child_group.comps[0]
+    child_func = child_comp.func
 
     # Only verifying if both child and  parent group have a polyhedral
     # representation
     if child_group.polyRep.poly_parts and parent_group.polyRep.poly_doms:
-        for child_part in child_group.polyRep.poly_parts[child_obj]:
+        for child_part in child_group.polyRep.poly_parts[child_comp]:
             # Compute dependence relations between child and parent
             child_refs = child_part.refs
             if child_part.pred:

@@ -32,9 +32,8 @@ def compute_liveness(children_map, schedule):
     '''
     liveness_map = {}
     for comp in schedule:
-        children = children_map[comp]
         last_live = 0
-        for child in children:
+        for child in comp.children:
             t = schedule[child]
             last_live = max(last_live, t)
         if last_live not in liveness_map:
@@ -177,8 +176,8 @@ def storage_classification(comps):
         comp_size = {}
         for comp in comps:
             interval_sizes = []
-            intervals = comp.domain
-            dims = comp.ndims
+            intervals = comp.func.domain
+            dims = comp.func.ndims
             for interval in intervals:
                 params = interval.collect(Parameter)
                 assert not len(params) > 1
@@ -202,8 +201,8 @@ def storage_classification(comps):
 
         storage_map = {}
         for comp in comps:
-            typ = comp.typ
-            dims = comp.ndims
+            typ = comp.func.typ
+            dims = comp.func.ndims
             dim_sizes = comp_size[comp]
             storage_map[comp] = Storage(typ, dims, dim_sizes)
 
@@ -251,14 +250,14 @@ def storage_classification(comps):
             log_level = logging.DEBUG
             LOG(log_level, "_______")
             LOG(log_level, key)
-            LOG(log_level, [comp.name for comp in storage_class])
+            LOG(log_level, [comp.func.name for comp in storage_class])
             # ***
 
             # pick a dummpy comp to get the total number of dimensions and the
             # original parameter associated with each dimesnion
             helper_comp = storage_class[0]
-            typ = helper_comp.typ
-            dims = helper_comp.ndims
+            typ = helper_comp.func.typ
+            dims = helper_comp.func.ndims
             helper_storage = storage_map[helper_comp]
             # this list holds the maximal offset value for each dimension
             max_offset = [0 for dim in range(0, dims)]
@@ -314,7 +313,7 @@ def classify_scratchpad_storage(comps, size_map):
     scratch_class = {}
     scratch_class_map = {}
     for comp in comps:
-        typ = comp.typ
+        typ = comp.func.typ
         typ_size = TypeSizeMap.getsize(typ)
         size = size_map[comp]
         key = (typ_size, size)

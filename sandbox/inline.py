@@ -47,23 +47,22 @@ def inline_pass(pipeline):
     #         = 0                             otherwise
     # -- Users should be encouraged to write functions in a form that makes
     #    inlining easy.
-    inlined_comp_objs = []
-    groups = list(set(pipeline._groups.values()))
+    inlined_funcs = []
     # TODO: _inline_directives flag
     for directive in pipeline._inline_directives:
         # Only function constructs can be inlined for now
         assert isinstance(directive, Function)
 
-        comp = pipeline._clone_map[directive]
-        # Does inling into a fused group cause problems?
-        group = pipeline._groups[comp]
+        clone = pipeline._clone_map[directive]
+        comp = pipeline._func_map[clone]
+        group = pipeline._groups[comp]  # the only comp of group
 
         # One simply does not walk into Inlining
-        assert group.compute_objs[0] not in pipeline._outputs
+        assert group.comps[0].func not in pipeline.outputs
 
         drop_inlined = True
         inlined = []
-        for child in pipeline._group_children[group]:
+        for child in group.children:
             ref_to_inline_expr_map = \
                 piecewise_inline_check(child, group, no_split=True)
             if ref_to_inline_expr_map:
@@ -76,7 +75,8 @@ def inline_pass(pipeline):
 
         if drop_inlined:
             # remove comp_obj
-            pipeline.drop_compute_obj(comp)
+            pipeline.drop_func(clone)
+            pipeline.drop_comp(comp)
             pipeline.drop_group(group)
             pipeline._clone_map.pop(directive)
 
@@ -87,18 +87,18 @@ def inline_and_update_graph(pipeline, group, child_group, inline_map):
     calls the actual reference replacements methods at the low level and
     updates the compute graph and group graph accordingly
     """
-    comp = group.compute_objs[0]
-    child_comp = child_group.compute_objs[0]
+    comp = group.comps[0]
+    func = comp.func
+    child_comp = child_group.comps[0]
+    child_func = child_comp.func
 
     # replace the references of the child to inline the comp
-    child_comp.replace_refs(inline_map)
+    child_func.replace_refs(inline_map)
     pipeline.make_comp_independent(comp, child_comp)
 
     # create new Group for the child
     new_group = pipe.Group(pipeline._ctx, [child_comp],
                            pipeline._param_constraints)
-    pipeline._group_parents[new_group] = []
-    pipeline._group_children[new_group] = []
 
     pipeline.replace_group(child_group, new_group)
 

@@ -132,17 +132,17 @@ def isl_cond_to_cgen(cond, prologue_stmts = None):
     assert("Unsupported isl conditional type:"+str(cond.get_op_type())+\
            " of condition:"+str(cond) and \
            cond.get_op_type() in comp_dict)
-    comp = comp_dict[cond.get_op_type()]
+    comp_op = comp_dict[cond.get_op_type()]
     assert("Conditional expressions must have exactly 2 arguments!" and \
            cond.get_op_n_arg() == 2)
-    if (comp == '&&' or comp == '||'):
+    if (comp_op == '&&' or comp_op == '||'):
         left = isl_cond_to_cgen(cond.get_op_arg(0), prologue_stmts)
         right = isl_cond_to_cgen(cond.get_op_arg(1), prologue_stmts)
     else:
         left = isl_expr_to_cgen(cond.get_op_arg(0), prologue_stmts)
         right = isl_expr_to_cgen(cond.get_op_arg(1), prologue_stmts)
 
-    return genc.CCond(left, comp, right)
+    return genc.CCond(left, comp_op, right)
 
 def is_inner_most_parallel(node):
     # Check if there are no parallel loops within the node
@@ -217,7 +217,7 @@ def get_arrays_for_user_nodes(polyrep, user_nodes, cfunc_map):
     for node in user_nodes:
         part_id = node.user_get_expr().get_op_arg(0).get_id()
         part = isl_get_id_user(part_id)
-        array, scratch = cfunc_map[part.comp]
+        array, scratch = cfunc_map[part.comp.func]
         if (array not in arrays) and (True in scratch):
             arrays.append(array)
     return arrays
@@ -237,10 +237,10 @@ def generate_c_naive_from_accumlate_node(polyrep, node, body,
                                          cparam_map, cfunc_map):
     part_id = node.user_get_expr().get_op_arg(0).get_id()
     poly_part = isl_get_id_user(part_id)
-    dom_len = len(poly_part.comp.reductionVariables)
+    dom_len = len(poly_part.comp.func.reductionVariables)
     # FIXME: this has to be changed similar to Expression Node
     cvar_map = cvariables_from_variables_and_sched(node,
-                 poly_part.comp.reductionVariables, poly_part.sched)
+                 poly_part.comp.func.reductionVariables, poly_part.sched)
     expr = generate_c_expr(poly_part.expr.expression,
                            cparam_map, cvar_map, cfunc_map)
     prologue = []
@@ -267,9 +267,11 @@ def generate_c_naive_from_expression_node(polyrep, node, body,
                                           cparam_map, cfunc_map):
     part_id = node.user_get_expr().get_op_arg(0).get_id()
     poly_part = isl_get_id_user(part_id)
-    dom_len = len(poly_part.comp.variables)
+    variables = poly_part.comp.func.variables
+    dom_len = len(variables)
+
     # Get the mapping to the array
-    array, scratch = cfunc_map[poly_part.comp]
+    array, scratch = cfunc_map[poly_part.comp.func]
 
     acc_scratch = [ False for i in range(0, dom_len) ]
     for i in range(0, dom_len):
@@ -278,15 +280,15 @@ def generate_c_naive_from_expression_node(polyrep, node, body,
                 acc_scratch[i] = True
 
     cvar_map = \
-        cvariables_from_variables_and_sched(node, poly_part.comp.variables,
+        cvariables_from_variables_and_sched(node, variables,
                                             poly_part.sched)
     arglist = []
     scratch_map = {}
     for i in range(0, dom_len):
-        acc_expr = poly_part.comp.variables[i] - \
-                  poly_part.comp.domain[i].lowerBound
+        acc_expr = variables[i] - \
+                  poly_part.comp.func.domain[i].lowerBound
         if acc_scratch[i]:
-            var_name = poly_part.comp.variables[i].name
+            var_name = variables[i].name
             #dim = \
             #    poly_part.sched.find_dim_by_name(isl._isl.dim_type.in_,
             #                                     '_Acc_' + var_name)
@@ -305,7 +307,7 @@ def generate_c_naive_from_expression_node(polyrep, node, body,
             mul_var = Variable(Int, '_Mul_' + var_name)
             cvar_map[mul_var] = \
                 isl_expr_to_cgen(node.user_get_expr().get_op_arg(mul_rem+1))
-            scratch_map[poly_part.comp.variables[i]] = (mul_var)
+            scratch_map[variables[i]] = (mul_var)
             if scratch[i]:
                 acc_expr = (mul_var)
         arglist.append(generate_c_expr(acc_expr,
@@ -327,12 +329,12 @@ def generate_c_naive_from_expression_node(polyrep, node, body,
         with cif.if_block as ifblock:
             ifblock.add(assign)
         body.add(cif)
-        #var = genc.CVariable(genc.c_int, "_c_" + poly_part.comp.name)
+        #var = genc.CVariable(genc.c_int, "_c_" + poly_part.comp.func.name)
         #incr = genc.CAssign(var, var + 1)
         #body.add(incr)
     else:
         body.add(assign)
-        #var = genc.CVariable(genc.c_int, "_c_" + poly_part.comp.name)
+        #var = genc.CVariable(genc.c_int, "_c_" + poly_part.comp.func.name)
         #incr = genc.CAssign(var, var + 1)
         #body.add(inc)
 
@@ -625,8 +627,8 @@ def create_perfect_nested_loop(group, pipe_body, variables, domains,
                              cparam_map, cvar_map, cfunc_map)
 
         var_decl = genc.CDeclaration(var.typ, var, lb)
-        comp = '<='
-        cond = genc.CCond(var, comp, ub)
+        comp_op = '<='
+        cond = genc.CCond(var, comp_op, ub)
         incr = genc.CAssign(var, var+1)
 
         loop = genc.CFor(var_decl, cond, incr)
@@ -635,28 +637,29 @@ def create_perfect_nested_loop(group, pipe_body, variables, domains,
 
     return lbody
 
-def generate_function_scan_loops(group, comp_obj, pipe_body,
+def generate_function_scan_loops(group, comp, pipe_body,
                                  cparam_map, cfunc_map):
     """
     generates code for Function class
     """
+    func = comp.func
     # Compute function points in lexicographic order of domain
-    cvar_map = create_loop_variables(group, comp_obj.variables)
+    cvar_map = create_loop_variables(group, func.variables)
 
     # Generate loops. lbody is the body of the innermost loop.
     lbody = \
         create_perfect_nested_loop(group, pipe_body,
-                                   comp_obj.variables, comp_obj.domain,
+                                   func.variables, func.domain,
                                    cparam_map, cvar_map, cfunc_map)
 
-    arglist = comp_obj.variables
+    arglist = func.variables
     # Convert function definition into a C expression and add it to
     # loop body
-    for case in comp_obj.defn:
+    for case in func.defn:
         if(isinstance(case, AbstractExpression)):
             case_expr = generate_c_expr(case,
                                         cparam_map, cvar_map, cfunc_map)
-            array_ref = generate_c_expr(comp_obj(*arglist),
+            array_ref = generate_c_expr(func(*arglist),
                                         cparam_map, cvar_map, cfunc_map)
             assign = genc.CAssign(array_ref, case_expr)
             lbody.add(assign, False)
@@ -668,7 +671,7 @@ def generate_function_scan_loops(group, comp_obj, pipe_body,
             cif = genc.CIfThen(c_cond)
 
             if (isinstance(case.expression, AbstractExpression)):
-                array_ref = generate_c_expr(comp_obj(*arglist),
+                array_ref = generate_c_expr(func(*arglist),
                                             cparam_map, cvar_map, cfunc_map)
                 assign = genc.CAssign(array_ref, case_expr)
                 # FIXME: aliased referencing works, but direct call to
@@ -684,23 +687,24 @@ def generate_function_scan_loops(group, comp_obj, pipe_body,
                    False)
 
 # TESTME
-def generate_reduction_scan_loops(group, comp_obj, pipe_body,
+def generate_reduction_scan_loops(group, comp, pipe_body,
                                   cparam_map, cfunc_map):
     """
     generates code for Reduction class
     """
+    func = comp.func
     # Compute Reduction points in lexicographic order of reduction domain
-    cvar_map = create_loop_variables(group, comp_obj.reductionVariables)
+    cvar_map = create_loop_variables(group, func.reductionVariables)
 
     # Generate loops. lbody is the body of the innermost loop.
     lbody = \
         create_perfect_nested_loop(group, pipe_body,
-                                   comp_obj.reductionVariables,
-                                   comp_obj.reductionDomain,
+                                   func.reductionVariables,
+                                   func.reductionDomain,
                                    cparam_map, cvar_map, cfunc_map)
 
     # Convert function definition into a C expression and add it to loop body
-    for case in comp_obj.defn:
+    for case in func.defn:
         if(isinstance(case, Reduce)):
             case_expr = generate_c_expr(case.expression,
                                         cparam_map, cvar_map, cfunc_map)
@@ -718,7 +722,7 @@ def generate_reduction_scan_loops(group, comp_obj, pipe_body,
 
             if(isinstance(case.expression, Reduce)):
                 ref_args = case.accumulate_ref.arguments
-                accum_ref = generate_c_expr(comp_obj(*refArgs),
+                accum_ref = generate_c_expr(func(*refArgs),
                                             cparam_map, cvar_map, cfunc_map)
                 assign = genc.CAssign(accum_ref, accum_ref + cond_expr)
                 with cif.if_block as ifblock:
@@ -736,34 +740,6 @@ def generate_code_for_group(pipeline, g, body, options,
                             cparam_map, cfunc_map,
                             outputs, outputs_no_alloc):
 
-    def mark_liveouts(pipeline, comp_objs, outputs):
-        compobjs_set = set(comp_objs)
-        liveout_map = {}
-        for comp in comp_objs:
-            if comp in outputs:
-                liveout_map[comp] = True
-                continue
-            children = set(pipeline._comp_objs_children[comp])
-            is_liveout = not children.issubset(compobjs_set)
-            liveout_map[comp] = is_liveout
-
-        return liveout_map
-
-    def mark_outputs(comp_objs, outputs):
-        output_map = {}
-
-        compobjs_set = set(comp_objs)
-        output_set = set(outputs)
-        group_outputs = compobjs_set.intersection(output_set)
-        group_intermediates = compobjs_set.difference(group_outputs)
-
-        for comp in group_outputs:
-            output_map[comp] = True
-        for comp in group_intermediates:
-            output_map[comp] = False
-
-        return output_map
-
     g.polyRep.generate_code()
 
     # NOTE uses the level_no of the first polypart of each compute object of
@@ -771,16 +747,10 @@ def generate_code_for_group(pipeline, g, body, options,
     # parts of a compute object bears the same level_no*, thus repeated calling
     # of 'order_compute_objs' can be avoided.
     group_part_map = g.polyRep.poly_parts
-    sorted_comp_objs = sorted(g._comp_objs,
-                              key = lambda \
-                              comp : group_part_map[comp][0]._level_no)
-
-    # mark live-out comps
-    is_comp_liveout = mark_liveouts(pipeline, sorted_comp_objs, outputs)
-    is_comp_output = mark_outputs(sorted_comp_objs, outputs)
+    sorted_comps = g.get_sorted_comps()
 
     # ***
-    log_str = str([comp.name for comp in sorted_comp_objs])
+    log_str = str([comp.func.name for comp in sorted_comps])
     LOG(logging.DEBUG, log_str)
     # ***
 
@@ -790,26 +760,26 @@ def generate_code_for_group(pipeline, g, body, options,
     pooled = 'pool_alloc' in pipeline._options
     flatten_scratchpad = 'flatten_scratchpad' in pipeline._options
 
-    for comp in sorted_comp_objs:
+    for comp in sorted_comps:
+        func = comp.func
+
         # ***
-        LOG(logging.DEBUG, comp.name)
+        LOG(logging.DEBUG, func.name)
         # ***
 
         # nothing to do!
-        if isinstance(comp, pipe.Image):
+        if comp.is_image_typ:
             continue
 
         # 1. Allocate storage
-        array_dims = len(comp.variables)
-        is_output = is_comp_output[comp]
-        is_liveout = is_comp_liveout[comp]
+        array_dims = len(func.variables)
 
         # 1.1. scratchpad allocation, wherever applicable
-        reduced_dims = [ -1 for i in range(0, len(comp.domain))]
-        scratch = [ False for i in range(0, len(comp.domain))]
-        if comp in group_part_map and not is_liveout:
+        reduced_dims = [ -1 for i in range(0, len(func.domain))]
+        scratch = [ False for i in range(0, len(func.domain))]
+        if comp in group_part_map and not comp.is_liveout:
             for part in group_part_map[comp]:
-                for i in range(0, len(comp.domain)):
+                for i in range(0, len(func.domain)):
                     if i in part.dim_scratch_size:  # as a key
                         reduced_dims[i] = max(reduced_dims[i],
                                               part.dim_scratch_size[i])
@@ -817,8 +787,8 @@ def generate_code_for_group(pipeline, g, body, options,
 
         # 1.2. prepare the sizes of each dimension for allocation
         dims = []
-        for i in range(0, len(comp.domain)):
-            interval = comp.domain[i]
+        for i in range(0, len(func.domain)):
+            interval = func.domain[i]
             if reduced_dims[i] == -1:
                 # NOTE interval step is always +1
                 dim_expr = simplify_expr(interval.upperBound -
@@ -841,14 +811,14 @@ def generate_code_for_group(pipeline, g, body, options,
                 dims.append(reduced_dims[i])
 
         # 1.3. declare and allocate arrays
-        array_type = genc.TypeMap.convert(comp.typ)
-        array = genc.CArray(array_type, comp.name, dims)
+        array_type = genc.TypeMap.convert(func.typ)
+        array = genc.CArray(array_type, func.name, dims)
 
         # full array
-        if is_liveout:
+        if comp.is_liveout:
             array.layout = 'contiguous'
             # do not allocate output arrays if they are already allocated
-            if not is_output or not outputs_no_alloc:
+            if not comp.is_output or not outputs_no_alloc:
                 array_ptr = genc.CPointer(array_type, 1)
                 array_decl = genc.CDeclaration(array_ptr, array)
                 body.add(array_decl)
@@ -857,25 +827,25 @@ def generate_code_for_group(pipeline, g, body, options,
             if flatten_scratchpad:
                 array.layout = 'contiguous_static'
 
-        cfunc_map[comp] = (array, scratch)
+        cfunc_map[func] = (array, scratch)
 
         # array is freed, if comp is a group liveout and not an output
-        if not is_output and is_liveout:
+        if not comp.is_output and comp.is_liveout:
             group_freelist.append(array)
 
         if comp in g.polyRep.poly_parts:
             continue
 
         # 1.4. generate scan loops
-        if type(comp) == Function:
+        if type(func) == Function:
             generate_function_scan_loops(g, comp, body,
                                          cparam_map, cfunc_map)
-        elif type(comp) == Reduction:
+        elif type(func) == Reduction:
             generate_reduction_scan_loops(g, comp, body,
                                           cparam_map, cfunc_map)
         else:  # less likely
-            assert("Invalid compute object type:"+str(type(comp))+\
-                   " of object:"+str(comp.name) and \
+            assert("Invalid compute object type:"+str(type(func))+\
+                   " of object:"+str(func.name) and \
                    False)
 
     # 2. generate code for built isl ast
@@ -954,7 +924,7 @@ def generate_code_for_pipeline(pipeline,
             pipeline_args[cvar] = cvar.typ
             # Bind input functions to C arrays
             carr = genc.CArray(img_type, img.name, img.dimensions,
-                              'contiguous')
+                               'contiguous')
             cfunc_map[img] = (carr, [])
 
         # 2.3. collect outputs

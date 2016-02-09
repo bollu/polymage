@@ -1,19 +1,28 @@
 from __future__ import absolute_import, division, print_function
 
 from constructs import *
+import logging
 
-def get_group_dep_vecs(group, parts_list=[], scale_map = None):
+# LOG CONFIG #
+grouping_logger = logging.getLogger("grouping.py")
+grouping_logger.setLevel(logging.DEBUG)
+LOG = grouping_logger.log
+
+def get_group_dep_vecs(pipe, group, parts_list=[], scale_map = None):
+    func_map = pipe.func_map
     dep_vecs = []
     g_poly_rep = group.polyRep
     g_poly_parts = g_poly_rep.poly_parts
+    gcomps = group.comps
+    gfuncs = [comp.func for comp in gcomps]
     if parts_list == []:
-        for comp in g_poly_parts:
+        for comp in gcomps:
             parts_list.extend(g_poly_parts[comp])
     for part in parts_list:
         for ref in part.refs:
-            # if the parent is in the same group
-            if ref.objectRef in g_poly_parts:
-                for pp in g_poly_parts[ref.objectRef]:
+            if ref.objectRef in gfuncs:
+                ref_comp = func_map[ref.objectRef]
+                for pp in g_poly_parts[ref_comp]:
                     if pp not in parts_list:
                         continue
                     dep_vec = \
@@ -21,38 +30,12 @@ def get_group_dep_vecs(group, parts_list=[], scale_map = None):
                     dep_vecs.append(dep_vec)
     return dep_vecs
 
-def isGroupDependentOnPart(self, group, parentPart):
-    for part in group:
-        refs = part.refs
-        # This can be more precise
-        objRefs = [ ref.objectRef for ref in refs\
-                     if ref.objectRef == parentPart.comp]
-        if len(objRefs) > 0:
-            return True
-    return False
-
-def findLeafGroups(self, groups):
-    leafGroups = []
-    for i in range(0, len(groups)):
-        isLeaf = True
-        for p in groups[i]:
-            for j in range(0, len(groups)):
-                if j!=i and self.isGroupDependentOnPart(groups[j], p):
-                    isLeaf = False
-        if isLeaf:
-            leafGroups.append(groups[i])
-    return leafGroups
-
 def auto_group(pipeline):
     param_est = pipeline._param_estimates
     size_thresh = pipeline._size_threshold
     grp_size = pipeline._group_size
 
-    comps = pipeline._comp_objs
-    group_map = pipeline._groups
-    g_child_par_map = pipeline._group_parents
-    g_par_child_map = pipeline._group_children
-    groups = list(set([group_map[comp] for comp in group_map]))
+    comps = pipeline.comps
 
     def get_group_cost(group):
         return 1
@@ -65,7 +48,7 @@ def auto_group(pipeline):
     # benefit from tiling or parallelization. The parents are included so that
     # we do not miss out on storage optimzations.
     def get_small_comps(pipeline, comps):
-        comp_parents = pipeline._comp_objs_parents
+        funcs = [comp.func for comp in comps]
 
         small_comps = []
         # Currentlty the size is just being estimated by the number of points
@@ -73,7 +56,7 @@ def auto_group(pipeline):
         # arithmetic intensity in the expressions.
         comp_size_map = {}
         for comp in comps:
-            parts = group_map[comp].polyRep.poly_parts[comp]
+            parts = comp.group.polyRep.poly_parts[comp]
             p_sizes = []
             for p in parts:
                 p_size = p.get_size(param_est)
@@ -88,7 +71,7 @@ def auto_group(pipeline):
             if comp_size_map[comp] != '*':
                 is_small_comp = (comp_size_map[comp] <= size_thresh)
             # iterate over parents of comp
-            for pcomp in comp_parents:
+            for pcomp in comp.parents:
                 if comp_size_map[pcomp] != '*':
                     is_small_comp = is_small_comp and \
                         (comp_size_map[pcomp] > size_thresh)
@@ -104,25 +87,47 @@ def auto_group(pipeline):
 
     # loop termination boolean
     opt = True
+    it = 0
     while opt:
         opt = False
 
-        for group in pipeline._group_children:
+        # ***
+        log_level = logging.DEBUG
+        LOG(log_level, "---------------")
+        LOG(log_level, "iter = "+str(it))
+        LOG(log_level, "Current Groups:")
+        for g in pipeline.groups:
+            LOG(log_level, g.name)
+        # ***
+
+        it += 1
+        # list groups which have children
+        parents = [group for group in pipeline.groups \
+                           if group.children]
+
+        for group in parents:
+            # ***
+            log_level = logging.DEBUG-1
+            LOG(log_level, "-----")
+            LOG(log_level, "group : "+group.name)
+            LOG(log_level, "group children : "+str([c.name for c in group.children]))
+            # ***
+
             is_small_grp = True
             is_reduction_grp = False
             is_const_grp = False
-            for comp in group._comp_objs:
+            for comp in group.comps:
                 if not comp in small_comps:
                     is_small_grp = False
-                if isinstance(comp, Reduction):
+                if isinstance(comp.func, Reduction):
                     is_reduction_grp = True
-                if comp.is_const_func:
+                if comp.func.is_const_func:
                     is_const_grp = True
-            for g_child in pipeline._group_children[group]:
-                for comp in g_child._comp_objs:
-                    if isinstance(comp, Reduction):
+            for g_child in group.children:
+                for comp in g_child.comps:
+                    if isinstance(comp.func, Reduction):
                         is_reduction_grp = True
-                    if comp.is_const_func:
+                    if comp.func.is_const_func:
                         is_const_grp = True
 
             # merge if
@@ -133,48 +138,46 @@ def auto_group(pipeline):
             if not is_small_grp and \
                not is_reduction_grp and \
                not is_const_grp and \
-               len(group._comp_objs) < grp_size:
+               len(group.comps) < grp_size:
                 merge = True
-
-                all_children_of_g = pipeline._group_children[group]
 
                 # check if group and its children are merged the total
                 # group size exceeds grp_size
                 child_comps_count = 0
-                for g_child in all_children_of_g:
-                    child_comps_count += len(g_child._comp_objs)
+                for g_child in group.children:
+                    child_comps_count += len(g_child.comps)
 
                 '''
-                merge_count = len(group._comp_objs)+child_comps_count
+                merge_count = len(group.comps)+child_comps_count
                 if merge_count > grp_size:
                     merge = False
                 '''
 
                 # - if group has many children
-                if (len(all_children_of_g) > 1):
+                if (len(group.children) > 1):
                     if merge:
                         # check if its possible to group with all children.
                         # collect all the parents of all children of group
                         all_parents = []
-                        for g_child in all_children_of_g:
-                            all_parents += pipeline._group_parents[g_child]
-                        all_parents = list(set(all_parents))
+                        for g_child in group.children:
+                            all_parents += g_child.parents
+                        all_parents = set(all_parents)
                         all_parents.remove(group)
 
                         # if all_parents are children of group => OK to merge
-                        if not set(all_parents).issubset(set(all_children_of_g)):
+                        if not all_parents.issubset(set(group.children)):
                             merge = False
 
                     if merge:
                         new_grp = group
-                        for g_child in all_children_of_g:
+                        for g_child in group.children:
                             new_grp = pipeline.merge_groups(new_grp, g_child)
                         opt = True
                         break
                 # - if group has only one child
-                elif (len(all_children_of_g) == 1):
+                elif (len(group.children) == 1):
                     if merge:
-                        pipeline.merge_groups(group, all_children_of_g[0])
+                        pipeline.merge_groups(group, group.children[0])
                         opt = True
                         break
 
