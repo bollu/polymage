@@ -213,6 +213,11 @@ def align_and_scale(pipeline, group):
         from another part with maximum true align_scale info
         '''
 
+        # ***
+        log_level = logging.DEBUG-2
+        LOG(log_level, "Borrowing for :"+str(comp_parts[0].func.name))
+        # ***
+
         if len(comp_parts) > 1:
             # list all parts of the comp that has NULL true alignemnt
             empty = [p for p in comp_parts \
@@ -495,7 +500,8 @@ def align_and_scale(pipeline, group):
             return
 
         part_map = info.group.polyRep.poly_parts
-        all_children = info.pipe.comp.children
+        all_children = [child for child in comp.children \
+                                if child.group == comp.group]
         solved_children = [child for child in all_children \
                                    if child in info.solved]
 
@@ -572,7 +578,6 @@ def align_and_scale(pipeline, group):
             return
 
         func_map = info.pipe.func_map
-
         comp_parts = info.group.polyRep.poly_parts[comp]
         all_parents = [p for p in comp.parents \
                            if p.group == info.group]
@@ -614,17 +619,23 @@ def align_and_scale(pipeline, group):
         children list, using the information of only the already solved
         parents. Traverses in a breadth-first fashion.
         '''
+
         # leaf comp node
         if children == []:
             return
 
         group = info.group
         poly_parts = group.polyRep.poly_parts
-        sorted_children = group.get_sorted_comps()
+        sorted_children = \
+            sorted(children, key=lambda x:x.group_level)
 
         for child in sorted_children:
             solve_comp_from_parents(child, info)
             info.solved.append(child)
+            # ***
+            log_level = logging.DEBUG-2
+            LOG(log_level, "Solved : "+child.func.name)
+            # ***
 
         # collect unsolved children of children within the group
         all_grand_children = []
@@ -632,7 +643,7 @@ def align_and_scale(pipeline, group):
             if child.children:
                 grand_children = [gc for gc in child.children \
                                        if gc not in info.solved and \
-                                          gc in info.group.comps]
+                                          gc.group == info.group]
                 all_grand_children += grand_children
         all_grand_children = list(set(all_grand_children))
 
@@ -765,12 +776,14 @@ def align_and_scale(pipeline, group):
         info.align_scale[part] = ASInfo(true_pack, full_pack)
 
     # recursively compute alignment and scaling for the family of base_comp
-    if base_comp.children:
-        solve_comp_children(base_comp.children, info)  # <-
+    base_children = [child for child in base_comp.children \
+                             if child.group == group]
+    if base_children:
+        solve_comp_children(base_comp.children, info)
 
     # compute newly discovered parents iteratively until no new parent is
     # discovered.
-    solve_comp_parents(info.discovered, info)  # <-
+    solve_comp_parents(info.discovered, info)
 
     # set all the solutions into polypart object members
     for comp in comps:

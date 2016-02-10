@@ -132,6 +132,7 @@ class ComputeObject:
         self.set_flags()
 
         self._level_no = 0
+        self._group_level_no = 0
 
         self._orig_storage_class = self.build_storage_class()
         if not self.is_image_typ:
@@ -175,6 +176,9 @@ class ComputeObject:
     @property
     def level(self):
         return self._level_no
+    @property
+    def group_level(self):
+        return self._group_level_no
     @property
     def is_output(self):
         return self._is_output
@@ -295,6 +299,8 @@ class ComputeObject:
 
     def set_level(self, _level_no):
         self._level_no = _level_no
+    def set_grp_level(self, _level_no):
+        self._group_level_no = _level_no
 
     def build_storage_class(self):
         '''
@@ -341,7 +347,8 @@ class Group:
         self.set_comp_group()
 
         self._level_order_comps = self.order_compute_objs()
-        self._root_comps = self.find_root_comps()
+        self._comps = self.get_sorted_comps()
+        self._inputs = self.find_root_comps()
 
         self._polyrep = None
 
@@ -380,7 +387,7 @@ class Group:
         return self._level_order_comps
     @property
     def root_comps(self):
-        return self._root_comps
+        return self._inputs
 
     def set_comp_group(self):
         for comp in self.comps:
@@ -469,6 +476,8 @@ class Group:
         for comp in self.comps:
             parents[comp] = comp.parents
         order = level_order(self.comps, parents)
+        for comp in order:
+            comp.set_grp_level(order[comp])
         return order
 
     def find_root_comps(self):
@@ -547,6 +556,7 @@ class Pipeline:
             self.create_compute_objects()
 
         self._level_order_comps = self.order_compute_objs()
+        self._comps = self.get_sorted_comps()
 
         ''' INITIAL GROUPING '''
         # Create a group for each pipeline function / reduction and compute
@@ -564,10 +574,10 @@ class Pipeline:
         self._live_comps = list(set(live_ins))
 
         # Checking bounds
-        #bounds_check_pass(self)  # <-
+        bounds_check_pass(self)
 
         # inline pass
-        inline_pass(self)  # <-
+        inline_pass(self)
 
         # make sure the set of functions to be inlined and those to be grouped
         # are disjoint
@@ -601,6 +611,7 @@ class Pipeline:
 
         # level order traversal of groups
         self._level_order_groups = self.order_group_objs()
+        self._groups = self.get_sorted_groups()
 
         # update liveness of compute objects in each new group
         for group in self.groups:
@@ -725,9 +736,9 @@ class Pipeline:
         order = level_order(self.groups, parents)
         return order
 
-    def get_sorted_compobjs(self):
+    def get_sorted_comps(self):
         sorted_comps = sorted(self._level_order_comps.items(),
-                              key=lambda x: x[1])
+                              key=lambda x: x[1], reverse=True)
         sorted_comps = [c[0] for c in sorted_comps]
         return sorted_comps
 

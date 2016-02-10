@@ -19,11 +19,10 @@ def bounds_check_pass(pipeline):
     i.e. they are not data dependent. We restrict ourselves to affine
     references.
     """
-    for group in pipeline._groups.values():
+    for group in pipeline.groups:
         for child in group.children:
             check_refs(child, group)
-        for inp in group.inputs:
-            inp_comp = pipeline.func_map[inp]
+        for inp_comp in group.inputs:
             inp_group = \
                 pipe.Group(pipeline._ctx, [inp_comp], \
                            pipeline._param_constraints)
@@ -68,7 +67,7 @@ def check_refs(child_group, parent_group):
                                     affine_ref(ref) ]
 
             deps = []
-            parent_dom = parent_group.polyRep.poly_doms[parent_func]
+            parent_dom = parent_group.polyRep.poly_doms[parent_comp]
             for ref in child_refs:
                 deps += extract_value_dependence(child_part, ref, parent_dom)
             for dep in deps:
