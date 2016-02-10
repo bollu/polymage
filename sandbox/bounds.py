@@ -23,13 +23,7 @@ def bounds_check_pass(pipeline):
         for child in group.children:
             check_refs(child, group)
         for inp in group.inputs:
-            # Creating a computation group for an input which is given
-            # is meaningless. Ideally it should be done in a clean way
-            # currently abusing group for construction of a polyhedral
-            # representation
-            inp_comp = pipe.ComputeObject(inp)
-            inp_comp.set_parents([])
-            inp_comp.set_children([])  # <- needs attention
+            inp_comp = pipeline.func_map[inp]
             inp_group = \
                 pipe.Group(pipeline._ctx, [inp_comp], \
                            pipeline._param_constraints)

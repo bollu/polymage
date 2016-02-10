@@ -27,11 +27,15 @@ pipe_logger = logging.getLogger("pipe.py")
 pipe_logger.setLevel(logging.INFO)
 LOG = pipe_logger.log
 
-def get_parents_from_func(func):
+def get_parents_from_func(func, non_image=True):
     refs = func.getObjects(Reference)
     # Filter out self and image references 
-    refs = [ ref for ref in refs if not ref.objectRef == func and \
-                                 not isinstance(ref.objectRef, Image) ]
+    if non_image:
+        refs = [ ref for ref in refs if not ref.objectRef == func and \
+                                     not isinstance(ref.objectRef, Image) ]
+    else:
+        refs = [ ref for ref in refs if not ref.objectRef == func ]
+
     return list(set([ref.objectRef for ref in refs]))
 
 def get_funcs_and_dep_maps(outputs):
@@ -82,7 +86,7 @@ def get_funcs(outputs):
         q.put(func)
     while not q.empty():
         obj = q.get()
-        parent_objs = get_parents_from_func(obj)
+        parent_objs = get_parents_from_func(obj, non_image=False)
         if obj not in funcs:
             funcs.append(obj)
             if len(parent_objs) != 0:
@@ -130,8 +134,10 @@ class ComputeObject:
         self._level_no = 0
 
         self._orig_storage_class = self.build_storage_class()
-        self._storage_class = self._orig_storage_class
+        if not self.is_image_typ:
+            self._storage_class = self._orig_storage_class
         self._storage = None
+        self._scratch = None
 
     @property
     def func(self):
@@ -338,13 +344,6 @@ class Group:
         self._root_comps = self.find_root_comps()
 
         self._polyrep = None
-        refs = []
-
-        for comp in self.comps:
-            refs += comp.func.getObjects(Reference)
-
-        self._inputs = list(set([ref.objectRef for ref in refs \
-                            if isinstance(ref.objectRef, Image)]))
 
         # Create a polyhedral representation if possible.
         # Currently doing extraction only when all the compute_objs
@@ -522,11 +521,17 @@ class Pipeline:
         # objects. Self references are not treated as cycles.
         self._orig_funcs = get_funcs(self._orig_outputs)
 
+        self._inputs = []
+
         ''' CLONING '''
         # Clone the computation objects i.e. functions and reductions
         self._clone_map = {}
         for func in self._orig_funcs:
-            self._clone_map[func] = func.clone()
+            if isinstance(func, Image):
+                self._clone_map[func] = func
+                self._inputs.append(func)
+            else:
+                self._clone_map[func] = func.clone()
         self._outputs = [self._clone_map[obj] for obj in self._orig_outputs]
         # Modify the references in the cloned objects (which refer to
         # the original objects)
@@ -553,10 +558,10 @@ class Pipeline:
         self._initial_graph = self.draw_pipeline_graph()
 
         # Make a list of all the input groups
-        inputs = []
-        for comp in self.comps:
-            inputs = inputs + comp.group.inputs
-        self._inputs = list(set(inputs))
+        live_ins = []
+        for group in self.groups:
+            live_ins = live_ins + group.root_comps
+        self._live_comps = list(set(live_ins))
 
         # Checking bounds
         #bounds_check_pass(self)  # <-
@@ -584,7 +589,7 @@ class Pipeline:
                 comps = [self.func_map[f] for f in clones]
                 # list of group objects to be grouped
                 merge_group_list = \
-                    [self.groups[comp] for comp in comps]
+                    [comp.group for comp in comps]
                 if len(merge_group_list) > 1:
                      merged = merge_group_list[0]
                      for i in range(1, len(merge_group_list)):
@@ -603,6 +608,7 @@ class Pipeline:
 
         # ***
         log_level = logging.INFO
+        LOG(log_level, "\n\n")
         LOG(log_level, "Grouped compute objects:")
         for g in self.groups:
             LOG(log_level, g.name)
@@ -643,6 +649,9 @@ class Pipeline:
     @property
     def inputs(self):
         return self._inputs
+    @property
+    def live_ins(self):
+        return self._live_ins
     @property
     def outputs(self):
         return self._outputs
@@ -691,6 +700,12 @@ class Pipeline:
             # set children
             comp_children = [func_map[c_func] for c_func in children[func]]
             comp.set_children(comp_children)
+
+        for inp in self._inputs:
+            inp_comp = ComputeObject(inp)
+            inp_comp.set_parents([])
+            inp_comp.set_children([])
+            func_map[inp] = inp_comp
 
         return func_map, comps
 
