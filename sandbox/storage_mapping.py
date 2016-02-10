@@ -164,51 +164,8 @@ def storage_classification(comps):
     Classifies the compute objects into separate groups based on their storage
     sizes.
     '''
-    def compute_sizes(comps):
-        '''
-        For each dimension of the compute object, find the interval size and
-        compute the total size of the compute object
-        '''
-        # dict 'comp_size' : {comp -> (interval_sizes, total_size)}
-        # list 'interval_sizes' : [ interval_size, ]
-        # tuple 'interval_size' : (param, size_expr)
 
-        comp_size = {}
-        for comp in comps:
-            interval_sizes = []
-            intervals = comp.func.domain
-            dims = comp.func.ndims
-            for interval in intervals:
-                params = interval.collect(Parameter)
-                assert not len(params) > 1
-                if len(params) == 1:
-                    param = params[0]
-                elif len(params) == 0:  # const
-                    param = 0
-                size = interval.upperBound - interval.lowerBound + 1
-                interval_sizes.append((param, size))
-            comp_size[comp] = interval_sizes
-
-        return comp_size
-
-    def create_storage_object(comps, comp_size):
-        '''
-        Create classes of storage with different sizes. Default storage class
-        is 'const' class which includes arrays with no Parameters. Coefficients
-        of dimension parameters are used as keys to map 
-        '''
-        # dict 'storage' : {comp -> Storage}
-
-        storage_map = {}
-        for comp in comps:
-            typ = comp.func.typ
-            dims = comp.func.ndims
-            dim_sizes = comp_size[comp]
-            storage_map[comp] = Storage(typ, dims, dim_sizes)
-
-        return storage_map
-
-    def find_storage_equivalence(comps, storage_map):
+    def find_storage_equivalence(comps):
         '''
         Create a mapping to the compute object from it's size properties.
         The classification can be further improved with the knowledge of param
@@ -218,51 +175,50 @@ def storage_classification(comps):
         excluded from classification with other compute objects.
         '''
         storage_class_map = {}
-        key_map = {}
         for comp in comps:
-            storage = storage_map[comp]
+            storage = comp.orig_storage_class
             key = storage.lookup_key
-            key_map[comp] = key
             if key not in storage_class_map:
                 storage_class_map[key] = [comp]
             else:
                 storage_class_map[key].append(comp)
 
-        return key_map, storage_class_map
+        return storage_class_map
 
-    def maximal_storage(comps, storage_class_map, storage_map):
+    def maximal_storage(comps, storage_class_map):
         '''
         Compute the maximal storage needed at each dimension individually and
         over approximate the total storage to be the product of maximal storage
         of all dimensions. This can further be improved with the knowledge of
-        param constraints or estimates which suggests an exact measure of the
-        size of each dimension.
+        param constraints (or estimates) which suggests an exact (or
+        approximate) measure of the size of each dimension.
         '''
         # ***
         log_level = logging.DEBUG
         LOG(log_level, "Storage Classes:")
         # ***
-        new_storage_map = {}
+        new_storage_class_map = {}
         for key in storage_class_map:
-            storage_class = storage_class_map[key]  # a list
+            class_comps = storage_class_map[key]  # a list
 
             # ***
             log_level = logging.DEBUG
             LOG(log_level, "_______")
             LOG(log_level, key)
-            LOG(log_level, [comp.func.name for comp in storage_class])
+            LOG(log_level, [comp.func.name for comp in class_comps])
             # ***
 
             # pick a dummpy comp to get the total number of dimensions and the
             # original parameter associated with each dimesnion
-            helper_comp = storage_class[0]
+            helper_comp = class_comps[0]
             typ = helper_comp.func.typ
             dims = helper_comp.func.ndims
-            helper_storage = storage_map[helper_comp]
+            helper_storage = helper_comp.orig_storage_class
+
             # this list holds the maximal offset value for each dimension
             max_offset = [0 for dim in range(0, dims)]
-            for comp in storage_class:
-                storage = storage_map[comp]
+            for comp in class_comps:
+                storage = comp.orig_storage_class
                 offsets = storage.offsets
                 for dim in range(0, dims):
                     dim_off = offsets[dim][1]  # its a tuple
@@ -272,41 +228,35 @@ def storage_classification(comps):
             # offset
             dim_sizes = []
             for dim in range(0, dims):
-                dim_storage = storage.get_dim(dim)
+                dim_storage = helper_storage.get_dim(dim)
                 param = dim_storage.orig_param
-                size = Fraction(dim_storage.coeff) * dim_storage.orig_param + \
-                       max_offset[dim]
+                coeff = dim_storage.coeff
+                size = Fraction(coeff) * param + max_offset[dim]
                 dim_sizes.append((param, size))
 
             # final maximal storage for this class
-            max_storage = \
-                Storage(typ, dims, dim_sizes)
+            max_storage = Storage(typ, dims, dim_sizes)
 
             # all comps of this class now have identical storage
-            for comp in storage_class:
-                new_storage_map[comp] = max_storage
+            for comp in class_comps:
+                comp.set_storage_class(max_storage)
+                key = max_storage.lookup_key
+                new_storage_class_map[key] = comp
 
         # clear the temporary mappings
         storage_class_map.clear()
 
-        return new_storage_map
-
-    # compute the total size of the compute object using the interval
-    # information
-    comp_size = compute_sizes(comps)
-
-    # create storage classes
-    storage_map = create_storage_object(comps, comp_size)
+        return new_storage_class_map
 
     # find equivalence in size between storage objects and create classes of
     # storage objects
-    key_map, storage_class_map = find_storage_equivalence(comps, storage_map)
+    storage_class_map = find_storage_equivalence(comps)
 
     # compute the maximal offsets in each dimension of the compute objects,
     # and compute the total_size of the storage for each storage class
-    storage_map = maximal_storage(comps, storage_class_map, storage_map)
+    storage_class_map = maximal_storage(comps, storage_class_map)
 
-    return storage_map
+    return storage_class_map
 
 # TESTME
 def classify_scratchpad_storage(comps, size_map):

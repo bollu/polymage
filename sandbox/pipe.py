@@ -119,6 +119,8 @@ class ComputeObject:
         self._parents = []
         self._children = []
 
+        self._size = self.compute_size()
+
         self._group = None
 
         self._is_output = _is_output
@@ -126,6 +128,10 @@ class ComputeObject:
         self.set_flags()
 
         self._level_no = 0
+
+        self._orig_storage_class = self.build_storage_class()
+        self._storage_class = self._orig_storage_class
+        self._storage = None
 
     @property
     def func(self):
@@ -153,6 +159,9 @@ class ComputeObject:
         assert self.is_children_set
         return self._children
     @property
+    def size(self):
+        return self._size
+    @property
     def group(self):
         assert self.is_group_set
         return self._group
@@ -166,6 +175,16 @@ class ComputeObject:
     @property
     def is_liveout(self):
         return self._is_liveout
+
+    @property
+    def orig_storage_class(self):
+        return self._orig_storage_class
+    @property
+    def storage_class(self):
+        return self._storage_class
+    @property
+    def storage(self):
+        return self._storage
 
     def set_flags(self):
         self._is_parents_set = False
@@ -228,7 +247,9 @@ class ComputeObject:
         self._group = None
         return
 
+    # within the group
     def compute_liveness(self):
+        assert self.is_group_set
         # if there any children
         if not self.children:
             # no child => live_out
@@ -244,9 +265,49 @@ class ComputeObject:
 
         return
 
+    def compute_size(self):
+        '''
+        For each dimension of the compute object, find the interval size and
+        the Parameter associated with the dimension
+        '''
+        # list 'interval_sizes' : [ interval_size[dim] for dim in (0..ndims) ]
+        # tuple 'interval_size' : (param, size_expr)
+        interval_sizes = []
+        intervals = self.func.domain
+        dims = self.func.ndims
+        for interval in intervals:
+            params = interval.collect(Parameter)
+            assert not len(params) > 1
+            if len(params) == 1:
+                param = params[0]
+            elif len(params) == 0:  # const
+                param = 0
+            size = interval.upperBound - interval.lowerBound + 1
+            interval_sizes.append((param, size))
+        size = interval_sizes
+        return size
+
     def set_level(self, _level_no):
         self._level_no = _level_no
 
+    def build_storage_class(self):
+        '''
+        Create storage class for self based on size, type, dims.
+        Default storage class is 'const' class which includes arrays with no
+        Parameters.
+        '''
+        storage_class = Storage(self.func.typ, self.func.ndims, self.size)
+
+        return storage_class
+
+
+    def set_storage_class(self, storage_class):
+        assert isinstance(storage_class, Storage)
+        self._storage_class = storage_class
+
+    def set_storage_object(self, storage):
+        assert isinstance(storage, genc.CArray)
+        self._storage = storage
 
 class Group:
     """ 
