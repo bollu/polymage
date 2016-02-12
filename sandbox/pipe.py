@@ -142,11 +142,11 @@ class ComputeObject:
         self._level_no = 0
         self._group_level_no = 0
 
-        self._orig_storage_class = self.build_storage_class()
-        if not self.is_image_typ:
-            self._storage_class = self._orig_storage_class
-        self._storage = None
-        self._scratch = None
+        # storage info
+        self._orig_storage_class = None
+        self._storage_class = None
+        self._array = None
+        self._scratch_info = None
 
     @property
     def func(self):
@@ -201,8 +201,11 @@ class ComputeObject:
     def storage_class(self):
         return self._storage_class
     @property
-    def storage(self):
-        return self._storage
+    def array(self):
+        return self._array
+    @property
+    def scratch(self):
+        return self._scratch_info
 
     def set_flags(self):
         self._is_parents_set = False
@@ -283,7 +286,7 @@ class ComputeObject:
 
         return
 
-    def compute_size(self):
+    def compute_size(self, sizes=None):
         '''
         For each dimension of the compute object, find the interval size and
         the Parameter associated with the dimension
@@ -293,41 +296,52 @@ class ComputeObject:
         interval_sizes = []
         intervals = self.func.domain
         dims = self.func.ndims
-        for interval in intervals:
-            params = interval.collect(Parameter)
-            assert not len(params) > 1
-            if len(params) == 1:
-                param = params[0]
-            elif len(params) == 0:  # const
-                param = 0
-            size = interval.upperBound - interval.lowerBound + 1
-            interval_sizes.append((param, size))
-        size = interval_sizes
-        return size
+
+        def compute_size_tuple(dim, intervals, sizes):
+            if sizes and sizes[dim] != -1:
+                param = 0  # const
+                size = sizes[dim]
+            else:
+                params = intervals[dim].collect(Parameter)
+                assert not len(params) > 1
+                if len(params) == 1:
+                    param = params[0]
+                elif len(params) == 0:  # const
+                    param = 0
+                size = intervals[dim].upperBound - \
+                       intervals[dim].lowerBound + 1
+            size = simplify_expr(size)
+
+            return (param, size)
+
+        # if sizes are given, ensure it contains sizes of all dims
+        if sizes:
+            assert len(sizes) == dims
+
+        # for each dimension
+        for dim in range(0, dims):
+            dim_size_tuple = compute_size_tuple(dim, intervals, sizes)
+            interval_sizes.append(dim_size_tuple)
+
+        return interval_sizes
 
     def set_level(self, _level_no):
         self._level_no = _level_no
     def set_grp_level(self, _level_no):
         self._group_level_no = _level_no
 
-    def build_storage_class(self):
-        '''
-        Create storage class for self based on size, type, dims.
-        Default storage class is 'const' class which includes arrays with no
-        Parameters.
-        '''
-        storage_class = Storage(self.func.typ, self.func.ndims, self.size)
+    def set_orig_storage_class(self, _storage_class):
+        assert isinstance(_storage_class, Storage)
+        self._orig_storage_class = _storage_class
+    def set_storage_class(self, _storage_class):
+        assert isinstance(_storage_class, Storage)
+        self._storage_class = _storage_class
 
-        return storage_class
-
-
-    def set_storage_class(self, storage_class):
-        assert isinstance(storage_class, Storage)
-        self._storage_class = storage_class
-
-    def set_storage_object(self, storage):
-        assert isinstance(storage, genc.CArray)
-        self._storage = storage
+    def set_storage_object(self, _storage):
+        assert isinstance(_storage, genc.CArray)
+        self._storage = _storage
+    def set_scratch_info(self, _scratch_info):
+        self._scratch_info = _scratch_info
 
 class Group:
     """ 
@@ -667,11 +681,16 @@ class Pipeline:
         # use graphviz to create pipeline graph
         self._pipeline_graph = self.draw_pipeline_graph()
 
-        ''' STORAGE OPTIMIZATION '''
+        ''' STORAGE '''
+        # MAPPING
+        self.initialize_storage()
+
+        # OPTIMIZATION
+
         # storage opt for liveout (full array) allocations
         # 1. derive liveout comps schedule from group schedule
         # 2. classify the storage based on type, dimensionality and size
-        self.create_storage_classes()
+        self.classify_storage()
 
     @property
     def func_map(self):
@@ -986,5 +1005,38 @@ class Pipeline:
             return_str = return_str + s.__str__() + "\n"
         return return_str
 
-    def create_storage_classes(self):
+    def initialize_storage(self):
+        for func in self.func_map:
+            comp = self.func_map[func]
+            typ = comp.func.typ
+            ndims = comp.func.ndims
+            part_map = comp.group.polyRep.poly_parts
+            dim_sizes = []
+            # 1. Input Images
+            # 2. Group Live-Outs
+            # 3. Not a scratchpad  (maybe Reduction)
+            if comp.is_image_typ or comp.is_liveout or comp not in part_map:
+                interval_sizes = comp.size
+            # 4. Scratchpads
+            else:
+                reduced_dims = [ -1 for i in range(0, ndims) ]
+                is_scratch = [ False for i in range(0, ndims) ]
+                for part in part_map[comp]:
+                    for i in range(0, ndims):
+                        if i in part.dim_scratch_size:  # as a key
+                            reduced_dims[i] = max(reduced_dims[i],
+                                                  part.dim_scratch_size[i])
+                            is_scratch[i] = True
+
+                comp.set_scratch_info(is_scratch)
+                for i in range(0, ndims):
+                    dim_sizes.append(reduced_dims[i])
+
+                interval_sizes = comp.compute_size(dim_sizes)
+
+            storage = Storage(typ, ndims, interval_sizes)
+            comp.set_orig_storage_class(storage)
+        return
+
+    def classify_storage(self):
         return storage_classification(self.comps)

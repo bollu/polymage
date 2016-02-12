@@ -257,20 +257,3 @@ def storage_classification(comps):
     storage_class_map = maximal_storage(comps, storage_class_map)
 
     return storage_class_map
-
-# TESTME
-def classify_scratchpad_storage(comps, size_map):
-    scratch_class = {}
-    scratch_class_map = {}
-    for comp in comps:
-        typ = comp.func.typ
-        typ_size = TypeSizeMap.getsize(typ)
-        size = size_map[comp]
-        key = (typ_size, size)
-        if key not in scratch_class:
-            scratch_class[key] = [comp]
-        else:
-            scratch_class[key].append(comp)
-        scratch_class_map[comp] = scratch_class[key]
-
-    return scratch_class, scratch_class_map
