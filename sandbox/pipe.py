@@ -24,8 +24,16 @@ from storage_mapping import *
 
 # LOG CONFIG #
 pipe_logger = logging.getLogger("pipe.py")
-pipe_logger.setLevel(logging.INFO)
+pipe_logger.setLevel(logging.DEBUG)
 LOG = pipe_logger.log
+
+class IdGen:
+    _id_count = -1
+
+    @classmethod
+    def get_id(cls):
+        cls._id_count += 1
+        return cls._id_count
 
 def get_parents_from_func(func, non_image=True):
     refs = func.getObjects(Reference)
@@ -332,6 +340,10 @@ class Group:
     def __init__(self, _ctx, _comp_objs, \
                  _param_constraints):
 
+        self._id = IdGen.get_id()
+
+        log_level = logging.DEBUG
+
         # All the computation constructs in the language derive from the
         # Function class. Input images cannot be part of a group.
         self._is_image_typ = False
@@ -349,6 +361,7 @@ class Group:
         self._level_order_comps = self.order_compute_objs()
         self._comps = self.get_sorted_comps()
         self._inputs = self.find_root_comps()
+        self._image_refs = self.collect_image_refs()
 
         self._polyrep = None
 
@@ -358,6 +371,9 @@ class Group:
         if self.isPolyhedral():
             self._polyrep = PolyRep(_ctx, self, [], _param_constraints)
 
+    @property
+    def id_(self):
+        return self._id
     @property
     def comps(self):
         return self._comps
@@ -378,6 +394,9 @@ class Group:
     @property
     def inputs(self):
         return self._inputs
+    @property
+    def image_refs(self):
+        return self._image_refs
     @property
     def name(self):
         return str([comp.func.name for comp in self.comps])
@@ -484,6 +503,15 @@ class Group:
         root_comps = [comp for comp in self.comps \
                              if self._level_order_comps[comp] == 0]
         return root_comps
+
+    def collect_image_refs(self):
+        refs = []
+        for comp in self.comps:
+            refs += comp.func.getObjects(Reference)
+        image_refs = [ref.objectRef for ref in refs \
+                                      if isinstance(ref.objectRef, Image)]
+        image_refs = list(set(image_refs))
+        return image_refs
 
     def get_sorted_comps(self):
         sorted_comps = sorted(self._level_order_comps.items(),
@@ -622,7 +650,7 @@ class Pipeline:
         LOG(log_level, "\n\n")
         LOG(log_level, "Grouped compute objects:")
         for g in self.groups:
-            LOG(log_level, g.name)
+            LOG(log_level, g.name+" ")
         # ***
 
         ''' SCHEDULING '''
@@ -661,8 +689,8 @@ class Pipeline:
     def inputs(self):
         return self._inputs
     @property
-    def live_ins(self):
-        return self._live_ins
+    def live_comps(self):
+        return self._live_comps
     @property
     def outputs(self):
         return self._outputs
@@ -721,19 +749,19 @@ class Pipeline:
         return func_map, comps
 
     def order_compute_objs(self):
-        parents = {}
+        parent_map = {}
         for comp in self.comps:
-            parents[comp] = comp.parents
-        order = level_order(self.comps, parents)
+            parent_map[comp] = comp.parents
+        order = level_order(self.comps, parent_map)
         for comp in order:
             comp.set_level(order[comp])
         return order
 
     def order_group_objs(self):
-        parents = {}
+        parent_map = {}
         for group in self.groups:
-            parents[group] = group.parents
-        order = level_order(self.groups, parents)
+            parent_map[group] = group.parents
+        order = level_order(self.groups, parent_map)
         return order
 
     def get_sorted_comps(self):
@@ -770,10 +798,7 @@ class Pipeline:
 
         # TODO add input nodes to the graph
         for i in range(0, len(self.groups)):
-            sub_graph_nodes = []
-            for comp in self.comps:
-                if comp.group == self.groups[i]:
-                    sub_graph_nodes.append(comp.func.name)
+            sub_graph_nodes = [comp.func.name for comp in self.groups[i].comps]
             gr.add_nodes_from(sub_graph_nodes)
             gr.add_subgraph(nbunch = sub_graph_nodes,
                            name = "cluster_" + str(i))
@@ -870,9 +895,9 @@ class Pipeline:
         if group.children:
             for c_group in group.children:
                 c_group.remove_parent(group)
-        self._groups.remove(group)
         for comp in group.comps:
             comp.unset_group()
+        self._groups.remove(group)
 
         return
 
