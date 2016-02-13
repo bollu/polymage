@@ -1,0 +1,26 @@
+From ce467312db55674cb771bcaea78a3dcd799d6689 Mon Sep 17 00:00:00 2001
+From: Uday Bondhugula <uday@csa.iisc.ernet.in>
+Date: Thu, 1 Oct 2015 18:13:51 +0530
+Subject: [PATCH] ctye to dtype: handle  void
+
+Signed-off-by: Uday Bondhugula <uday@csa.iisc.ernet.in>
+---
+ cgen/__init__.py | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/cgen/__init__.py b/cgen/__init__.py
+index a0a2214..6b64eb6 100644
+--- a/cgen/__init__.py
++++ b/cgen/__init__.py
+@@ -48,6 +48,8 @@ def dtype_to_ctype(dtype):
+         return "std::complex<float>"
+     elif dtype == numpy.complex128:
+         return "std::complex<double>"
++    elif dtype == numpy.void:
++        return "void"
+     else:
+         raise ValueError("unable to map dtype '%s'" % dtype)
+ 
+-- 
+2.4.3
+
