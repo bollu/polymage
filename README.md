@@ -18,6 +18,9 @@ $ sudo pip3 install islpy
 C code generation library:  
 cgen https://github.com/inducer/cgen.git  
 
+(islpy itself requires ffi development files -- this can be installed by 
+installed libffi-devel via yum or apt-get)
+
 5) Python packages numpy, pytest. These can be installed via  
 (on a Fedora) $ sudo yum -y install python3-numpy python3-pytest  
 (on Ubuntu) $ sudo apt-get install python3-numpy python3-pytest  
