@@ -9,6 +9,28 @@ schedule_logger = logging.getLogger("schedule.py")
 schedule_logger.setLevel(logging.INFO)
 LOG = schedule_logger.log
 
+def compute_liveness(children_map, schedule):
+    '''
+    Given a schedule for a DAG of compute objects, this function computes the
+    liveness range of each compute object. The output is a mapping from the
+    timestamp in the schedule to a list of compute objects that are live only
+    upto the corresponding time.
+    '''
+    liveness_map = {}
+    for comp in schedule:
+        last_live = 0
+        for child in children_map:
+            t = schedule[child]
+            last_live = max(last_live, t)
+        if last_live not in liveness_map:
+            liveness_map[last_live] = [comp]
+        else:
+            liveness_map[last_live].append([comp])
+
+    liveness_map = sorted(liveness_map.items(), key=lambda x:x[1])
+
+    return liveness_map
+
 def sort_scheduled_objs(schedule):
     '''
     sorts the objects according to the schedule and returns a list of the

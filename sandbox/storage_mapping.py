@@ -23,28 +23,6 @@ class TypeSizeMap(object):
         assert typ_name in cls._type_size_map
         return cls._type_size_map[typ_name]
 
-def compute_liveness(children_map, schedule):
-    '''
-    Given a schedule for a DAG of compute objects, this function computes the
-    liveness range of each compute object. The output is a mapping from the
-    timestamp in the schedule to a list of compute objects that are live only
-    upto the corresponding time.
-    '''
-    liveness_map = {}
-    for comp in schedule:
-        last_live = 0
-        for child in comp.children:
-            t = schedule[child]
-            last_live = max(last_live, t)
-        if last_live not in liveness_map:
-            liveness_map[last_live] = [comp]
-        else:
-            liveness_map[last_live].append([comp])
-
-    liveness_map = sorted(liveness_map.items(), key=lambda x:x[1])
-
-    return liveness_map
-
 class Dimension:
     def __init__(self, size_map):
         _param = size_map[0]
