@@ -774,15 +774,11 @@ class Pipeline:
         return order
 
     def get_sorted_comps(self):
-        sorted_comps = sorted(self._level_order_comps.items(),
-                              key=lambda x: x[1], reverse=True)
-        sorted_comps = [c[0] for c in sorted_comps]
+        sorted_comps = get_sorted_objs(self._level_order_comps, True)
         return sorted_comps
 
     def get_sorted_groups(self):
-        sorted_groups = sorted(self._level_order_groups.items(),
-                               key=lambda x: x[1])
-        sorted_groups = [g[0] for g in sorted_groups]
+        sorted_groups = get_sorted_objs(self._level_order_groups)
         return sorted_groups
 
     def build_initial_groups(self):

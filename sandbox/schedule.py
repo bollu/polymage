@@ -62,6 +62,9 @@ def schedule_parts(group, sorted_comps):
     return
 
 def naive_sched_comps(group):
+    '''
+    schedule in level order traversal of the group comps DAG
+    '''
     level_order = group.get_ordered_comps
     return level_order
 
@@ -77,6 +80,8 @@ def schedule_within_group(group):
     # get list of comps sorted according to scheduled order
     sorted_comps = get_sorted_objs(comp_schedule)
 
+    # create a sub-time dimension for poly_parts to introduce an order within
+    # the group
     schedule_parts(group, sorted_comps)
 
     return comp_schedule

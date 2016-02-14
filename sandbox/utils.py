@@ -59,7 +59,8 @@ def map_cfunc_args(func_params, arg_data):
     outputs = func_params[2]
 
     for param in params:
-        func_args += [convert_to_ctype(param.typ().c_type_name(), arg_data[param.name])]
+        func_args += [convert_to_ctype(param.typ().c_type_name(), \
+                      arg_data[param.name])]
 
     for inp in inputs:
         func_args += [ctypes.c_void_p(arg_data[inp.name].ctypes.data)]
