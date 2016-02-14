@@ -326,36 +326,10 @@ def enable_tile_scratchpad(group_parts):
 
     return
 
-def schedule_time_within_group(part_comp_map):
-    # Computations which have different scale but map to the same time
-    # generate a lot of conditionals which can hinder performance. This
-    # step separates all computations in a time step by adding an additional
-    # dimension.
-    pi = 0
-    for comp in part_comp_map:
-        for p in part_comp_map[comp]:
-            time_dim = \
-              p.sched.find_dim_by_name(isl._isl.dim_type.out, '_t')
-            p.sched = \
-              p.sched.insert_dims(isl._isl.dim_type.out, time_dim + 1, 1)
-            p.sched = p.sched.set_dim_name(isl._isl.dim_type.out,
-                                           time_dim + 1, '_o')
-
-            eqs = []
-            coeff = {}
-            coeff[('constant', 0)] = -pi
-            coeff[('out', time_dim + 1)] = 1
-            eqs.append(coeff)
-            p.sched = add_constraints(p.sched, [], eqs)
-            pi += 1
-
-    return
-
 def fused_schedule(pipeline, group, param_estimates):
     """Generate an optimized schedule for the stage."""
 
-    g_poly_rep = group.polyRep
-    g_poly_parts = g_poly_rep.poly_parts
+    g_poly_parts = group.polyRep.poly_parts
     g_all_parts = []
     for comp in g_poly_parts:
         g_all_parts.extend(g_poly_parts[comp])
@@ -404,7 +378,6 @@ def fused_schedule(pipeline, group, param_estimates):
         for p in g_all_parts:
             skewed_schedule(p)
         '''
-        schedule_time_within_group(g_poly_parts)
 
     return
 

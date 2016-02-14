@@ -103,26 +103,6 @@ def get_funcs(outputs):
 
     return funcs
 
-def level_order(objs, parent_map):
-    # Order stores the numbering of each object when topologically sorted.
-    order = {}
-    # Initialize all the initial numbering to zero for all objects
-    for obj in objs:
-        order[obj] = 0
-    # Doing a topological sort in an iterative fashion
-    change = True
-    while(change):
-        change = False
-        for obj in objs:
-            parent_objs = parent_map[obj]
-            if parent_objs is None:
-                continue
-            for p_obj in parent_objs:
-                if (p_obj in order and (order[p_obj] >= order[obj])):
-                    order[obj] = order[p_obj] + 1
-                    change = True
-    return order
-
 
 class ComputeObject:
     def __init__(self, _func, _is_output=False):
@@ -385,6 +365,8 @@ class Group:
         if self.isPolyhedral():
             self._polyrep = PolyRep(_ctx, self, [], _param_constraints)
 
+        self._comps_schedule = None
+
     @property
     def id_(self):
         return self._id
@@ -533,6 +515,10 @@ class Group:
         sorted_comps = [c[0] for c in sorted_comps]
         return sorted_comps
 
+    def set_comp_and_parts_sched(self):
+        self._comp_schedule = schedule_within_group(self)
+        return
+
     def __str__(self):
         comp_str  = '[' + \
                     ', '.join([comp.func.name \
@@ -672,11 +658,14 @@ class Pipeline:
             # alignment and scaling
             align_and_scale(self, g)
             # base schedule
-            gparts = base_schedule(g)
+            base_schedule(g)
             # grouping and tiling
             fused_schedule(self, g, self._param_estimates)
 
         self._grp_schedule = schedule_groups(self)
+
+        for group in self._grp_schedule:
+            group.set_comp_and_parts_sched()
 
         # use graphviz to create pipeline graph
         self._pipeline_graph = self.draw_pipeline_graph()
@@ -686,11 +675,12 @@ class Pipeline:
         self.initialize_storage()
 
         # OPTIMIZATION
+        # storage optimization for liveout (full array) allocations
+        # 1. classify the storage based on type, dimensionality and size
+        self._storage_class_map = self.classify_storage()
 
-        # storage opt for liveout (full array) allocations
-        # 1. derive liveout comps schedule from group schedule
-        # 2. classify the storage based on type, dimensionality and size
-        self.classify_storage()
+        # ALLOCATION
+        self.allocate_storage()
 
     @property
     def func_map(self):
@@ -720,7 +710,7 @@ class Pipeline:
     def pipeline_graph(self):
         return self._pipeline_graph
     @property
-    def get_ordered_compobjs(self):
+    def get_ordered_comps(self):
         return self._level_order_comps
     @property
     def get_ordered_groups(self):  # <- naming
@@ -1040,3 +1030,7 @@ class Pipeline:
 
     def classify_storage(self):
         return storage_classification(self.comps)
+
+    def allocate_storage(self):
+        allocate_physical_arrays(self)
+

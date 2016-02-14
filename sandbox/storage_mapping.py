@@ -257,3 +257,13 @@ def storage_classification(comps):
     storage_class_map = maximal_storage(comps, storage_class_map)
 
     return storage_class_map
+
+def allocate_physical_arrays(pipeline):
+    '''
+    Generate a mapping from logical storage object of the comp (assumed to be
+    available at this point), to cgen CArrays. The mapping can be switched
+    between naive and optimized (with reuse) versions, given a schedule for
+    the comps within its group.
+    '''
+
+    return

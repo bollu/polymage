@@ -69,3 +69,29 @@ def map_cfunc_args(func_params, arg_data):
 
     return func_args
 
+def level_order(objs, parent_map):
+    # Order stores the numbering of each object when topologically sorted.
+    order = {}
+    # Initialize all the initial numbering to zero for all objects
+    for obj in objs:
+        order[obj] = 0
+    # Doing a topological sort in an iterative fashion
+    change = True
+    while(change):
+        change = False
+        for obj in objs:
+            parent_objs = parent_map[obj]
+            if parent_objs is None:
+                continue
+            for p_obj in parent_objs:
+                if (p_obj in order and (order[p_obj] >= order[obj])):
+                    order[obj] = order[p_obj] + 1
+                    change = True
+    return order
+
+def get_sorted_objs(objs_order, reverse_flag=False):
+    sorted_objs = sorted(objs_order.items(), key=lambda x:x[1], \
+                         reverse = reverse_flag)
+    sorted_objs = [obj[0] for obj in sorted_objs]
+
+    return sorted_objs
