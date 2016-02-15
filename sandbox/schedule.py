@@ -18,16 +18,15 @@ def compute_liveness(children_map, schedule):
     '''
     liveness_map = {}
     for comp in schedule:
-        last_live = 0
-        for child in children_map:
-            t = schedule[child]
-            last_live = max(last_live, t)
-        if last_live not in liveness_map:
-            liveness_map[last_live] = [comp]
-        else:
-            liveness_map[last_live].append([comp])
-
-    liveness_map = sorted(liveness_map.items(), key=lambda x:x[1])
+        last_live = -1
+        if comp in children_map:
+            for child in children_map[comp]:
+                t = schedule[child]
+                last_live = max(last_live, t)
+            if last_live not in liveness_map:
+                liveness_map[last_live] = [comp]
+            else:
+                liveness_map[last_live] += [comp]
 
     return liveness_map
 
