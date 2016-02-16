@@ -937,7 +937,9 @@ class Pipeline:
         # replace old_group with new_group in groups list
         comp = old_group.comps[0]
         self.drop_group(old_group)
-        self._groups[comp] = new_group
+        comp.set_group(new_group)
+
+        self._groups.append(new_group)
 
         return
 

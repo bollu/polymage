@@ -55,7 +55,7 @@ def inline_pass(pipeline):
 
         clone = pipeline._clone_map[directive]
         comp = pipeline._func_map[clone]
-        group = pipeline._groups[comp]  # the only comp of group
+        group = comp.group  # the only comp of group
 
         # One simply does not walk into Inlining
         assert group.comps[0].func not in pipeline.outputs
@@ -75,7 +75,6 @@ def inline_pass(pipeline):
 
         if drop_inlined:
             # remove comp_obj
-            pipeline.drop_func(clone)
             pipeline.drop_comp(comp)
             pipeline.drop_group(group)
             pipeline._clone_map.pop(directive)
@@ -94,7 +93,7 @@ def inline_and_update_graph(pipeline, group, child_group, inline_map):
 
     # replace the references of the child to inline the comp
     child_func.replace_refs(inline_map)
-    pipeline.make_comp_independent(comp, child_comp)
+    pipeline.make_func_independent(comp.func, child_comp.func)
 
     # create new Group for the child
     new_group = pipe.Group(pipeline._ctx, [child_comp],
@@ -109,9 +108,8 @@ def piecewise_inline_check(child_group, parent_group, no_split = False):
     # Inling currently only handles non-fused stages
     assert (not child_group.is_fused() and not parent_group.is_fused())
     # Computation object in the parent group can only be a function
-    parent_comp = parent_group.compute_objs[0]
-    assert isinstance(parent_comp, Function)
-    child_comp = child_group.compute_objs[0]
+    parent_comp = parent_group.comps[0]
+    child_comp = child_group.comps[0]
 
     # Simple scalar functions which are defined on a non-bounded 
     # integer domain can be inlined.
@@ -127,7 +125,7 @@ def piecewise_inline_check(child_group, parent_group, no_split = False):
             # - Collect all the refs and pick out refs to only parent_comp
             child_refs = child_part.refs
             child_refs = [ ref for ref in child_refs \
-                                 if ref.objectRef == parent_comp ]
+                                 if ref.objectRef == parent_comp.func ]
             # Compute dependence relations between child and parent
             deps = []
             for ref in child_refs:
