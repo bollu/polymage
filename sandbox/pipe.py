@@ -6,7 +6,7 @@ try:
 except ImportError:
     import Queue as queue
 
-import pygraphviz as pgv
+#import pygraphviz as pgv
 import targetc as genc
 
 from grouping import *
@@ -799,21 +799,22 @@ class Pipeline:
         return groups
 
     def draw_pipeline_graph(self):
-        gr = pgv.AGraph(strict=False, directed=True)
+        #gr = pgv.AGraph(strict=False, directed=True)
 
         # TODO add input nodes to the graph
         for i in range(0, len(self.groups)):
             sub_graph_nodes = [comp.func.name for comp in self.groups[i].comps]
-            gr.add_nodes_from(sub_graph_nodes)
-            gr.add_subgraph(nbunch = sub_graph_nodes,
-                           name = "cluster_" + str(i))
-
+            #gr.add_nodes_from(sub_graph_nodes)
+            #gr.add_subgraph(nbunch = sub_graph_nodes,
+            #               name = "cluster_" + str(i))
+        '''    
         for comp in self.comps:
             for p_comp in comp.parents:
                 gr.add_edge(p_comp.func.name, comp.func.name)
 
         gr.layout(prog='dot')
-        return gr
+        '''
+        return
 
     def generate_code(self, outputs_no_alloc=False,
                             is_extern_c_func=False,

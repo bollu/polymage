@@ -145,10 +145,10 @@ def generate(_tuner_arg_data):
     dump_files.append(config_file)
 
     # Compile String parts
-    cxx='icpc'
-    #cxx='g++-4.8'
-    opt_flags='-openmp -xhost -O3 -ansi-alias'
-    #opt_flags='-fopenmp -march=native -O3'
+    #cxx='icpc'
+    #opt_flags='-openmp -xhost -O3 -ansi-alias'
+    cxx='g++-4.8'
+    opt_flags='-fopenmp -march=native -O3'
     shared_lib_flags='-fPIC -shared'
     #include_flags='-I ../../memory_allocation/'
     include_flags=''

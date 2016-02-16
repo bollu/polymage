@@ -10,7 +10,7 @@ from compiler   import *
 from constructs import *
 from utils import *
 
-def call_pipe(U_, W_, app_data):
+def call_pipe(app_data):
     rows = app_data['rows']
     cols = app_data['cols']
 
@@ -45,7 +45,7 @@ def harrispipe(app_data):
         t1 = time.time()
 
     while it < runs :
-        call_pipe("", "", app_data)
+        call_pipe(app_data)
         it += 1
 
     if timer == True:

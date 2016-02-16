@@ -1,7 +1,7 @@
-CXX=icpc
-CXX_FLAGS=-openmp -ipo -O3 -xhost -fPIC -shared -DTIME
-#CXX=g++
-#CXX_FLAGS=-fopenmp -O3 -march=native -ftree-vectorize -fPIC -shared
+#CXX=icpc
+#CXX_FLAGS=-openmp -ipo -O3 -xhost -fPIC -shared -DTIME
+CXX=g++
+CXX_FLAGS=-fopenmp -O3 -march=native -ftree-vectorize -fPIC -shared
 
 all: new
 
