@@ -5,12 +5,13 @@ from compiler import *
 from constructs import *
 
 def c_compile(in_file, out_file, c_compiler=None):
-    if c_compiler == None or c_compiler == "intel":
-        cxx = "icpc"
-        opt = "-openmp -xhost -O3 -ipo -ansi-alias"
-    elif c_compiler == "gnu":
+    if c_compiler == None or c_compiler == "gnu":
         cxx = "g++"
         opt = "-fopenmp -march=native -O3 -ftree-vectorize"
+    elif c_compiler == "intel":
+        cxx = "icpc"
+        opt = "-openmp -xhost -O3 -ipo -ansi-alias"
+
     #fi
 
     #inc = "-I../../../memory_allocation/ "+\
