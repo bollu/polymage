@@ -51,7 +51,6 @@ def default_align_and_scale(sched, max_dim=None, shift=False):
     # schedule dimension correspoinding to input dimension will be
     # scaled by 1
 
-    #shift=False
     if shift:
         assert max_dim != None
         off = max_dim - dim_in
@@ -59,13 +58,12 @@ def default_align_and_scale(sched, max_dim=None, shift=False):
     else:
         align = [ i for i in range(0, dim_in) ]
 
-    scale = [1 for i in range(0, dim_in)]
+    scale = [1 for i in range(0, len(align))]
 
-    if max_dim:
-        if dim_in < max_dim:
-            for i in range(dim_in, max_dim):
-                align.append(NULL)
-                scale.append(NULL)
+    if max_dim and dim_in < max_dim:
+        for i in range(dim_in, max_dim):
+            align.append(NULL)
+            scale.append(NULL)
 
     return (align, scale)
 
@@ -712,11 +710,11 @@ def align_and_scale(pipeline, group):
     no_self_dep_parts = []
     for comp in comps:
         for p in group_part_map[comp]:
-            p_dim_in = p.sched.dim(isl._isl.dim_type.in_)
+            p_dim = len(p.align)
             if not p.is_self_dependent:
                 no_self_dep_parts.append(p)
-                if max_dim < p_dim_in:
-                    max_dim = p_dim_in
+                if max_dim < p_dim:
+                    max_dim = p_dim
 
     # begin from the topologically earliest comp parts as the base parts for
     # scaling and alignment reference
@@ -793,6 +791,7 @@ def align_and_scale(pipeline, group):
             # short hand
             align = info.align_scale[part].full.align
             scale = info.align_scale[part].full.scale
+
             # if the align_scale is not set for range(0, dim_in):
             align_scale = complete_align_scale(part, align, scale)
             align = align_scale[0]
