@@ -721,7 +721,7 @@ class Pipeline:
 
     def get_parameters(self):
         params=[]
-        for group in self._groups.values():
+        for group in self.groups:
             params = params + group.getParameters()
         return list(set(params))
 
