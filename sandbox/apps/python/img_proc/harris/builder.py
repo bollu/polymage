@@ -32,10 +32,14 @@ def build_harris(pipe_data, app_data):
 
     live_outs = [out_harrispipe]
     pipe_name = app_data['app']
-    p_estimates = [(R, app_data['rows']), (C, app_data['cols'])]
-    p_constraints = [ Condition(R, "==", app_data['rows']), \
-                      Condition(C, "==", app_data['cols']) ]
-    t_size = [16, 16, 16]
+
+    rows = app_data['rows']-2
+    cols = app_data['cols']-2
+
+    p_estimates = [(R, rows), (C, cols)]
+    p_constraints = [ Condition(R, "==", rows), \
+                      Condition(C, "==", cols) ]
+    t_size = [16, 16]
     g_size = 10
     opts = []
     if app_data['pool_alloc'] == True:
