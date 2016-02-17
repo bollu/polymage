@@ -741,7 +741,7 @@ def generate_reduction_scan_loops(pipe, group, comp, pipe_body,
 
 def generate_code_for_group(pipeline, g, body, options,
                             cparam_map, cfunc_map,
-                            outputs, outputs_no_alloc):
+                            outputs):
 
     g.polyRep.generate_code()
 
@@ -820,8 +820,8 @@ def generate_code_for_group(pipeline, g, body, options,
         # full array
         if comp.is_liveout:
             array.layout = 'contiguous'
-            # do not allocate output arrays if they are already allocated
-            if not comp.is_output or not outputs_no_alloc:
+            # do not allocate output arrays
+            if not comp.is_output :
                 array_ptr = genc.CPointer(array_type, 1)
                 array_decl = genc.CDeclaration(array_ptr, array)
                 body.add(array_decl)
@@ -862,7 +862,6 @@ def generate_code_for_group(pipeline, g, body, options,
     return group_freelist
 
 def generate_code_for_pipeline(pipeline,
-                               outputs_no_alloc=False,
                                is_extern_c_func=False,
                                are_io_void_ptrs=False):
 
@@ -932,10 +931,7 @@ def generate_code_for_pipeline(pipeline,
 
         # 2.3. collect outputs
         outputs = sorted(pipeline.outputs, key=lambda x: x.name)
-        if outputs_no_alloc:
-            pass_by_type = genc.CReference
-        else:
-            pass_by_type = genc.CPointer
+        pass_by_type = genc.CReference
 
         for out in outputs:
             if are_io_void_ptrs:
@@ -995,7 +991,7 @@ def generate_code_for_pipeline(pipeline,
                     generate_code_for_group(pipeline, g, pbody,
                                             pipeline._options,
                                             cparam_map, cfunc_map,
-                                            outputs, outputs_no_alloc)
+                                            outputs)
                 pipe_freelist.extend(group_freelist)
 
             # TODO free the arrays ASAP (compaction)

@@ -823,18 +823,13 @@ class Pipeline:
 
         Flags:
 
-        1. "outputs_no_alloc"
-        (*) True => memory allocation code is not generated
-        (*) False => malloc / pool_malloc / multidim array
-
-
-        2. "is_extern_c_func"
+        1. "is_extern_c_func"
         (*) True => function declaration generated with ' extern "C" ' string
                     (used when dynamic libs are needed for python wrapping)
         (*) False => normal C function declaration
 
 
-        3. "are_io_void_ptrs"
+        2. "are_io_void_ptrs"
         (*) True => all inputs and outputs of the pipeline are expected, by the
                     C function declaration, to be passed as 'void *'
                     (used when dynamic libs are needed for python wrapping)
@@ -842,9 +837,9 @@ class Pipeline:
                      data type. E.g: 'float *'
         """
 
-        return generate_code_for_pipeline(self, outputs_no_alloc,
-                                                is_extern_c_func,
-                                                are_io_void_ptrs)
+        return generate_code_for_pipeline(self,
+                                          is_extern_c_func,
+                                          are_io_void_ptrs)
 
     '''
     Pipelne graph operations
