@@ -9,7 +9,7 @@ sys.path.insert(0, '../')
 from compiler import *
 from constructs import *
 
-def test_harris_corner():
+def test_tree_graph():
 
     R = Parameter(Int, "R")
     C = Parameter(Int, "C")
