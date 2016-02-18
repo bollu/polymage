@@ -29,9 +29,6 @@ def harris_pipe(pipe_data):
     condRed = Condition(x, '>=', 2) & Condition(x, '<=', R-1) & \
               Condition(y, '<=', C-1) & Condition(y, '>=', 2)
 
-    zeroCond = Condition(x, '==', 0) & Condition(y, '==', 0)
-    endCond = Condition(x, '==', R) & Condition(y, '==', C)
-
     img = Image(Float, "img", [R+2, C+2])
 
     Iy = Function(([x, y], [row, col]), Float, "Iy")
@@ -78,6 +75,4 @@ def harris_pipe(pipe_data):
     harris.defn = [ Case(condRed,
                          det(x, y) - 0.04 * trace(x, y) * trace(x, y)) ]
     
-    harris.defn.append(Case(zeroCond, 0.0))
-  
     return harris

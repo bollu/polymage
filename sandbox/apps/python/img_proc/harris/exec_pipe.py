@@ -11,8 +11,8 @@ from constructs import *
 from utils import *
 
 def call_pipe(app_data):
-    rows = app_data['rows']
-    cols = app_data['cols']
+    rows = app_data['rows']-2
+    cols = app_data['cols']-2
 
     img_data = app_data['img_data']
     IN = img_data['IN']

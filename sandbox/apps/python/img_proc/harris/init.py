@@ -16,12 +16,13 @@ def init_images(app_data):
     img_path = app_args.img_file
     img = np.array(Image.open(img_path).convert('1'))
     rows, cols = img.shape
-    # convert to short int image
+
+    # convert to float image
     IN = np.array(img)
     IN = IN.astype(np.float32).ravel()
 
     # final output image
-    OUT = np.zeros((3, rows, cols), ).ravel()
+    OUT = np.zeros((rows, cols), np.float32).ravel()
 
     img_data = {}
     img_data['IN'] = IN
