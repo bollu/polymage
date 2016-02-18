@@ -147,11 +147,9 @@ def auto_group(pipeline):
                 for g_child in group.children:
                     child_comps_count += len(g_child.comps)
 
-                '''
                 merge_count = len(group.comps)+child_comps_count
                 if merge_count > grp_size:
                     merge = False
-                '''
 
                 # - if group has many children
                 if (len(group.children) > 1):
