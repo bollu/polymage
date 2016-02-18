@@ -994,7 +994,6 @@ def generate_code_for_pipeline(pipeline,
                                             outputs)
                 pipe_freelist.extend(group_freelist)
 
-            # TODO free the arrays ASAP (compaction)
             # 3. Deallocate storage
             for array in pipe_freelist:
                 array.deallocate(pbody, pooled)

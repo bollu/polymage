@@ -25,9 +25,11 @@ else:
 class CNameGen(object):
     _iterator_prefix = "_ci"
     _temporary_prefix = "_ct"
+    _array_prefix = "_arr"
 
     _iterator_count = 0
     _temp_count = 0
+    _array_count = 0
 
     @classmethod
     def get_iterator_name(cls):
@@ -39,6 +41,12 @@ class CNameGen(object):
     def get_temp_var_name(cls):
         name = cls._temporary_prefix + str(cls._temp_count)
         cls._temp_count+=1
+        return name
+
+    @classmethod
+    def get_array_name(cls):
+        name = cls._array_prefix + str(cls._array_count)
+        cls._array_count+=1
         return name
 
 class CValue(Value):

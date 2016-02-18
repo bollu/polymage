@@ -404,6 +404,10 @@ class Group:
     def root_comps(self):
         return self._inputs
 
+    @property
+    def comps_schedule(self):
+        return self._comps_schedule
+
     def set_comp_group(self):
         for comp in self.comps:
             comp.set_group(self)
@@ -469,7 +473,6 @@ class Group:
                 part.compute_liveness()
         return
 
-    # DEAD?
     def is_fused(self):
         return len(self.comps) > 1
 
@@ -516,7 +519,7 @@ class Group:
         return sorted_comps
 
     def set_comp_and_parts_sched(self):
-        self._comp_schedule = schedule_within_group(self)
+        self._comps_schedule = schedule_within_group(self)
         return
 
     def __str__(self):
@@ -677,10 +680,12 @@ class Pipeline:
         # OPTIMIZATION
         # storage optimization for liveout (full array) allocations
         # 1. classify the storage based on type, dimensionality and size
-        self._storage_class_map = self.classify_storage()
+        self._storage_class_map = classify_storage(self.comps)
+        # 2. map logical storage to physical storage
+        self._storage_map = remap_storage(self)
 
         # ALLOCATION
-        self.allocate_storage()
+        #create_physical_arrays(self)
 
     @property
     def func_map(self):
@@ -718,6 +723,9 @@ class Pipeline:
     @property
     def group_schedule(self):
         return self._grp_schedule
+    @property
+    def storage_class_map(self):
+        return self._storage_class_map
 
     def get_parameters(self):
         params=[]
@@ -1019,10 +1027,4 @@ class Pipeline:
             storage = Storage(typ, ndims, interval_sizes)
             comp.set_orig_storage_class(storage)
         return
-
-    def classify_storage(self):
-        return storage_classification(self.comps)
-
-    def allocate_storage(self):
-        allocate_physical_arrays(self)
 
