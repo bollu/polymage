@@ -234,7 +234,7 @@ def generate(_tuner_arg_data):
 
             # print the polymage code compilation and cpp code generation time
             codegen_time = float(t2) - float(t1)
-            print_to("Code Generation Time   : "+str(codegen_time)+"ms",
+            print_to("Code Generation Time   : "+str(codegen_time*1000)+"ms",
                       dump_files)
 
             # TODO:
@@ -268,11 +268,11 @@ def generate(_tuner_arg_data):
                          dump_files)
             else:
                 compile_time = float(t2) - float(t1)
-                print_to("Compilation Time       : "+str(compile_time)+"ms",
+                print_to("Compilation Time       : "+str(compile_time*1000)+"ms",
                           dump_files)
                 # total time for this variant:
                 print_to("Total                  : "+\
-                          str(codegen_time+compile_time)+"ms",
+                          str((codegen_time+compile_time)*1000)+"ms",
                           dump_files)
 
             # file close
@@ -289,7 +289,7 @@ def generate(_tuner_arg_data):
     print_line(dump_files)
     # print the time taken by the tuner to generate and compile all variants
     print_to("Time taken to generate all variants : ", dump_files)
-    print_to(str(total_time)+"ms", dump_files)
+    print_to(str(total_time*1000)+"ms", dump_files)
     print_line(dump_files)
 
     # file close
@@ -477,8 +477,8 @@ def execute(_tuner_arg_data):
                     global_min_time = local_min_time
                     global_min_config = _tuner_config
 
-                print_to(str(local_min_time)+"ms "+\
-                         "("+str(global_min_time)+"ms)",
+                print_to(str(local_min_time*1000)+"ms "+\
+                         "("+str(global_min_time*1000)+"ms)",
                          dump_files)
 
                 # FIXME:
@@ -502,13 +502,13 @@ def execute(_tuner_arg_data):
     print_to("Best Config :", dump_files)
     print_to("Config #"+str(global_min_config)+" -- ",
              dump_files, " ")
-    print_to(str(global_min_time)+"ms", dump_files)
+    print_to(str(global_min_time*1000)+"ms", dump_files)
     print_to("Src Path    : \""+_tuner_src_path+"\"", dump_files)
 
     print_line(dump_files)
     # print the toal time taken by the tuner to execute all configs
     print_to("Tuning Time :", dump_files)
-    print_to(str(tuning_time)+"ms", dump_files)
+    print_to(str(tuning_time*1000)+"ms", dump_files)
     print_line(dump_files)
 
     dump_files.remove(tuning_report_file)
