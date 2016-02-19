@@ -36,6 +36,11 @@ def generate(_tuner_arg_data):
                not an optional parameter')
 
     try:
+        _tuner_pipe_name = _tuner_arg_data['_tuner_pipe_name']
+    except KeyError:
+        _tuner_pipe_name = None
+
+    try:
         _tuner_live_outs = _tuner_arg_data['_tuner_live_outs']
     except KeyError:
         print('tuner : generator : \'_tuner_live_outs\' - \
@@ -148,7 +153,7 @@ def generate(_tuner_arg_data):
     #cxx='icpc'
     #opt_flags='-openmp -xhost -O3 -ansi-alias'
     cxx='g++-4.8'
-    opt_flags='-fopenmp -march=native -O3'
+    opt_flags='-fopenmp -march=native -O3 -ftree-vectorize'
     shared_lib_flags='-fPIC -shared'
     #include_flags='-I ../../memory_allocation/'
     include_flags=''
@@ -209,7 +214,8 @@ def generate(_tuner_arg_data):
                                  param_estimates=_tuner_param_estimates,
                                  tile_sizes=_tuner_tile_size,
                                  group_size=_tuner_group_size,
-                                 options=_tuner_opts)
+                                 options=_tuner_opts,
+                                 pipe_name=_tuner_pipe_name)
             except:
                 _tuner_build_error = True
             finally:
@@ -486,6 +492,7 @@ def execute(_tuner_arg_data):
                 # Nevertheless, try to dispose off the loaded lib object
                 del pipeline_func
                 _ctypes.dlclose(lib_pipeline._handle)
+                print('tuner.py: Trying to delete the shared library ...')
                 del lib_pipeline
 
         dump_files.remove(tuning_report_file)
