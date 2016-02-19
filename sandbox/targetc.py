@@ -44,8 +44,8 @@ class CNameGen(object):
         return name
 
     @classmethod
-    def get_array_name(cls):
-        name = cls._array_prefix + str(cls._array_count)
+    def get_array_name(cls, tag=""):
+        name = cls._array_prefix + tag + str(cls._array_count)
         cls._array_count+=1
         return name
 

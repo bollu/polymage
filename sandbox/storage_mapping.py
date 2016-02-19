@@ -69,6 +69,8 @@ class Storage:
         self._dims = _dims
         self._dim_sizes = _dim_sizes
 
+        self._id = None
+
         self._dimension = []
         for dim in range(0, self._dims):
             self._dimension.append(Dimension(self._dim_sizes[dim]))
@@ -85,6 +87,9 @@ class Storage:
     @property
     def dim_sizes(self):
         return self._dim_sizes
+    @property
+    def id_(self):
+        return self._id
     @property
     def lookup_key(self):
         return self._lookup_key
@@ -137,6 +142,9 @@ class Storage:
             total_size *= size
 
         return total_size
+
+    def generate_id(self):
+        self._id = IdGen.get_stg_id()
 
 def classify_storage(comps):
     '''
@@ -215,6 +223,7 @@ def classify_storage(comps):
 
             # final maximal storage for this class
             max_storage = Storage(typ, dims, dim_sizes)
+            max_storage.generate_id()
 
             # all comps of this class now have identical storage
             for comp in class_comps:
@@ -244,14 +253,14 @@ def remap_storage(pipeline):
     # a mapping from comp -> index of array of comp's storage class
     storage_map = {}
 
-    # initialize a pool of arrays for each storage class
-    array_pool = {}
-    array_count = {}
-    for stg_class in pipeline.storage_class_map:
-        array_pool[stg_class] = []
-        array_count[stg_class] = 0
-
     for group in pipeline.groups:
+        # initialize a pool of arrays for each storage class
+        array_pool = {}
+        array_count = {}
+        for stg_class in pipeline.storage_class_map:
+            array_pool[stg_class] = []
+            array_count[stg_class] = 0
+
         # compute liveness
         # 1. prepare children map for liveness computation
         children_map = {}
@@ -303,23 +312,41 @@ def remap_storage(pipeline):
 
     return storage_map
 
-def create_physical_array(comp, flat_scratch):
+def create_physical_arrays(pipeline):
     '''
     Generate a mapping from logical storage object of the comp (assumed to be
     available at this point), to cgen CArrays. The mapping can be switched
     between naive and optimized (with reuse) versions, given a schedule for
     the comps within its group.
     '''
+    flat_scratch = 'flatten_scratchpad' in pipeline.options
+    for group in pipeline.groups:
+        # place where created arrays are recorded
+        created = {}
+        for comp in group.comps:
+            stg_class = comp.storage_class
+            created[stg_class] = {}
 
-    stg_class = comp.storage_class
-    array_type = genc.TypeMap.convert(comp.func.typ)
-    array_name = genc.CNameGen.get_array_name()
-    array = genc.CArray(array_type, array_name, stg_class.dim_sizes)
-    if comp.is_liveout:
-        array.layout = 'contiguous'
-    else:
-        if flat_scratch:
-            array.layout = 'contiguous_static'
-
+        # create / map CArray objects to comps
+        for comp in group.comps:
+            stg_class = comp.storage_class
+            array_id = pipeline.storage_map[comp]
+            if array_id in created[stg_class]:
+                array = created[stg_class][array_id]
+            else:
+                # array attributes
+                array_type = genc.TypeMap.convert(comp.func.typ)
+                tag = str(stg_class.id_)
+                array_name = genc.CNameGen.get_array_name(tag)
+                array_sizes = stg_class.dim_sizes
+                # create CArray object
+                array = genc.CArray(array_type, array_name, array_sizes)
+                if comp.is_liveout:  # full array
+                    array.layout = 'contiguous'
+                else:  # scratchpad
+                    if flat_scratch:  # linearized array
+                        array.layout = 'contiguous_static'
+                # record the array creation
+                created[stg_class][array_id] = array
     return array
 
