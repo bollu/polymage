@@ -37,6 +37,19 @@ def convert_to_ctype(inp_type, inp_value):
     if inp_type == 'double':
         return ctypes.c_double(inp_value)
 
+class IdGen:
+    _grp_id_count = -1
+    _stg_id_count = -1
+
+    @classmethod
+    def get_grp_id(cls):
+        cls._grp_id_count += 1
+        return cls._grp_id_count
+    @classmethod
+    def get_stg_id(cls):
+        cls._stg_id_count += 1
+        return cls._stg_id_count
+
 def get_ordered_cfunc_params(pipe_object):
     # Parameters
     params = pipe_object.get_parameters()

@@ -27,14 +27,6 @@ pipe_logger = logging.getLogger("pipe.py")
 pipe_logger.setLevel(logging.DEBUG)
 LOG = pipe_logger.log
 
-class IdGen:
-    _id_count = -1
-
-    @classmethod
-    def get_id(cls):
-        cls._id_count += 1
-        return cls._id_count
-
 def get_parents_from_func(func, non_image=True):
     refs = func.getObjects(Reference)
     # Filter out self and image references 
@@ -334,7 +326,7 @@ class Group:
     def __init__(self, _ctx, _comp_objs, \
                  _param_constraints):
 
-        self._id = IdGen.get_id()
+        self._id = IdGen.get_grp_id()
 
         log_level = logging.DEBUG
 
@@ -685,7 +677,7 @@ class Pipeline:
         self._storage_map = remap_storage(self)
 
         # ALLOCATION
-        #create_physical_arrays(self)
+        create_physical_arrays(self)
 
     @property
     def func_map(self):
@@ -699,6 +691,9 @@ class Pipeline:
     @property
     def name(self):
         return self._name
+    @property
+    def options(self):
+        return self._options
     @property
     def inputs(self):
         return self._inputs
@@ -726,6 +721,9 @@ class Pipeline:
     @property
     def storage_class_map(self):
         return self._storage_class_map
+    @property
+    def storage_map(self):
+        return self._storage_map
 
     def get_parameters(self):
         params=[]
