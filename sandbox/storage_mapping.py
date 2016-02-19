@@ -245,70 +245,92 @@ def classify_storage(comps):
 
     return storage_class_map
 
+
+def log_schedule(comps, schedule):
+    log_level = logging.DEBUG
+    LOG(log_level, "\n_______")
+    LOG(log_level, "Schedules :")
+    for comp in comps:
+        LOG(log_level, comp.func.name+" : "+str(schedule[comp]))
+    return
+
+def log_storage_mapping(comps, storage_map):
+    log_level = logging.DEBUG
+    LOG(log_level, "\n_______")
+    LOG(log_level, "Storage Mapping :")
+    for comp in comps:
+        LOG(log_level, comp.func.name+" : "+str(storage_map[comp]))
+    return
+
+def remap_storage_for_comps(storage_class_map, schedule,
+                            liveness_map, storage_map):
+
+    # sort comps according to their schedule
+    sorted_comps = get_sorted_objs(schedule)
+
+    # initialize a pool of arrays for each storage class
+    array_pool = {}
+    array_count = {}
+    for stg_class in storage_class_map:
+        array_pool[stg_class] = []
+        array_count[stg_class] = 0
+
+    for comp in sorted_comps:
+        stg_class = comp.storage_class
+        # if no array of stg_class is free as of now
+        if not array_pool[stg_class]:
+            array_count[stg_class] += 1
+            storage_map[comp] = array_count[stg_class]
+        # there is a free array of stg_class in the pool
+        else:
+            storage_map[comp] = array_pool[stg_class].pop()
+
+        # return free arrays to pool
+        time = schedule[comp]
+        # if any comp is not live after this point
+        if time in liveness_map:
+            free_comps = liveness_map[time]
+            for free_comp in free_comps:
+                comp_stg_class = free_comp.storage_class
+                storage_index = storage_map[free_comp]
+                array_pool[comp_stg_class].append(storage_index)
+
+    # ***
+    log_schedule(sorted_comps, schedule)
+    log_storage_mapping(sorted_comps, storage_map)
+    # ***
+
+    return
+
+def remap_storage_for_group(group, storage_class_map, storage_map):
+
+    # compute liveness
+    # 1. prepare children map for liveness computation
+    children_map = {}
+    for comp in group.comps:
+        children_map[comp] = \
+            [child for child in comp.children \
+                     if child.group == group]
+    # 2. get schedule for compute objects
+    comps_schedule = group.comps_schedule
+
+    liveness_map = compute_liveness(children_map, comps_schedule)
+
+    remap_storage_for_comps(storage_class_map, comps_schedule,
+                            liveness_map, storage_map)
+
+    return
+
 def remap_storage(pipeline):
     '''
     Map logical storage objects to physical arrays
     '''
-
+    storage_class_map = pipeline.storage_class_map
     # a mapping from comp -> index of array of comp's storage class
     storage_map = {}
 
     for group in pipeline.groups:
-        # initialize a pool of arrays for each storage class
-        array_pool = {}
-        array_count = {}
-        for stg_class in pipeline.storage_class_map:
-            array_pool[stg_class] = []
-            array_count[stg_class] = 0
-
-        # compute liveness
-        # 1. prepare children map for liveness computation
-        children_map = {}
-        for comp in group.comps:
-            children_map[comp] = \
-                [child for child in comp.children \
-                         if child.group == group]
-        # 2. get schedule for compute objects
-        comps_schedule = group.comps_schedule
-
-        liveness_map = compute_liveness(children_map, comps_schedule)
-
-        # sort comps according to their schedule
-        sorted_comps = get_sorted_objs(comps_schedule)
-
-        # ***
-        log_level = logging.DEBUG
-        LOG(log_level, "\n_______")
-        LOG(log_level, "Schedules :")
-        for comp in sorted_comps:
-            LOG(log_level, comp.func.name+" : "+str(comps_schedule[comp]))
-
-        # mapping
-        for comp in sorted_comps:
-            stg_class = comp.storage_class
-            # if no array of stg_class is free as of now
-            if not array_pool[stg_class]:
-                array_count[stg_class] += 1
-                storage_map[comp] = array_count[stg_class]
-            # there is a free array of stg_class in the pool
-            else:
-                storage_map[comp] = array_pool[stg_class].pop()
-
-            # return free arrays to pool
-            time = comps_schedule[comp]
-            # if any comp is not live after this point
-            if time in liveness_map:
-                free_comps = liveness_map[time]
-                for free_comp in free_comps:
-                    comp_stg_class = free_comp.storage_class
-                    storage_index = storage_map[free_comp]
-                    array_pool[comp_stg_class].append(storage_index)
-
-        LOG(log_level, "\n_______")
-        LOG(log_level, "Storage Mapping :")
-        for comp in sorted_comps:
-            LOG(log_level, comp.func.name+" : "+str(storage_map[comp]))
-        # ***
+        remap_storage_for_group(group, storage_class_map, storage_map)
 
     return storage_map
 
