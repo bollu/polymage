@@ -321,9 +321,42 @@ def remap_storage_for_group(group, storage_class_map, storage_map):
 
     return
 
+def remap_storage_for_liveout_comps(pipeline, storage_class_map, storage_map):
+    '''
+    Separate out the liveout compute objects in the pipeline, create a
+    temporary graph using a children_map, compute liveness_map for this graph,
+    and remap storage objects for liveout comps.
+    '''
+    liveouts = [comp for comp in pipeline.comps \
+                       if comp.is_liveout]
+    grp_schedule = pipeline.group_schedule
+    comps_schedule = {}
+    children_map = {}
+    for comp in liveouts:
+        # schedule of the group liveouts is the group schedule itself
+        liveout_sched[comp] = grp_schedule[comp.group]
+
+        # find temporary children map involving only the compute objects which
+        # are not scratchpads
+        # collect groups where comp is livein
+        livein_groups = [child.group for child in comp.children]
+        # collect liveouts of these groups
+        if comp.children:
+            liveouts = [g.liveouts for g in livein_groups]
+        children_map[comp] = liveouts
+
+    liveness_map = compute_liveness(children_map, liveout_order)
+
+    remap_storage_for_comps(storage_class_map, comps_schedule,
+                            liveness_map, storage_map)
+
+    return
+
 def remap_storage(pipeline):
     '''
-    Map logical storage objects to physical arrays
+    Map logical storage objects to representative physical arrays
+    The mapping can be switched between naive and optimized (with reuse)
+    versions, given a schedule for the comps within its group.
     '''
     storage_class_map = pipeline.storage_class_map
     # a mapping from comp -> index of array of comp's storage class
@@ -336,10 +369,8 @@ def remap_storage(pipeline):
 
 def create_physical_arrays(pipeline):
     '''
-    Generate a mapping from logical storage object of the comp (assumed to be
-    available at this point), to cgen CArrays. The mapping can be switched
-    between naive and optimized (with reuse) versions, given a schedule for
-    the comps within its group.
+    Create cgen CArrays for compute objects using the storage mapping from
+    logical storage object of the comp (assumed to be available at this point).
     '''
     flat_scratch = 'flatten_scratchpad' in pipeline.options
     for group in pipeline.groups:
