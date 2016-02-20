@@ -152,7 +152,7 @@ def generate(_tuner_arg_data):
     # Compile String parts
     #cxx='icpc'
     #opt_flags='-openmp -xhost -O3 -ansi-alias'
-    cxx='g++-4.8'
+    cxx='g++'
     opt_flags='-fopenmp -march=native -O3 -ftree-vectorize'
     shared_lib_flags='-fPIC -shared'
     #include_flags='-I ../../memory_allocation/'
