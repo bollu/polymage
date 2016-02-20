@@ -30,6 +30,39 @@ def compute_liveness(children_map, schedule):
 
     return liveness_map
 
+def naive_sched_objs(order):
+    # get a reverse map for the object order map
+    reverse_map = {}
+    max_level = 0
+    for obj in order:
+        l = order[obj]
+        if l not in reverse_map:
+            reverse_map[l] = [obj]
+        else:
+            reverse_map[l] += [obj]
+        max_level = max(max_level, l)
+
+    naive_order = {}
+    time = 0
+    for l in range(0, max_level+1):
+        # schedule within the current level
+        for obj in reverse_map[l]:
+            naive_order[obj] = time
+            time += 1
+        # sort the next level beforehand
+        if l != max_level:
+            next_level = []
+            for obj in reverse_map[l]:
+                obj_kids = [kid for kid in reverse_map[l+1] \
+                                   if kid in obj.children]
+                next_level += [kid for kid in obj_kids \
+                                     if kid not in next_level]
+            next_level += [obj for obj in reverse_map[l+1] \
+                                  if obj not in next_level]
+            reverse_map[l+1] = next_level
+
+    return naive_order
+
 def sort_scheduled_objs(schedule):
     '''
     sorts the objects according to the schedule and returns a list of the
@@ -45,7 +78,8 @@ def naive_sched_groups(pipeline):
     schedule in level order traversal of the group DAG
     '''
     level_order = pipeline.get_ordered_groups
-    return level_order
+
+    return naive_sched_objs(level_order)
 
 def schedule_groups(pipeline):
     # naive scheduling
@@ -87,7 +121,8 @@ def naive_sched_comps(group):
     schedule in level order traversal of the group comps DAG
     '''
     level_order = group.get_ordered_comps
-    return level_order
+
+    return naive_sched_objs(level_order)
 
 def schedule_within_group(group):
     '''

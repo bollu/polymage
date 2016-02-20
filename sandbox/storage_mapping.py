@@ -1,12 +1,13 @@
 from __future__ import absolute_import, division, print_function
 
 import logging
+import targetc as genc
 from expression import *
 from pipe import *
 
 # LOG CONFIG #
 storage_logger = logging.getLogger("storage_mapping.py")
-storage_logger.setLevel(logging.INFO)
+storage_logger.setLevel(logging.DEBUG)
 LOG = storage_logger.log
 
 class TypeSizeMap(object):
@@ -68,6 +69,8 @@ class Storage:
         self._dims = _dims
         self._dim_sizes = _dim_sizes
 
+        self._id = None
+
         self._dimension = []
         for dim in range(0, self._dims):
             self._dimension.append(Dimension(self._dim_sizes[dim]))
@@ -84,6 +87,9 @@ class Storage:
     @property
     def dim_sizes(self):
         return self._dim_sizes
+    @property
+    def id_(self):
+        return self._id
     @property
     def lookup_key(self):
         return self._lookup_key
@@ -137,7 +143,10 @@ class Storage:
 
         return total_size
 
-def storage_classification(comps):
+    def generate_id(self):
+        self._id = IdGen.get_stg_id()
+
+def classify_storage(comps):
     '''
     Classifies the compute objects into separate groups based on their storage
     sizes.
@@ -214,12 +223,12 @@ def storage_classification(comps):
 
             # final maximal storage for this class
             max_storage = Storage(typ, dims, dim_sizes)
+            max_storage.generate_id()
 
             # all comps of this class now have identical storage
             for comp in class_comps:
                 comp.set_storage_class(max_storage)
-                key = max_storage.lookup_key
-                new_storage_class_map[key] = comp
+                new_storage_class_map[max_storage] = comp
 
         # clear the temporary mappings
         storage_class_map.clear()
@@ -236,12 +245,165 @@ def storage_classification(comps):
 
     return storage_class_map
 
-def allocate_physical_arrays(pipeline):
-    '''
-    Generate a mapping from logical storage object of the comp (assumed to be
-    available at this point), to cgen CArrays. The mapping can be switched
-    between naive and optimized (with reuse) versions, given a schedule for
-    the comps within its group.
-    '''
+
+def log_schedule(comps, schedule):
+    log_level = logging.DEBUG
+    LOG(log_level, "\n_______")
+    LOG(log_level, "Schedules :")
+    for comp in comps:
+        LOG(log_level, comp.func.name+" : "+str(schedule[comp]))
+    return
+
+def log_storage_mapping(comps, storage_map):
+    log_level = logging.DEBUG
+    LOG(log_level, "\n_______")
+    LOG(log_level, "Storage Mapping :")
+    for comp in comps:
+        LOG(log_level, comp.func.name+" : "+str(storage_map[comp]))
+    return
+
+def remap_storage_for_comps(storage_class_map, schedule,
+                            liveness_map, storage_map):
+
+    # sort comps according to their schedule
+    sorted_comps = get_sorted_objs(schedule)
+
+    # initialize a pool of arrays for each storage class
+    array_pool = {}
+    array_count = {}
+    for stg_class in storage_class_map:
+        array_pool[stg_class] = []
+        array_count[stg_class] = 0
+
+    for comp in sorted_comps:
+        stg_class = comp.storage_class
+        # if no array of stg_class is free as of now
+        if not array_pool[stg_class]:
+            array_count[stg_class] += 1
+            storage_map[comp] = array_count[stg_class]
+        # there is a free array of stg_class in the pool
+        else:
+            storage_map[comp] = array_pool[stg_class].pop()
+
+        # return free arrays to pool
+        time = schedule[comp]
+        # if any comp is not live after this point
+        if time in liveness_map:
+            free_comps = liveness_map[time]
+            for free_comp in free_comps:
+                comp_stg_class = free_comp.storage_class
+                storage_index = storage_map[free_comp]
+                array_pool[comp_stg_class].append(storage_index)
+
+    # ***
+    log_schedule(sorted_comps, schedule)
+    log_storage_mapping(sorted_comps, storage_map)
+    # ***
 
     return
+
+def remap_storage_for_group(group, storage_class_map, storage_map):
+
+    # compute liveness
+    # 1. prepare children map for liveness computation
+    children_map = {}
+    for comp in group.comps:
+        children_map[comp] = \
+            [child for child in comp.children \
+                     if child.group == group]
+    # 2. get schedule for compute objects
+    comps_schedule = group.comps_schedule
+
+    liveness_map = compute_liveness(children_map, comps_schedule)
+
+    remap_storage_for_comps(storage_class_map, comps_schedule,
+                            liveness_map, storage_map)
+
+    return
+
+def remap_storage_for_liveout(pipeline, storage_class_map, storage_map):
+    '''
+    Separate out the liveout compute objects in the pipeline, create a
+    temporary graph using a children_map, compute liveness_map for this graph,
+    and remap storage objects for liveout comps.
+    '''
+    liveouts = [comp for comp in pipeline.comps \
+                       if comp.is_liveout]
+    grp_schedule = pipeline.group_schedule
+    comps_schedule = {}
+    children_map = {}
+    for comp in liveouts:
+        # schedule of the group liveouts is the group schedule itself
+        comps_schedule[comp] = grp_schedule[comp.group]
+
+        # find temporary children map involving only the compute objects which
+        # are not scratchpads
+        # collect groups where comp is livein
+        g_liveouts = []
+        if comp.children:
+            livein_groups = [child.group for child in comp.children]
+            # collect liveouts of these groups
+            for g in livein_groups:
+                g_liveouts += g.liveouts
+        children_map[comp] = g_liveouts
+
+    liveness_map = compute_liveness(children_map, comps_schedule)
+
+    remap_storage_for_comps(storage_class_map, comps_schedule,
+                            liveness_map, storage_map)
+
+    return
+
+def remap_storage(pipeline):
+    '''
+    Map logical storage objects to representative physical arrays
+    The mapping can be switched between naive and optimized (with reuse)
+    versions, given a schedule for the comps within its group.
+    '''
+    storage_class_map = pipeline.storage_class_map
+    # a mapping from comp -> index of array of comp's storage class
+    storage_map = {}
+
+    for group in pipeline.groups:
+        remap_storage_for_group(group, storage_class_map, storage_map)
+
+    remap_storage_for_liveout(pipeline, storage_class_map, storage_map)
+
+    return storage_map
+
+def create_physical_arrays(pipeline):
+    '''
+    Create cgen CArrays for compute objects using the storage mapping from
+    logical storage object of the comp (assumed to be available at this point).
+    '''
+    flat_scratch = 'flatten_scratchpad' in pipeline.options
+    for group in pipeline.groups:
+        # place where created arrays are recorded
+        created = {}
+        for comp in group.comps:
+            stg_class = comp.storage_class
+            created[stg_class] = {}
+
+        # create / map CArray objects to comps
+        for comp in group.comps:
+            stg_class = comp.storage_class
+            array_id = pipeline.storage_map[comp]
+            if array_id in created[stg_class]:
+                array = created[stg_class][array_id]
+            else:
+                # array attributes
+                array_type = genc.TypeMap.convert(comp.func.typ)
+                tag = str(stg_class.id_)
+                array_name = genc.CNameGen.get_array_name(tag)
+                array_sizes = stg_class.dim_sizes
+                # create CArray object
+                array = genc.CArray(array_type, array_name, array_sizes)
+                if comp.is_liveout:  # full array
+                    array.layout = 'contiguous'
+                else:  # scratchpad
+                    if flat_scratch:  # linearized array
+                        array.layout = 'contiguous_static'
+                # record the array creation
+                created[stg_class][array_id] = array
+    return array
+

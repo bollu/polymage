@@ -2,6 +2,7 @@ import ctypes
 import _ctypes
 
 from fractions import gcd
+import x11
 
 NULL = 'X'
 
@@ -36,6 +37,29 @@ def convert_to_ctype(inp_type, inp_value):
         return ctypes.c_float(inp_value)
     if inp_type == 'double':
         return ctypes.c_double(inp_value)
+
+class IdGen:
+    _grp_id_count = -1
+    _stg_id_count = -1
+
+    @classmethod
+    def get_grp_id(cls):
+        cls._grp_id_count += 1
+        return cls._grp_id_count
+    @classmethod
+    def get_stg_id(cls):
+        cls._stg_id_count += 1
+        return cls._stg_id_count
+
+class X11Colours:
+    _total_colours = len(x11.colour_schemes)
+
+    @classmethod
+    def colour(cls, key):
+        assert isinstance(key, int)
+        if key > cls._total_colours:
+            key = key % cls._total_colours
+        return x11.colour_schemes[key][1]
 
 def get_ordered_cfunc_params(pipe_object):
     # Parameters

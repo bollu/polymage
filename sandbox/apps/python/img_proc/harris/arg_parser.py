@@ -57,6 +57,13 @@ def parse_args():
                        help='True : Use a pool of memory allocations, \
                              False: generate simple malloc function call',)
 
+    parser.add_option('--graph-gen',
+                       action='store_true',
+                       dest='graph_gen',
+                       default=False,
+                       help='True : generate .dot file of pipeline graph, \
+                             False: don\'t',)
+
     (options, args) = parser.parse_args()
 
     return options

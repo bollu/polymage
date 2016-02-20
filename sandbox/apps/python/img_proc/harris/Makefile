@@ -6,7 +6,7 @@ CXX_FLAGS=-fopenmp -O3 -march=native -ftree-vectorize -fPIC -shared
 all: new
 
 new:
-	python3.4 main.py --mode='new' --img='../../../../../images/venice_wikimedia.jpg' --runs=1 -t --display
+	python3.4 main.py --mode='new' --img='../../../../../images/venice_wikimedia.jpg' --graph-gen --runs=1 -t --display
 
 tune:
 	python3.4 main.py --mode='tune' --img='../../../../../images/venice_wikimedia.jpg' --runs=1 -t --display
