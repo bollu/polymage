@@ -321,7 +321,7 @@ def remap_storage_for_group(group, storage_class_map, storage_map):
 
     return
 
-def remap_storage_for_liveout_comps(pipeline, storage_class_map, storage_map):
+def remap_storage_for_liveout(pipeline, storage_class_map, storage_map):
     '''
     Separate out the liveout compute objects in the pipeline, create a
     temporary graph using a children_map, compute liveness_map for this graph,
@@ -334,18 +334,20 @@ def remap_storage_for_liveout_comps(pipeline, storage_class_map, storage_map):
     children_map = {}
     for comp in liveouts:
         # schedule of the group liveouts is the group schedule itself
-        liveout_sched[comp] = grp_schedule[comp.group]
+        comps_schedule[comp] = grp_schedule[comp.group]
 
         # find temporary children map involving only the compute objects which
         # are not scratchpads
         # collect groups where comp is livein
-        livein_groups = [child.group for child in comp.children]
-        # collect liveouts of these groups
+        g_liveouts = []
         if comp.children:
-            liveouts = [g.liveouts for g in livein_groups]
-        children_map[comp] = liveouts
+            livein_groups = [child.group for child in comp.children]
+            # collect liveouts of these groups
+            for g in livein_groups:
+                g_liveouts += g.liveouts
+        children_map[comp] = g_liveouts
 
-    liveness_map = compute_liveness(children_map, liveout_order)
+    liveness_map = compute_liveness(children_map, comps_schedule)
 
     remap_storage_for_comps(storage_class_map, comps_schedule,
                             liveness_map, storage_map)
@@ -364,6 +366,8 @@ def remap_storage(pipeline):
 
     for group in pipeline.groups:
         remap_storage_for_group(group, storage_class_map, storage_map)
+
+    remap_storage_for_liveout(pipeline, storage_class_map, storage_map)
 
     return storage_map
 
