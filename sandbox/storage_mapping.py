@@ -270,17 +270,16 @@ def remap_storage_for_comps(storage_class_map, schedule,
 
     # initialize a pool of arrays for each storage class
     array_pool = {}
-    array_count = {}
+    array_count = 0
     for stg_class in storage_class_map:
         array_pool[stg_class] = []
-        array_count[stg_class] = 0
 
     for comp in sorted_comps:
         stg_class = comp.storage_class
         # if no array of stg_class is free as of now
         if not array_pool[stg_class]:
-            array_count[stg_class] += 1
-            storage_map[comp] = array_count[stg_class]
+            array_count += 1
+            storage_map[comp] = array_count
         # there is a free array of stg_class in the pool
         else:
             storage_map[comp] = array_pool[stg_class].pop()
