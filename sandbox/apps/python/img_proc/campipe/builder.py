@@ -57,7 +57,7 @@ def build_campipe(pipe_data, app_data):
     p_constraints = [ Condition(R, "==", app_data['rows']), \
                       Condition(C, "==", app_data['cols']) ]
     t_size = [64, 256]
-    g_size = 10
+    g_size = 5
     opts = []
     if app_data['pool_alloc'] == True:
         opts += ['pool_alloc']

@@ -347,6 +347,7 @@ class Group:
         self._level_order_comps = self.order_compute_objs()
         self._comps = self.get_sorted_comps()
         self._inputs = self.find_root_comps()
+        self._live_outs = None
         self._image_refs = self.collect_image_refs()
 
         self._polyrep = None
@@ -382,6 +383,9 @@ class Group:
     @property
     def inputs(self):
         return self._inputs
+    @property
+    def liveouts(self):
+        return self._live_outs
     @property
     def image_refs(self):
         return self._image_refs
@@ -458,11 +462,16 @@ class Group:
         return
 
     def compute_liveness(self):
+        liveouts = []
         for comp in self.comps:
             comp.compute_liveness()
             parts = self.polyRep.poly_parts[comp]
             for part in parts:
                 part.compute_liveness()
+            if comp.is_liveout:
+                liveouts.append(comp)
+
+        self._live_outs = liveouts
         return
 
     def is_fused(self):
@@ -588,7 +597,7 @@ class Pipeline:
 
         # Store the initial pipeline graph. The compiler can modify 
         # the pipeline by inlining functions.
-        self._initial_graph = self.draw_pipeline_graph()
+        # self._initial_graph = self.draw_pipeline_graph()
 
         # Make a list of all the input groups
         live_ins = []
@@ -662,9 +671,6 @@ class Pipeline:
         for group in self._grp_schedule:
             group.set_comp_and_parts_sched()
 
-        # use graphviz to create pipeline graph
-        self._pipeline_graph = self.draw_pipeline_graph()
-
         ''' STORAGE '''
         # MAPPING
         self.initialize_storage()
@@ -678,6 +684,9 @@ class Pipeline:
 
         # ALLOCATION
         create_physical_arrays(self)
+
+        # use graphviz to create pipeline graph
+        self._pipeline_graph = self.draw_pipeline_graph()
 
     @property
     def func_map(self):
@@ -810,9 +819,24 @@ class Pipeline:
         # TODO add input nodes to the graph
         for i in range(0, len(self.groups)):
             sub_graph_nodes = [comp.func.name for comp in self.groups[i].comps]
-            gr.add_nodes_from(sub_graph_nodes)
+            for comp in self.groups[i].comps:
+                # liveout or not
+                style = 'rounded'
+                if comp.is_liveout:
+                    style += ', bold'
+                # comp's array mapping
+                color_index = self.storage_map[comp]
+                gr.add_node(comp.func.name,
+                            color=X11Colours.colour(color_index),
+                            style=style,
+                            shape="box")
+
+            # add group boundary
             gr.add_subgraph(nbunch = sub_graph_nodes,
-                           name = "cluster_" + str(i))
+                            name = "cluster_" + str(i),
+                            label=str(self.group_schedule[self.groups[i]]),
+                            style="dashed, rounded")
+
         for comp in self.comps:
             for p_comp in comp.parents:
                 gr.add_edge(p_comp.func.name, comp.func.name)
