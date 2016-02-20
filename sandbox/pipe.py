@@ -824,6 +824,8 @@ class Pipeline:
                 style = 'rounded'
                 if comp.is_liveout:
                     style += ', bold'
+                else:
+                    style += ', filled'
                 # comp's array mapping
                 color_index = self.storage_map[comp]
                 gr.add_node(comp.func.name,
