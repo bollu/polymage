@@ -356,14 +356,14 @@ class PolyPart(object):
 
                         low_vec_aff = (p_lower_bound.get_pieces())[0][1]
                         val = low_vec_aff.get_constant_val()
-                        assert(val.get_den_si() == 1)
+                        assert(val.get_den_val() == 1)
                         low_vec = \
                             int(math.floor((access_const - val.get_num_si()) *
                                            pscale))
 
                         high_vec_aff = (p_upper_bound.get_pieces())[0][1]
                         val = high_vec_aff.get_constant_val()
-                        assert(val.get_den_si() == 1)
+                        assert(val.get_den_val() == 1)
                         high_vec = \
                             int(math.ceil((access_const - val.get_num_si()) *
                                           pscale))
@@ -403,7 +403,7 @@ class PolyPart(object):
         #            if (dim_diff.is_cst() and dim_diff.n_piece() == 1):
         #                aff = (dim_diff.get_pieces())[0][1]
         #                val = aff.get_constant_val()
-        #                dep_vec[i] = (val.get_num_si())/(val.get_den_si())
+        #                dep_vec[i] = (val.get_num_si())/(val.get_den_val())
         return (dep_vec, parent_part.level)
 
     def __str__(self):
