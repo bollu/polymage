@@ -68,8 +68,10 @@ def isl_expr_to_cgen(expr, prologue_stmts = None):
             assert("Division must have exactly 2 arguments!" and \
                    expr.get_op_n_arg() == 2)
             return \
-                genc.c_macro_floord(isl_expr_to_cgen(expr.get_op_arg(0), prolog),
-                                  isl_expr_to_cgen(expr.get_op_arg(1), prolog))
+                genc.c_macro_floord(isl_expr_to_cgen(expr.get_op_arg(0),
+                                    prolog),
+                                    isl_expr_to_cgen(expr.get_op_arg(1),
+                                    prolog))
         if op_typ == isl._isl.ast_op_type.add:
             assert("Addition must have exactly 2 arguments!" and \
                    expr.get_op_n_arg() == 2)
@@ -314,7 +316,8 @@ def generate_c_naive_from_expression_node(pipe, polyrep, node, body,
                                        cparam_map, cvar_map, cfunc_map,
                                        scratch_map))
     prologue = []
-    expr = generate_c_expr(pipe, poly_part.expr, cparam_map, cvar_map, cfunc_map,
+    expr = generate_c_expr(pipe, poly_part.expr,
+                           cparam_map, cvar_map, cfunc_map,
                            scratch_map, prologue_stmts = prologue)
     assign = genc.CAssign(array(*arglist), expr)
 

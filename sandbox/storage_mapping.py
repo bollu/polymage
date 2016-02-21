@@ -441,27 +441,51 @@ def create_physical_arrays(pipeline):
             inp_comp.set_storage_object(array)
         return
 
+    def set_arrays_for_outputs(pipeline, created):
+        func_map = pipeline.func_map
+        outputs = pipeline.outputs
+        for out in outputs:
+            out_comp = func_map[out]
+            array = create_new_array(out_comp)
+            out_comp.set_storage_object(array)
+            # record array creation
+            array_id = pipeline.storage_map[out_comp]
+            created[array_id] = array
+        return
+
+    def set_arrays_for_comps(pipeline, created_arrays, flat_scratch):
+        for group in pipeline.groups:
+            # place where created scratchpads are recorded
+            created_scratch = {}
+
+            # create / map CArray objects to comps
+            for comp in group.comps:
+                if comp.is_output:
+                    continue
+                array_id = pipeline.storage_map[comp]
+                if comp.is_liveout:
+                    array = set_array_for_comp(comp, array_id, created_arrays)
+                else:
+                    array = set_array_for_comp(comp, array_id, created_scratch,
+                                               flat_scratch)
+                comp.set_storage_object(array)
+        return
+
     flat_scratch = 'flatten_scratchpad' in pipeline.options
+
     # place where created arrays are recorded
     created_arrays = {}
-    for group in pipeline.groups:
-        # place where created scratchpads are recorded
-        created_scratch = {}
 
-        # create / map CArray objects to comps
-        for comp in group.comps:
-            array_id = pipeline.storage_map[comp]
-            if comp.is_liveout:
-                array = set_array_for_comp(comp, array_id,
-                                           created_arrays,
-                                           flat_scratch)
-            else:
-                array = set_array_for_comp(comp, array_id,
-                                           created_scratch,
-                                           flat_scratch)
-            comp.set_storage_object(array)
-
+    # first create arrays for pipeline inputs
     set_arrays_for_inputs(pipeline)
+
+    # create arrays for pipeline outputs.
+    # doing this first will open doors for using output arrays, that will be
+    # allocated outside the pipeline function, for other liveouts.
+    set_arrays_for_outputs(pipeline, created_arrays)
+
+    # create arrays for the rest of the comps
+    set_arrays_for_comps(pipeline, created_arrays, flat_scratch)
 
     return
 
