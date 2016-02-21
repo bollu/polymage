@@ -678,7 +678,7 @@ class Pipeline:
         # OPTIMIZATION
         # storage optimization for liveout (full array) allocations
         # 1. classify the storage based on type, dimensionality and size
-        self._storage_class_map = classify_storage(self.comps)
+        self._storage_class_map = classify_storage(self)
         # 2. map logical storage to physical storage
         self._storage_map = remap_storage(self)
 

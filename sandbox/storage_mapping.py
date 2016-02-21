@@ -146,11 +146,12 @@ class Storage:
     def generate_id(self):
         self._id = IdGen.get_stg_id()
 
-def classify_storage(comps):
+def classify_storage(pipeline):
     '''
     Classifies the compute objects into separate groups based on their storage
     sizes.
     '''
+    comps = pipeline.comps
 
     def find_storage_equivalence(comps):
         '''
@@ -235,6 +236,18 @@ def classify_storage(comps):
 
         return new_storage_class_map
 
+    def set_input_objects_storage(pipeline, storage_class_map):
+        func_map = pipeline.func_map
+        inputs = pipeline.inputs
+        for inp in inputs:
+            inp_comp = func_map[inp]
+            storage_class = inp_comp.orig_storage_class
+            storage_class.generate_id()
+            storage_class_map[inp_comp] = storage_class
+            inp_comp.set_storage_class(storage_class)
+
+        return storage_class_map
+
     # find equivalence in size between storage objects and create classes of
     # storage objects
     storage_class_map = find_storage_equivalence(comps)
@@ -242,6 +255,10 @@ def classify_storage(comps):
     # compute the maximal offsets in each dimension of the compute objects,
     # and compute the total_size of the storage for each storage class
     storage_class_map = maximal_storage(comps, storage_class_map)
+
+    # collect the pipeline inputs, set the storage class to original storage
+    # class, and generate class id
+    set_input_objects_storage(pipeline, storage_class_map)
 
     return storage_class_map
 
@@ -376,27 +393,32 @@ def create_physical_arrays(pipeline):
     logical storage object of the comp (assumed to be available at this point).
     '''
 
-    def create_new_array(comp, flat_scratch):
+    def create_new_array(comp, flat_scratch=False):
         '''
         Creates CArray for a given comp
         '''
         stg_class = comp.storage_class
         # array attributes
+        array_layout = 'contiguous'
+        if comp.is_output or comp.is_image_typ:  # inputs and outputs
+            array_name = comp.func.name
+        else:
+            tag = str(stg_class.id_)
+            array_name = genc.CNameGen.get_array_name(tag)
+            if not comp.is_liveout:  # live out
+                if flat_scratch:  # linearized array
+                    array_layout = 'contiguous_static'
+                else:
+                    array_layout = 'multidim'
         array_type = genc.TypeMap.convert(comp.func.typ)
-        tag = str(stg_class.id_)
-        array_name = genc.CNameGen.get_array_name(tag)
         array_sizes = stg_class.dim_sizes
         # create CArray object
         array = genc.CArray(array_type, array_name, array_sizes)
-        if comp.is_liveout:  # full array
-            array.layout = 'contiguous'
-        else:  # scratchpad
-            if flat_scratch:  # linearized array
-                array.layout = 'contiguous_static'
+        array.layout = array_layout
 
         return array
 
-    def set_array_for_comp(comp, array_id, flat_scratch, created):
+    def set_array_for_comp(comp, array_id, created, flat_scratch=False):
         '''
         Set CArray for comp by newly creating it or finding the already created
         corresponding object.
@@ -410,6 +432,14 @@ def create_physical_arrays(pipeline):
 
         return array
 
+    def set_arrays_for_inputs(pipeline):
+        func_map = pipeline.func_map
+        inputs = pipeline.inputs
+        for inp in inputs:
+            inp_comp = func_map[inp]
+            array = create_new_array(inp_comp)
+            inp_comp.set_storage_object(array)
+        return
 
     flat_scratch = 'flatten_scratchpad' in pipeline.options
     # place where created arrays are recorded
@@ -423,13 +453,15 @@ def create_physical_arrays(pipeline):
             array_id = pipeline.storage_map[comp]
             if comp.is_liveout:
                 array = set_array_for_comp(comp, array_id,
-                                           flat_scratch,
-                                           created_arrays)
+                                           created_arrays,
+                                           flat_scratch)
             else:
                 array = set_array_for_comp(comp, array_id,
-                                           flat_scratch,
-                                           created_scratch)
+                                           created_scratch,
+                                           flat_scratch)
             comp.set_storage_object(array)
+
+    set_arrays_for_inputs(pipeline)
 
     return
 
