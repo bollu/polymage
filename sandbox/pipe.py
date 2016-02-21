@@ -118,7 +118,7 @@ class ComputeObject:
         self._orig_storage_class = None
         self._storage_class = None
         self._array = None
-        self._scratch_info = None
+        self._scratch_info = []
 
     @property
     def func(self):
@@ -1029,12 +1029,12 @@ class Pipeline:
             # 1. Input Images
             # 2. Group Live-Outs
             # 3. Not a scratchpad  (maybe Reduction)
+            reduced_dims = [ -1 for i in range(0, ndims) ]
+            is_scratch = [ False for i in range(0, ndims) ]
             if comp.is_image_typ or comp.is_liveout or comp not in part_map:
                 interval_sizes = comp.size
             # 4. Scratchpads
             else:
-                reduced_dims = [ -1 for i in range(0, ndims) ]
-                is_scratch = [ False for i in range(0, ndims) ]
                 for part in part_map[comp]:
                     for i in range(0, ndims):
                         if i in part.dim_scratch_size:  # as a key
@@ -1042,11 +1042,12 @@ class Pipeline:
                                                   part.dim_scratch_size[i])
                             is_scratch[i] = True
 
-                comp.set_scratch_info(is_scratch)
                 for i in range(0, ndims):
                     dim_sizes.append(reduced_dims[i])
 
                 interval_sizes = comp.compute_size(dim_sizes)
+
+            comp.set_scratch_info(is_scratch)
 
             storage = Storage(typ, ndims, interval_sizes)
             comp.set_orig_storage_class(storage)

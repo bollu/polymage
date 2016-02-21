@@ -411,7 +411,7 @@ def create_physical_arrays(pipeline):
                 else:
                     array_layout = 'multidim'
         array_type = genc.TypeMap.convert(comp.func.typ)
-        array_sizes = stg_class.dim_sizes
+        array_sizes = [size[1] for size in stg_class.dim_sizes]
         # create CArray object
         array = genc.CArray(array_type, array_name, array_sizes)
         array.layout = array_layout
