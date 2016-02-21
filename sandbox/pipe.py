@@ -309,9 +309,9 @@ class ComputeObject:
         assert isinstance(_storage_class, Storage)
         self._storage_class = _storage_class
 
-    def set_storage_object(self, _storage):
-        assert isinstance(_storage, genc.CArray)
-        self._storage = _storage
+    def set_storage_object(self, _array):
+        assert isinstance(_array, genc.CArray)
+        self._array = _array
     def set_scratch_info(self, _scratch_info):
         self._scratch_info = _scratch_info
 

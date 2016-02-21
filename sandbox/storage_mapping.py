@@ -375,34 +375,61 @@ def create_physical_arrays(pipeline):
     Create cgen CArrays for compute objects using the storage mapping from
     logical storage object of the comp (assumed to be available at this point).
     '''
+
+    def create_new_array(comp, flat_scratch):
+        '''
+        Creates CArray for a given comp
+        '''
+        stg_class = comp.storage_class
+        # array attributes
+        array_type = genc.TypeMap.convert(comp.func.typ)
+        tag = str(stg_class.id_)
+        array_name = genc.CNameGen.get_array_name(tag)
+        array_sizes = stg_class.dim_sizes
+        # create CArray object
+        array = genc.CArray(array_type, array_name, array_sizes)
+        if comp.is_liveout:  # full array
+            array.layout = 'contiguous'
+        else:  # scratchpad
+            if flat_scratch:  # linearized array
+                array.layout = 'contiguous_static'
+
+        return array
+
+    def set_array_for_comp(comp, array_id, flat_scratch, created):
+        '''
+        Set CArray for comp by newly creating it or finding the already created
+        corresponding object.
+        '''
+        if array_id in created:
+            array = created[array_id]
+        else:
+            array = create_new_array(comp, flat_scratch)
+            # record the array creation
+            created[array_id] = array
+
+        return array
+
+
     flat_scratch = 'flatten_scratchpad' in pipeline.options
+    # place where created arrays are recorded
+    created_arrays = {}
     for group in pipeline.groups:
-        # place where created arrays are recorded
-        created = {}
-        for comp in group.comps:
-            stg_class = comp.storage_class
-            created[stg_class] = {}
+        # place where created scratchpads are recorded
+        created_scratch = {}
 
         # create / map CArray objects to comps
         for comp in group.comps:
-            stg_class = comp.storage_class
             array_id = pipeline.storage_map[comp]
-            if array_id in created[stg_class]:
-                array = created[stg_class][array_id]
+            if comp.is_liveout:
+                array = set_array_for_comp(comp, array_id,
+                                           flat_scratch,
+                                           created_arrays)
             else:
-                # array attributes
-                array_type = genc.TypeMap.convert(comp.func.typ)
-                tag = str(stg_class.id_)
-                array_name = genc.CNameGen.get_array_name(tag)
-                array_sizes = stg_class.dim_sizes
-                # create CArray object
-                array = genc.CArray(array_type, array_name, array_sizes)
-                if comp.is_liveout:  # full array
-                    array.layout = 'contiguous'
-                else:  # scratchpad
-                    if flat_scratch:  # linearized array
-                        array.layout = 'contiguous_static'
-                # record the array creation
-                created[stg_class][array_id] = array
-    return array
+                array = set_array_for_comp(comp, array_id,
+                                           flat_scratch,
+                                           created_scratch)
+            comp.set_storage_object(array)
+
+    return
 
