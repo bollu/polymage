@@ -2,6 +2,7 @@ from __future__ import absolute_import, division, print_function
 
 from fractions import Fraction
 import sys
+import subprocess
 sys.path.insert(0, '../')
 
 from compiler import *
@@ -75,14 +76,14 @@ def test_math():
     pipeline = buildPipeline([select],
                              pipe_name="aimless")
 
-    '''
-    filename = 'aimless.dot'
-    pipeline.originalGraph.write(filename)
-    
-    filename = 'aimless_groupeed.dot'
-    g = pipeline.drawPipelineGraph()
-    g.write(filename)
-    '''
+
+    filename = "math_graph"
+    dot_file = filename+".dot"
+    png_file = filename+".png"
+    g = pipeline.pipeline_graph
+    g.write(filename+".dot")
+    dotty_str = "dot -Tpng "+dot_file+" -o "+png_file
+    subprocess.check_output(dotty_str, shell=True)
 
     filename = 'aimless.cpp'
     c_file = open(filename, 'w')

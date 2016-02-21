@@ -2,6 +2,7 @@ from __future__ import absolute_import, division, print_function
 
 from fractions import Fraction
 import sys
+import subprocess
 sys.path.insert(0, '../')
 
 from compiler import *
@@ -93,9 +94,13 @@ def test_harris_corner():
                              param_estimates = p_est,
                              pipe_name = "harris")
 
-    filename = 'harris_graph.dot'
+    filename = "harris_graph"
+    dot_file = filename+".dot"
+    png_file = filename+".png"
     g = pipeline.pipeline_graph
-    g.write(filename)
+    g.write(filename+".dot")
+    dotty_str = "dot -Tpng "+dot_file+" -o "+png_file
+    subprocess.check_output(dotty_str, shell=True)
 
     filename = 'harris_naive.cpp'
     c_file = open(filename, 'w')
