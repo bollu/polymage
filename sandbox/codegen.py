@@ -392,9 +392,12 @@ def generate_c_naive_from_isl_ast(pipe, polyrep, node, body,
             # Assuming only one parallel dimension and a whole lot
             # of other things.
             freelist = []
+            alloc_scratchpads = []
             if dim_parallel:
                 with loop.body as lbody:
                     for array in arrays:
+                        if array in alloc_scratchpads:
+                            continue
                         #if array.is_constant_size():
                         if array.is_constant_size() or True:
                             array_decl = genc.CArrayDecl(array, flat_scratch)
@@ -405,6 +408,7 @@ def generate_c_naive_from_isl_ast(pipe, polyrep, node, body,
                             lbody.add(array_decl)
                             array.allocate_contiguous(lbody)
                             freelist.append(array)
+                        alloc_scratchpads.append(array)
             with loop.body as lbody:
                 generate_c_naive_from_isl_ast(pipe, polyrep,
                                               node.for_get_body(),
@@ -734,7 +738,7 @@ def generate_reduction_scan_loops(pipe, group, comp, pipe_body, cparam_map):
             assert("Invalid case instance:"+str(case) and \
                    False)
 
-def generate_code_for_group(pipeline, g, body, options,
+def generate_code_for_group(pipeline, g, body, alloc_arrays,
                             cparam_map, outputs):
 
     g.polyRep.generate_code()
@@ -755,7 +759,6 @@ def generate_code_for_group(pipeline, g, body, options,
     group_freelist = []
 
     pooled = 'pool_alloc' in pipeline._options
-    flatten_scratchpad = 'flatten_scratchpad' in pipeline._options
 
     for comp in sorted_comps:
         func = comp.func
@@ -773,11 +776,14 @@ def generate_code_for_group(pipeline, g, body, options,
             # do not allocate output arrays
             if not comp.is_output :
                 array = comp.array
-                array_ptr = genc.CPointer(array.typ, 1)
-                array_decl = genc.CDeclaration(array_ptr, array)
-                body.add(array_decl)
-                array.allocate_contiguous(body, pooled)
+                if not array in alloc_arrays:
+                    array_ptr = genc.CPointer(array.typ, 1)
+                    array_decl = genc.CDeclaration(array_ptr, array)
+                    body.add(array_decl)
+                    array.allocate_contiguous(body, pooled)
+                    alloc_arrays.append(array)
 
+        # FIXME:
         # array is freed, if comp is a group liveout and not an output
         if not comp.is_output and comp.is_liveout:
             group_freelist.append(array)
@@ -924,11 +930,13 @@ def generate_code_for_pipeline(pipeline,
             # malloc or the custom pool allocator
             pooled = 'pool_alloc' in pipeline._options
 
+            # arrays allocated
+            alloc_arrays = []
             pipe_freelist = []
             for g in sorted_groups:
                 group_freelist = \
                     generate_code_for_group(pipeline, g, pbody,
-                                            pipeline._options,
+                                            alloc_arrays,
                                             cparam_map, outputs)
                 pipe_freelist.extend(group_freelist)
 
