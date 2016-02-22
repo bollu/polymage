@@ -1,3 +1,7 @@
+
+PolyMage is release under the Apache License, version 2.0. Please see the 
+LICENSE file for more details.
+
 **REQUIREMENTS**
 
 1) Python 3.x, numpy, pytest
