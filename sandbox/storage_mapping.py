@@ -247,9 +247,7 @@ def classify_storage(pipeline):
 
         return storage_class_map
 
-    for group in pipeline.groups:
-        comps = group.comps
-
+    def classify_storage_for_comps(comps):
         # find equivalence in size between storage objects and create classes of
         # storage objects
         storage_class_map = find_storage_equivalence(comps)
@@ -261,6 +259,20 @@ def classify_storage(pipeline):
         # collect the pipeline inputs, set the storage class to original storage
         # class, and generate class id
         set_input_objects_storage(pipeline, storage_class_map)
+
+        return storage_class_map
+
+    storage_class_map = {}
+
+    # storage classification for group compute objects
+    for group in pipeline.groups:
+        comps = group.comps
+        storage_class_map[group] = classify_storage_for_comps(comps)
+
+    # storage classification for liveouts
+    liveouts = [comp for comp in pipeline.comps \
+                       if comp.is_liveout]
+    storage_class_map['liveouts'] = classify_storage_for_comps(liveouts)
 
     return storage_class_map
 
@@ -288,9 +300,10 @@ def remap_storage_for_comps(storage_class_map, schedule,
     sorted_comps = get_sorted_objs(schedule)
 
     # initialize a pool of arrays for each storage class
+    stg_classes = list(set([comp.storage_class for comp in sorted_comps]))
     array_pool = {}
     array_count = 0
-    for stg_class in storage_class_map:
+    for stg_class in stg_classes:
         array_pool[stg_class] = []
 
     for comp in sorted_comps:
@@ -322,7 +335,6 @@ def remap_storage_for_comps(storage_class_map, schedule,
 
 def remap_storage_for_group(group, storage_class_map, storage_map):
 
-    # compute liveness
     # 1. prepare children map for liveness computation
     children_map = {}
     for comp in group.comps:
@@ -332,14 +344,16 @@ def remap_storage_for_group(group, storage_class_map, storage_map):
     # 2. get schedule for compute objects
     comps_schedule = group.comps_schedule
 
+    # 3. compute liveness
     liveness_map = compute_liveness(children_map, comps_schedule)
 
+    # 4. remap
     remap_storage_for_comps(storage_class_map, comps_schedule,
                             liveness_map, storage_map)
 
     return
 
-def remap_storage_for_liveout(pipeline, storage_class_map, storage_map):
+def remap_storage_for_liveouts(pipeline, storage_class_map, storage_map):
     '''
     Separate out the liveout compute objects in the pipeline, create a
     temporary graph using a children_map, compute liveness_map for this graph,
@@ -349,6 +363,10 @@ def remap_storage_for_liveout(pipeline, storage_class_map, storage_map):
                        if comp.is_liveout]
     grp_schedule = pipeline.group_schedule
     comps_schedule = {}
+
+    # compute liveness
+    # 1. prepare children map for liveness computation
+    # 2. get schedule for compute objects
     children_map = {}
     for comp in liveouts:
         # schedule of the group liveouts is the group schedule itself
@@ -365,8 +383,10 @@ def remap_storage_for_liveout(pipeline, storage_class_map, storage_map):
                 g_liveouts += g.liveouts
         children_map[comp] = g_liveouts
 
+    # 3. compute liveness
     liveness_map = compute_liveness(children_map, comps_schedule)
 
+    # 4. remap
     remap_storage_for_comps(storage_class_map, comps_schedule,
                             liveness_map, storage_map)
 
@@ -379,13 +399,16 @@ def remap_storage(pipeline):
     versions, given a schedule for the comps within its group.
     '''
     storage_class_map = pipeline.storage_class_map
-    # a mapping from comp -> index of array of comp's storage class
+    # a mapping from comp -> index of array of comp's storage class:
     storage_map = {}
 
+    # 1. remap for group
     for group in pipeline.groups:
-        remap_storage_for_group(group, storage_class_map, storage_map)
+        remap_storage_for_group(group, storage_class_map[group], storage_map)
 
-    remap_storage_for_liveout(pipeline, storage_class_map, storage_map)
+    # 2. remap for liveouts
+    remap_storage_for_liveouts(pipeline, storage_class_map['liveouts'],
+                               storage_map)
 
     return storage_map
 
@@ -414,6 +437,7 @@ def create_physical_arrays(pipeline):
                     array_layout = 'multidim'
         array_type = genc.TypeMap.convert(comp.func.typ)
         array_sizes = [size[1] for size in stg_class.dim_sizes]
+
         # create CArray object
         array = genc.CArray(array_type, array_name, array_sizes)
         array.layout = array_layout
@@ -435,6 +459,9 @@ def create_physical_arrays(pipeline):
         return array
 
     def set_arrays_for_inputs(pipeline):
+        '''
+        Representative CArray objects for inputs. Should not allocate.
+        '''
         func_map = pipeline.func_map
         inputs = pipeline.inputs
         for inp in inputs:
@@ -444,18 +471,25 @@ def create_physical_arrays(pipeline):
         return
 
     def set_arrays_for_outputs(pipeline, created):
+        '''
+        Representative CArray objects for outputs. Should not allocate.
+        '''
         func_map = pipeline.func_map
         outputs = pipeline.outputs
         for out in outputs:
             out_comp = func_map[out]
             array = create_new_array(out_comp)
             out_comp.set_storage_object(array)
-            # record array creation
+            # record array creation. Outputs may collide with non-output
+            # liveouts for reuse.
             array_id = pipeline.storage_map[out_comp]
             created[array_id] = array
         return
 
     def set_arrays_for_comps(pipeline, created_arrays, flat_scratch):
+        '''
+        CArray objects for intermediate and non-output liveout compute objects.
+        '''
         for group in pipeline.groups:
             # place where created scratchpads are recorded
             created_scratch = {}
