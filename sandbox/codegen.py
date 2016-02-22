@@ -215,15 +215,18 @@ def is_sched_dim_vector(polyrep, user_nodes, sched_dim_name):
     return is_vector
 
 def get_arrays_for_user_nodes(pipe, polyrep, user_nodes):
-    arrays = []
+    array_users = {}
     for node in user_nodes:
         part_id = node.user_get_expr().get_op_arg(0).get_id()
         part = isl_get_id_user(part_id)
         array = part.comp.array
         scratch = part.comp.scratch
-        if (array not in arrays) and (True in scratch):
-            arrays.append(array)
-    return arrays
+        if True in scratch:
+            if array not in array_users:
+                array_users[array] = []
+            array_users[array].append(part.comp)
+            array_users[array] = list(set(array_users[array]))
+    return array_users
 
 def cvariables_from_variables_and_sched(node, variables, sched):
     cvar_map = {}
@@ -376,7 +379,7 @@ def generate_c_naive_from_isl_ast(pipe, polyrep, node, body,
 
             dim_parallel = is_sched_dim_parallel(polyrep, user_nodes, var.name)
             dim_vector = is_sched_dim_vector(polyrep, user_nodes, var.name)
-            arrays = get_arrays_for_user_nodes(pipe, polyrep, user_nodes)
+            array_users = get_arrays_for_user_nodes(pipe, polyrep, user_nodes)
 
             if dim_parallel:
                 omp_pragma = genc.CPragma("omp parallel for schedule(static)")
@@ -392,12 +395,15 @@ def generate_c_naive_from_isl_ast(pipe, polyrep, node, body,
             # Assuming only one parallel dimension and a whole lot
             # of other things.
             freelist = []
-            alloc_scratchpads = []
             if dim_parallel:
                 with loop.body as lbody:
-                    for array in arrays:
-                        if array in alloc_scratchpads:
-                            continue
+                    for array in array_users:
+                        # add a comment line with a list of comps using this
+                        # array.
+                        user_list = "users : "+\
+                          str([comp.func.name for comp in array_users[array]])
+                        comment = genc.CComment(user_list)
+                        lbody.add(comment)
                         #if array.is_constant_size():
                         if array.is_constant_size() or True:
                             array_decl = genc.CArrayDecl(array, flat_scratch)
@@ -408,7 +414,6 @@ def generate_c_naive_from_isl_ast(pipe, polyrep, node, body,
                             lbody.add(array_decl)
                             array.allocate_contiguous(lbody)
                             freelist.append(array)
-                        alloc_scratchpads.append(array)
             with loop.body as lbody:
                 generate_c_naive_from_isl_ast(pipe, polyrep,
                                               node.for_get_body(),
