@@ -151,7 +151,6 @@ def classify_storage(pipeline):
     Classifies the compute objects into separate groups based on their storage
     sizes.
     '''
-    comps = pipeline.comps
 
     def find_storage_equivalence(comps):
         '''
@@ -248,17 +247,20 @@ def classify_storage(pipeline):
 
         return storage_class_map
 
-    # find equivalence in size between storage objects and create classes of
-    # storage objects
-    storage_class_map = find_storage_equivalence(comps)
+    for group in pipeline.groups:
+        comps = group.comps
 
-    # compute the maximal offsets in each dimension of the compute objects,
-    # and compute the total_size of the storage for each storage class
-    storage_class_map = maximal_storage(comps, storage_class_map)
+        # find equivalence in size between storage objects and create classes of
+        # storage objects
+        storage_class_map = find_storage_equivalence(comps)
 
-    # collect the pipeline inputs, set the storage class to original storage
-    # class, and generate class id
-    set_input_objects_storage(pipeline, storage_class_map)
+        # compute the maximal offsets in each dimension of the compute objects,
+        # and compute the total_size of the storage for each storage class
+        storage_class_map = maximal_storage(comps, storage_class_map)
+
+        # collect the pipeline inputs, set the storage class to original storage
+        # class, and generate class id
+        set_input_objects_storage(pipeline, storage_class_map)
 
     return storage_class_map
 

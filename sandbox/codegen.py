@@ -739,7 +739,7 @@ def generate_reduction_scan_loops(pipe, group, comp, pipe_body, cparam_map):
                    False)
 
 def generate_code_for_group(pipeline, g, body, alloc_arrays,
-                            cparam_map, outputs):
+                            out_arrays, cparam_map, outputs):
 
     g.polyRep.generate_code()
 
@@ -774,19 +774,15 @@ def generate_code_for_group(pipeline, g, body, alloc_arrays,
         # full array
         if comp.is_liveout:
             # do not allocate output arrays
-            if not comp.is_output :
+            if not comp.is_output:
                 array = comp.array
-                if not array in alloc_arrays:
+                if not array in alloc_arrays and not array in out_arrays:
                     array_ptr = genc.CPointer(array.typ, 1)
                     array_decl = genc.CDeclaration(array_ptr, array)
                     body.add(array_decl)
                     array.allocate_contiguous(body, pooled)
                     alloc_arrays.append(array)
-
-        # FIXME:
-        # array is freed, if comp is a group liveout and not an output
-        if not comp.is_output and comp.is_liveout:
-            group_freelist.append(array)
+                    group_freelist.append(array)
 
         if comp in g.polyRep.poly_parts:
             continue
@@ -933,10 +929,15 @@ def generate_code_for_pipeline(pipeline,
             # arrays allocated
             alloc_arrays = []
             pipe_freelist = []
+
+            # output arrays - not to be de/allocated
+            out_comps = [pipeline.func_map[func] for func in pipeline.outputs]
+            out_arrays = [comp.array for comp in out_comps]
+
             for g in sorted_groups:
                 group_freelist = \
                     generate_code_for_group(pipeline, g, pbody,
-                                            alloc_arrays,
+                                            out_arrays, alloc_arrays,
                                             cparam_map, outputs)
                 pipe_freelist.extend(group_freelist)
 
