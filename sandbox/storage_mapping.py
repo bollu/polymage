@@ -183,7 +183,7 @@ def classify_storage(pipeline):
         '''
         # ***
         log_level = logging.DEBUG
-        LOG(log_level, "Storage Classes:")
+        LOG(log_level, "Storage classes:")
         # ***
         new_storage_class_map = {}
         for key in storage_class_map:
@@ -266,17 +266,17 @@ def classify_storage(pipeline):
 def log_schedule(comps, schedule):
     log_level = logging.DEBUG
     LOG(log_level, "\n_______")
-    LOG(log_level, "Schedules :")
+    LOG(log_level, "Schedules:")
     for comp in comps:
-        LOG(log_level, comp.func.name+" : "+str(schedule[comp]))
+        LOG(log_level, "\t%-*s" % (15, comp.func.name) + ": "+str(schedule[comp]))
     return
 
 def log_storage_mapping(comps, storage_map):
     log_level = logging.DEBUG
     LOG(log_level, "\n_______")
-    LOG(log_level, "Storage Mapping :")
+    LOG(log_level, "Storage mapping:")
     for comp in comps:
-        LOG(log_level, comp.func.name+" : "+str(storage_map[comp]))
+        LOG(log_level, "\t%-*s" % (15, comp.func.name) + ": "+str(storage_map[comp]))
     return
 
 def remap_storage_for_comps(storage_class_map, schedule,

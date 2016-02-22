@@ -95,9 +95,9 @@ def auto_group(pipeline):
         log_level = logging.DEBUG
         LOG(log_level, "---------------")
         LOG(log_level, "iter = "+str(it))
-        LOG(log_level, "Current Groups:")
+        LOG(log_level, "Current groups:")
         for g in pipeline.groups:
-            LOG(log_level, g.name)
+            LOG(log_level, "\t" + g.name)
         # ***
 
         it += 1
