@@ -680,10 +680,11 @@ class Pipeline:
         # 1. classify the storage based on type, dimensionality and size
         self._storage_class_map = classify_storage(self)
         # 2. map logical storage to physical storage
-        self._storage_map = remap_storage(self)
+        self._storage_map, self._liveness_map = remap_storage(self)
 
         # ALLOCATION
-        create_physical_arrays(self)
+        self._array_users_map = create_physical_arrays(self)
+        self._free_arrays = create_array_freelist(self)
 
         # use graphviz to create pipeline graph
         self._pipeline_graph = self.draw_pipeline_graph()
@@ -733,6 +734,15 @@ class Pipeline:
     @property
     def storage_map(self):
         return self._storage_map
+    @property
+    def liveness_map(self):
+        return self._liveness_map
+    @property
+    def array_users(self):
+        return self._array_users_map
+    @property
+    def free_arrays(self):
+        return self._free_arrays
 
     def get_parameters(self):
         params=[]

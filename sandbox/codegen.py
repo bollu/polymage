@@ -22,6 +22,13 @@ LOG = codegen_logger.log
 new_temp = genc.CNameGen.get_temp_var_name
 new_iter = genc.CNameGen.get_iterator_name
 
+def add_users_as_comment(pipeline, array):
+    user_list = "users : "+\
+      str([comp.func.name for comp in pipeline.array_users[array]])
+    comment = genc.CComment(user_list)
+
+    return comment
+
 def isl_expr_to_cgen(expr, prologue_stmts = None):
 
     prolog = prologue_stmts
@@ -215,18 +222,15 @@ def is_sched_dim_vector(polyrep, user_nodes, sched_dim_name):
     return is_vector
 
 def get_arrays_for_user_nodes(pipe, polyrep, user_nodes):
-    array_users = {}
+    arrays = []
     for node in user_nodes:
         part_id = node.user_get_expr().get_op_arg(0).get_id()
         part = isl_get_id_user(part_id)
         array = part.comp.array
         scratch = part.comp.scratch
-        if True in scratch:
-            if array not in array_users:
-                array_users[array] = []
-            array_users[array].append(part.comp)
-            array_users[array] = list(set(array_users[array]))
-    return array_users
+        if array not in arrays and True in scratch:
+            arrays.append(array)
+    return arrays
 
 def cvariables_from_variables_and_sched(node, variables, sched):
     cvar_map = {}
@@ -379,7 +383,7 @@ def generate_c_naive_from_isl_ast(pipe, polyrep, node, body,
 
             dim_parallel = is_sched_dim_parallel(polyrep, user_nodes, var.name)
             dim_vector = is_sched_dim_vector(polyrep, user_nodes, var.name)
-            array_users = get_arrays_for_user_nodes(pipe, polyrep, user_nodes)
+            arrays = get_arrays_for_user_nodes(pipe, polyrep, user_nodes)
 
             if dim_parallel:
                 omp_pragma = genc.CPragma("omp parallel for schedule(static)")
@@ -395,14 +399,13 @@ def generate_c_naive_from_isl_ast(pipe, polyrep, node, body,
             # Assuming only one parallel dimension and a whole lot
             # of other things.
             freelist = []
+            array_users = pipe.array_users
             if dim_parallel:
                 with loop.body as lbody:
-                    for array in array_users:
+                    for array in arrays:
                         # add a comment line with a list of comps using this
                         # array.
-                        user_list = "users : "+\
-                          str([comp.func.name for comp in array_users[array]])
-                        comment = genc.CComment(user_list)
+                        comment = add_users_as_comment(pipe, array)
                         lbody.add(comment)
                         #if array.is_constant_size():
                         if array.is_constant_size() or True:
@@ -747,11 +750,6 @@ def generate_code_for_group(pipeline, g, body, alloc_arrays,
                             out_arrays, cparam_map, outputs):
 
     g.polyRep.generate_code()
-
-    # NOTE uses the level_no of the first polypart of each compute object of
-    # the group as the key for sorting compare operator. *Idea is that all
-    # parts of a compute object bears the same level_no*, thus repeated calling
-    # of 'order_compute_objs' can be avoided.
     group_part_map = g.polyRep.poly_parts
     sorted_comps = g.get_sorted_comps()
 
@@ -759,9 +757,6 @@ def generate_code_for_group(pipeline, g, body, alloc_arrays,
     log_str = str([comp.func.name for comp in sorted_comps])
     LOG(logging.DEBUG, log_str)
     # ***
-
-    # list of arrays to be freed
-    group_freelist = []
 
     pooled = 'pool_alloc' in pipeline._options
 
@@ -778,16 +773,20 @@ def generate_code_for_group(pipeline, g, body, alloc_arrays,
 
         # full array
         if comp.is_liveout:
+            array = comp.array
             # do not allocate output arrays
             if not comp.is_output:
-                array = comp.array
                 if not array in alloc_arrays and not array in out_arrays:
+                    # add a comment line with a list of comps using this
+                    # array.
+                    comment = add_users_as_comment(pipeline, array)
+                    body.add(comment)
+
                     array_ptr = genc.CPointer(array.typ, 1)
                     array_decl = genc.CDeclaration(array_ptr, array)
                     body.add(array_decl)
                     array.allocate_contiguous(body, pooled)
                     alloc_arrays.append(array)
-                    group_freelist.append(array)
 
         if comp in g.polyRep.poly_parts:
             continue
@@ -810,13 +809,14 @@ def generate_code_for_group(pipeline, g, body, alloc_arrays,
                                           cparam_map, pooled)
             pass
 
-    return group_freelist
+    return
 
 def generate_code_for_pipeline(pipeline,
                                is_extern_c_func=False,
                                are_io_void_ptrs=False):
 
-    sorted_groups = sort_scheduled_objs(pipeline.group_schedule)
+    g_schedule = pipeline.group_schedule
+    sorted_groups = sort_scheduled_objs(g_schedule)
 
     # Create a top level module for the pipeline
     m = genc.CModule('Pipeline')
@@ -933,21 +933,19 @@ def generate_code_for_pipeline(pipeline,
 
             # arrays allocated
             alloc_arrays = []
-            pipe_freelist = []
 
             # output arrays - not to be de/allocated
             out_comps = [pipeline.func_map[func] for func in pipeline.outputs]
             out_arrays = [comp.array for comp in out_comps]
 
+            # 3. generate code for each group, deallocate arrays not going to
+            # be used by any group further
             for g in sorted_groups:
-                group_freelist = \
-                    generate_code_for_group(pipeline, g, pbody,
-                                            out_arrays, alloc_arrays,
-                                            cparam_map, outputs)
-                pipe_freelist.extend(group_freelist)
-
-            # 3. Deallocate storage
-            for array in pipe_freelist:
-                array.deallocate(pbody, pooled)
+                generate_code_for_group(pipeline, g, pbody, out_arrays,
+                                        alloc_arrays, cparam_map, outputs)
+                # deallocate arrays
+                grp_free_arrays = pipeline.free_arrays[g]
+                for array in grp_free_arrays:
+                    array.deallocate(pbody, pooled)
 
     return m
