@@ -487,14 +487,6 @@ def execute(_tuner_arg_data):
                          "("+str(global_min_time*1000)+"ms)",
                          dump_files)
 
-                # FIXME:
-                # Unloading the shared lib is almost impossible.
-                # Nevertheless, try to dispose off the loaded lib object
-                del pipeline_func
-                _ctypes.dlclose(lib_pipeline._handle)
-                print('tuner.py: Trying to delete the shared library ...')
-                del lib_pipeline
-
         dump_files.remove(tuning_report_file)
         tuning_report_file.close()
 
