@@ -338,9 +338,13 @@ def remap_storage_for_group(group, storage_class_map, storage_map):
     # 1. prepare children map for liveness computation
     children_map = {}
     for comp in group.comps:
-        children_map[comp] = \
+        comp_children = \
             [child for child in comp.children \
                      if child.group == group]
+        # add an entry to children_map iff comp has any child
+        if comp_children:
+            children_map[comp] = comp_children
+
     # 2. get schedule for compute objects
     comps_schedule = group.comps_schedule
 
@@ -381,16 +385,25 @@ def remap_storage_for_liveouts(pipeline, storage_class_map, storage_map):
             # collect liveouts of these groups
             for g in livein_groups:
                 g_liveouts += g.liveouts
-        children_map[comp] = g_liveouts
+        if g_liveouts:
+            children_map[comp] = g_liveouts
 
     # 3. compute liveness
     liveness_map = compute_liveness(children_map, comps_schedule)
+
+    # ***
+    log_level = logging.DEBUG-1
+    LOG(log_level, "\n_______")
+    LOG(log_level, "Liveness map for Liveouts:")
+    for time in liveness_map:
+        LOG(log_level, str(time)+":"+str([comp.func.name for comp in liveness_map[time]]))
+    # ***
 
     # 4. remap
     remap_storage_for_comps(storage_class_map, comps_schedule,
                             liveness_map, storage_map)
 
-    return
+    return liveness_map
 
 def remap_storage(pipeline):
     '''
@@ -407,10 +420,12 @@ def remap_storage(pipeline):
         remap_storage_for_group(group, storage_class_map[group], storage_map)
 
     # 2. remap for liveouts
-    remap_storage_for_liveouts(pipeline, storage_class_map['liveouts'],
-                               storage_map)
+    liveness_map = \
+        remap_storage_for_liveouts(pipeline, storage_class_map['liveouts'],
+                                   storage_map)
 
-    return storage_map
+    return storage_map, liveness_map
+
 
 def create_physical_arrays(pipeline):
     '''
@@ -523,5 +538,94 @@ def create_physical_arrays(pipeline):
     # create arrays for the rest of the comps
     set_arrays_for_comps(pipeline, created_arrays, flat_scratch)
 
-    return
+    # collect users for each array created
+    array_users = {}
+    for comp in pipeline.comps:
+        if comp.array not in array_users:
+            array_users[comp.array] = []
+        array_users[comp.array].append(comp)
 
+    return array_users
+
+def map_reverse(map_):
+    '''
+    Assumes map_[key] = val, where val is a list
+    '''
+    rmap = {}
+    for key in map_:
+        for map_val in map_[key]:
+            rmap[map_val] = key
+
+    return rmap
+
+def create_array_freelist(pipeline):
+    '''
+    Create a list of arrays for each time in the group schedule, at which
+    these arrays have their last use.
+    '''
+    def logs(liveness_map2, array_users, last_use):
+        # ***
+        log_level = logging.DEBUG-2
+        LOG(log_level, "\n_______")
+        LOG(log_level, "Reverse liveness map for Liveouts:")
+        for comp in liveness_map2:
+            LOG(log_level, comp.func.name+":"+str(liveness_map2[comp]))
+        # ***
+        log_level = logging.DEBUG-2
+        LOG(log_level, "\n_______")
+        LOG(log_level, "Array Users:")
+        for array in array_users:
+            if True in [comp.is_liveout for comp in array_users[array]]:
+                LOG(log_level, array.name+":"+\
+                    str([comp.func.name for comp in array_users[array]]))
+        # ***
+        log_level = logging.DEBUG-1
+        LOG(log_level, "\n_______")
+        LOG(log_level, "Last use map for arrays:")
+        for array in last_use:
+            LOG(log_level, array.name+":"+str(last_use[array]))
+        # ***
+        log_level = logging.DEBUG
+        LOG(log_level, "\n_______")
+        LOG(log_level, "Free arrays :")
+        for g in free_arrays:
+            LOG(log_level, g.name+" ("+str(g_schedule[g])+") : "+\
+                str([arr.name for arr in free_arrays[g]]))
+        return
+
+    array_users = pipeline.array_users
+    g_schedule = pipeline.group_schedule
+    liveness_map = pipeline.liveness_map
+    # get a map-reverse
+    liveness_map2 = map_reverse(liveness_map)
+
+    # find the scheduled time (of group) at which arrays have thier last use
+    last_use = {}
+    for array in array_users:
+        # are we dealing with full arrays? -
+        if True in [comp.is_liveout for comp in array_users[array]]:
+            writer_sched = {}
+            for writer in array_users[array]:
+                writer_sched[writer] = g_schedule[writer.group]
+            last_writer = max(array_users[array],
+                              key=lambda x:writer_sched[x])
+            if last_writer in liveness_map2:  # not pipeline outputs
+                last_use[array] = liveness_map2[last_writer]
+
+    # reverse-map from group_schedule -> group
+    schedule_g = dict((v, k) for k, v in g_schedule.items())
+
+    # create a direct mapping from groups to arrays that are not live after
+    # the group's execution is complete
+    freed = []
+    free_arrays = {}
+    for group in g_schedule:
+        free_arrays[group] = []
+    for array in last_use:
+        user_sched = last_use[array]
+        # find the group with schedule time = user_sched
+        group = schedule_g[user_sched]
+        free_arrays[group].append(array)
+        freed.append(array)
+
+    return free_arrays
