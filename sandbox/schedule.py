@@ -125,7 +125,7 @@ def schedule_liveouts(pipeline):
     '''
     Schedule of the group liveouts is the group schedule itself
     '''
-    liveouts = pipeline.collect_liveouts()
+    liveouts = pipeline.liveouts
     grp_schedule = pipeline.group_schedule
     comps_schedule = {}
     for comp in liveouts:

@@ -236,44 +236,62 @@ def classify_storage(pipeline):
 
         return new_storage_class_map
 
-    def set_input_objects_storage(pipeline, storage_class_map):
-        func_map = pipeline.func_map
-        inputs = pipeline.inputs
-        for inp in inputs:
-            inp_comp = func_map[inp]
-            storage_class = inp_comp.orig_storage_class
+    def naive_classification(comps):
+        '''
+        For each comp, use it's original storage class to set it's storage
+        class.
+        '''
+        storage_class_map = {}
+        for comp in comps:
+            storage_class = comp.orig_storage_class
             storage_class.generate_id()
-            storage_class_map[inp_comp] = storage_class
-            inp_comp.set_storage_class(storage_class)
+            storage_class_map[comp] = storage_class
+            comp.set_storage_class(storage_class)
+        return storage_class_map
+
+    def set_input_objects_storage(pipeline):
+        '''
+        Collect compute objects of functions of type input, and return a naive
+        classification map for them.
+        '''
+        inp_comps = [pipeline.func_map[inp] for inp in pipeline.inputs]
+        storage_class_map = \
+            naive_classification(inp_comps)
+        return storage_class_map
+
+    def classify_storage_for_comps(comps, opt=False):
+        '''
+        If storage optimization is enabled, classify storage based on certain
+        equivalence criteria.
+        '''
+        if opt:
+            # find equivalence in size between storage objects and create
+            # classes of storage objects
+            storage_class_map = find_storage_equivalence(comps)
+
+            # compute the maximal offsets in each dimension of the compute
+            # objects, and compute the total_size of the storage for each
+            # storage class
+            storage_class_map = maximal_storage(comps, storage_class_map)
+        else:
+            storage_class_map = naive_classification(comps)
 
         return storage_class_map
 
-    def classify_storage_for_comps(comps):
-        # find equivalence in size between storage objects and create classes of
-        # storage objects
-        storage_class_map = find_storage_equivalence(comps)
-
-        # compute the maximal offsets in each dimension of the compute objects,
-        # and compute the total_size of the storage for each storage class
-        storage_class_map = maximal_storage(comps, storage_class_map)
-
-        # collect the pipeline inputs, set the storage class to original storage
-        # class, and generate class id
-        set_input_objects_storage(pipeline, storage_class_map)
-
-        return storage_class_map
-
+    # ''' main '''
+    opt = 'optimize_storage' in pipeline.options
     storage_class_map = {}
+
+    # storage classification for pipeline inputs
+    storage_class_map['inputs'] = set_input_objects_storage(pipeline)
 
     # storage classification for group compute objects
     for group in pipeline.groups:
-        comps = group.comps
-        storage_class_map[group] = classify_storage_for_comps(comps)
+        storage_class_map[group] = classify_storage_for_comps(group.comps, opt)
 
     # storage classification for liveouts
-    liveouts = [comp for comp in pipeline.comps \
-                       if comp.is_liveout]
-    storage_class_map['liveouts'] = classify_storage_for_comps(liveouts)
+    storage_class_map['liveouts'] = \
+        classify_storage_for_comps(pipeline.liveouts, opt)
 
     return storage_class_map
 
@@ -294,8 +312,19 @@ def log_storage_mapping(comps, storage_map):
         LOG(log_level, comp.func.name+" : "+str(storage_map[comp]))
     return
 
-def remap_storage_for_comps(storage_class_map, schedule,
-                            liveness_map, storage_map):
+def remap_storage_for_comps(comps, storage_class_map, schedule,
+                            liveness_map, storage_map, opt=False):
+    '''
+    If storage optimization is enabled, enable reuse by setting array numbers
+    for comps which can use the same array for computation.
+    '''
+    array_count = 0
+
+    if not opt:
+        for comp in comps:
+            array_count += 1
+            storage_map[comp] = array_count
+        return
 
     # sort comps according to their schedule
     sorted_comps = get_sorted_objs(schedule)
@@ -303,7 +332,6 @@ def remap_storage_for_comps(storage_class_map, schedule,
     # initialize a pool of arrays for each storage class
     stg_classes = list(set([comp.storage_class for comp in sorted_comps]))
     array_pool = {}
-    array_count = 0
     for stg_class in stg_classes:
         array_pool[stg_class] = []
 
@@ -340,31 +368,31 @@ def remap_storage(pipeline):
     The mapping can be switched between naive and optimized (with reuse)
     versions, given a schedule for the comps within its group.
     '''
-    storage_class_map = pipeline.storage_class_map
+    opt = 'optimize_storage' in pipeline.options
+
     # a mapping from comp -> index of array of comp's storage class:
     storage_map = {}
 
+    storage_class_map = pipeline.storage_class_map
     # 1. remap for group
     for group in pipeline.groups:
-        remap_storage_for_comps(storage_class_map[group],
-                                group.comps_schedule,
-                                group.liveness_map, storage_map)
-
+        remap_storage_for_comps(group.comps, storage_class_map[group],
+                                group.comps_schedule, group.liveness_map,
+                                storage_map, opt)
     # 2. remap for liveouts
-    remap_storage_for_comps(storage_class_map['liveouts'],
-                            pipeline.liveouts_schedule,
-                            pipeline.liveness_map, storage_map)
+    remap_storage_for_comps(pipeline.liveouts, storage_class_map['liveouts'],
+                            pipeline.liveouts_schedule, pipeline.liveness_map,
+                            storage_map, opt)
 
     return storage_map
-
-def map_storage(pipeline):
-    pass
 
 def create_physical_arrays(pipeline):
     '''
     Create cgen CArrays for compute objects using the storage mapping from
     logical storage object of the comp (assumed to be available at this point).
     '''
+
+    opt = 'optimize_storage' in pipeline.options
 
     def create_new_array(comp, flat_scratch=False):
         '''
@@ -377,7 +405,12 @@ def create_physical_arrays(pipeline):
             array_name = comp.func.name
         else:
             tag = str(stg_class.id_)
-            array_name = genc.CNameGen.get_array_name(tag)
+            # array naming
+            if opt:
+                array_name = genc.CNameGen.get_array_name(tag)
+            else:
+                array_name = comp.func.name
+
             if not comp.is_liveout:  # live out
                 if flat_scratch:  # linearized array
                     array_layout = 'contiguous_static'

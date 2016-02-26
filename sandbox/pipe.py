@@ -670,6 +670,7 @@ class Pipeline:
             group.compute_liveness()
             # children map for comps within the group
             group.collect_comps_children()
+        self._liveouts = self.collect_liveouts()
         self._liveouts_children_map = self.build_liveout_graph()
 
         # ***
@@ -709,13 +710,10 @@ class Pipeline:
         self.initialize_storage()
 
         # OPTIMIZATION
-        if 'optimize_storage' in self.options:
-            # classify the storage based on type, dimensionality and size
-            self._storage_class_map = classify_storage(self)
-            # remap logical storage
-            self._storage_map = remap_storage(self)
-        else:
-            self._storage_map = map_storage(self)
+        # classify the storage based on type, dimensionality and size
+        self._storage_class_map = classify_storage(self)
+        # remap logical storage
+        self._storage_map = remap_storage(self)
 
         # ALLOCATION
         self._array_users_map = create_physical_arrays(self)
@@ -757,6 +755,9 @@ class Pipeline:
     @property
     def get_ordered_groups(self):  # <- naming
         return self._level_order_groups
+    @property
+    def liveouts(self):
+        return self._liveouts
     @property
     def liveouts_children_map(self):
         return self._liveouts_children_map
@@ -1068,12 +1069,12 @@ class Pipeline:
         return return_str
 
     def collect_liveouts(self):
-        liveouts = [comp for comp in self.comps \
-                           if comp.is_liveout]
+        liveouts = [comp for group in self.groups \
+                           for comp in group.liveouts]
         return liveouts
 
     def build_liveout_graph(self):
-        liveouts = self.collect_liveouts()
+        liveouts = self.liveouts
         children_map = {}
         for comp in liveouts:
             g_liveouts = []
