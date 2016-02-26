@@ -3,30 +3,29 @@ LICENSE file for more details.
 
 **REQUIREMENTS**
 
-1) Python 3.x, numpy, pytest
+1) Python 3.x
 
-2) OpenCV 2.4.7 or higher (with QT/GTK support, video codec support for the video demo),  
+2) Python packages numpy, pytest. These can be installed via  
+(on a Fedora) $ sudo yum -y install python3-numpy python3-pytest  
+(on Ubuntu) $ sudo apt-get install python3-numpy python3-pytest  
+
+3) OpenCV 2.4.7 or higher (with QT/GTK support, video codec support for the video demo),  
 Python bindings for OpenCV. Install instructions on Ubuntu: https://help.ubuntu.com/community/OpenCV  
 If you don't have a GPU on your machine, be sure to call cmake with the option -D WITH_CUDA=OFF  
 On a Fedora, these can be installed with 'sudo yum -y install opencv python-opencv'
 
-3) g++ (GNU C++ compiler) version 4.8 or higher or Intel C/C++ compiler (icpc) 12.0 or higher  
+4) g++ (GNU C++ compiler) version 4.8 or higher or Intel C/C++ compiler (icpc) 12.0 or higher  
 (recommended: icpc 14.0 or higher)
 
-4) Python bindings for isl  
+5) Python bindings for isl  
 islpy http://documen.tician.de/islpy/  
 This can be easily installed via python3-pip  
 $ sudo yum -y install python3-pip  
 $ sudo pip3 install islpy  
-C code generation library:  
-cgen https://github.com/inducer/cgen.git  
 
 (islpy itself requires ffi development files -- this can be installed by 
 installing libffi-devel via yum/apt-get)
 
-5) Python packages numpy, pytest. These can be installed via  
-(on a Fedora) $ sudo yum -y install python3-numpy python3-pytest  
-(on Ubuntu) $ sudo apt-get install python3-numpy python3-pytest  
 
 **INSTALLATION**
 
