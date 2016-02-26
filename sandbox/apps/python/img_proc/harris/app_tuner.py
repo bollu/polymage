@@ -30,8 +30,10 @@ def auto_tune(pipe_data, app_data):
     dst_path = "/tmp"
 
     group_size_configs = [3, 5, 7, 9, 10]
+    #group_size_configs = [3,5,7]
 
     tile_size_configs = []
+    
     tile_size_configs.append([64, 256])
     tile_size_configs.append([64, 128])
     
@@ -49,6 +51,7 @@ def auto_tune(pipe_data, app_data):
     tile_size_configs.append([8, 256])
     tile_size_configs.append([8, 128])
     tile_size_configs.append([8, 64])
+    
     tile_size_configs.append([8, 32])
     
     opts = []
