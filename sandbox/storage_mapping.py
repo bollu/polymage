@@ -4,6 +4,7 @@ import logging
 import targetc as genc
 from expression import *
 from pipe import *
+from liveness import *
 
 # LOG CONFIG #
 storage_logger = logging.getLogger("storage_mapping.py")
@@ -333,78 +334,6 @@ def remap_storage_for_comps(storage_class_map, schedule,
 
     return
 
-def remap_storage_for_group(group, storage_class_map, storage_map):
-
-    # 1. prepare children map for liveness computation
-    children_map = {}
-    for comp in group.comps:
-        comp_children = \
-            [child for child in comp.children \
-                     if child.group == group]
-        # add an entry to children_map iff comp has any child
-        if comp_children:
-            children_map[comp] = comp_children
-
-    # 2. get schedule for compute objects
-    comps_schedule = group.comps_schedule
-
-    # 3. compute liveness
-    liveness_map = compute_liveness(children_map, comps_schedule)
-
-    # 4. remap
-    remap_storage_for_comps(storage_class_map, comps_schedule,
-                            liveness_map, storage_map)
-
-    return
-
-def remap_storage_for_liveouts(pipeline, storage_class_map, storage_map):
-    '''
-    Separate out the liveout compute objects in the pipeline, create a
-    temporary graph using a children_map, compute liveness_map for this graph,
-    and remap storage objects for liveout comps.
-    '''
-    liveouts = [comp for comp in pipeline.comps \
-                       if comp.is_liveout]
-    grp_schedule = pipeline.group_schedule
-    comps_schedule = {}
-
-    # compute liveness
-    # 1. prepare children map for liveness computation
-    # 2. get schedule for compute objects
-    children_map = {}
-    for comp in liveouts:
-        # schedule of the group liveouts is the group schedule itself
-        comps_schedule[comp] = grp_schedule[comp.group]
-
-        # find temporary children map involving only the compute objects which
-        # are not scratchpads
-        # collect groups where comp is livein
-        g_liveouts = []
-        if comp.children:
-            livein_groups = [child.group for child in comp.children]
-            # collect liveouts of these groups
-            for g in livein_groups:
-                g_liveouts += g.liveouts
-        if g_liveouts:
-            children_map[comp] = g_liveouts
-
-    # 3. compute liveness
-    liveness_map = compute_liveness(children_map, comps_schedule)
-
-    # ***
-    log_level = logging.DEBUG-1
-    LOG(log_level, "\n_______")
-    LOG(log_level, "Liveness map for Liveouts:")
-    for time in liveness_map:
-        LOG(log_level, str(time)+":"+str([comp.func.name for comp in liveness_map[time]]))
-    # ***
-
-    # 4. remap
-    remap_storage_for_comps(storage_class_map, comps_schedule,
-                            liveness_map, storage_map)
-
-    return liveness_map
-
 def remap_storage(pipeline):
     '''
     Map logical storage objects to representative physical arrays
@@ -417,15 +346,19 @@ def remap_storage(pipeline):
 
     # 1. remap for group
     for group in pipeline.groups:
-        remap_storage_for_group(group, storage_class_map[group], storage_map)
+        remap_storage_for_comps(storage_class_map[group],
+                                group.comps_schedule,
+                                group.liveness_map, storage_map)
 
     # 2. remap for liveouts
-    liveness_map = \
-        remap_storage_for_liveouts(pipeline, storage_class_map['liveouts'],
-                                   storage_map)
+    remap_storage_for_comps(storage_class_map['liveouts'],
+                            pipeline.liveouts_schedule,
+                            pipeline.liveness_map, storage_map)
 
-    return storage_map, liveness_map
+    return storage_map
 
+def map_storage(pipeline):
+    pass
 
 def create_physical_arrays(pipeline):
     '''

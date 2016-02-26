@@ -9,27 +9,6 @@ schedule_logger = logging.getLogger("schedule.py")
 schedule_logger.setLevel(logging.INFO)
 LOG = schedule_logger.log
 
-def compute_liveness(children_map, schedule):
-    '''
-    Given a schedule for a DAG of compute objects, this function computes the
-    liveness range of each compute object. The output is a mapping from the
-    timestamp in the schedule to a list of compute objects that are live only
-    upto the corresponding time.
-    '''
-    liveness_map = {}
-    for comp in schedule:
-        last_live = -1
-        if comp in children_map:
-            for child in children_map[comp]:
-                t = schedule[child]
-                last_live = max(last_live, t)
-            if last_live not in liveness_map:
-                liveness_map[last_live] = [comp]
-            else:
-                liveness_map[last_live] += [comp]
-
-    return liveness_map
-
 def naive_sched_objs(order):
     # get a reverse map for the object order map
     reverse_map = {}
@@ -141,3 +120,15 @@ def schedule_within_group(group):
     schedule_parts(group, sorted_comps)
 
     return comp_schedule
+
+def schedule_liveouts(pipeline):
+    '''
+    Schedule of the group liveouts is the group schedule itself
+    '''
+    liveouts = pipeline.collect_liveouts()
+    grp_schedule = pipeline.group_schedule
+    comps_schedule = {}
+    for comp in liveouts:
+        comps_schedule[comp] = grp_schedule[comp.group]
+
+    return comps_schedule
