@@ -24,8 +24,10 @@ def auto_tune(impipe_data, app_data):
     dst_path = "/tmp"
 
     group_size_configs = [3, 5, 7, 9, 11, 13, 15]
+    #group_size_configs = [15]
 
     tile_size_configs = []
+    
     tile_size_configs.append([8, 8, 8])
     tile_size_configs.append([8, 8, 16])
     tile_size_configs.append([8, 8, 32])
