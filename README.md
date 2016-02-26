@@ -1,4 +1,3 @@
-
 PolyMage is release under the Apache License, version 2.0. Please see the 
 LICENSE file for more details.
 
@@ -28,6 +27,17 @@ installing libffi-devel via yum/apt-get)
 5) Python packages numpy, pytest. These can be installed via  
 (on a Fedora) $ sudo yum -y install python3-numpy python3-pytest  
 (on Ubuntu) $ sudo apt-get install python3-numpy python3-pytest  
+
+**INSTALLATION**
+
+$ git clone git@bitbucket.org:udayb/polymage-mcl.git
+$ cd polymage-mcl
+$ git submodule init
+$ git submodule update
+$ cd cgen
+$ git am ../patches/0001-ctye-to-dtype-handle-void.patch 
+$ cd ..
+
 
 **PROJECT STRUCTURE**
 sandbox is the main directory of interest and it contains most of the code.  
