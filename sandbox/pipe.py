@@ -716,7 +716,7 @@ class Pipeline:
         self._storage_map = remap_storage(self)
 
         # ALLOCATION
-        self._array_users_map = create_physical_arrays(self)
+        self._array_writers_map = create_physical_arrays(self)
         self._free_arrays = create_array_freelist(self)
 
         # use graphviz to create pipeline graph
@@ -777,8 +777,8 @@ class Pipeline:
     def liveness_map(self):
         return self._liveness_map
     @property
-    def array_users(self):
-        return self._array_users_map
+    def array_writers(self):
+        return self._array_writers_map
     @property
     def free_arrays(self):
         return self._free_arrays

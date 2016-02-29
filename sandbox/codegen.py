@@ -24,7 +24,7 @@ new_iter = genc.CNameGen.get_iterator_name
 
 def add_users_as_comment(pipeline, array):
     user_list = "users : "+\
-      str([comp.func.name for comp in pipeline.array_users[array]])
+      str([comp.func.name for comp in pipeline.array_writers[array]])
     comment = genc.CComment(user_list)
 
     return comment
@@ -399,7 +399,7 @@ def generate_c_naive_from_isl_ast(pipe, polyrep, node, body,
             # Assuming only one parallel dimension and a whole lot
             # of other things.
             freelist = []
-            array_users = pipe.array_users
+            array_writers = pipe.array_writers
             if dim_parallel:
                 with loop.body as lbody:
                     for array in arrays:

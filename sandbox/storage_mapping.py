@@ -505,13 +505,13 @@ def create_physical_arrays(pipeline):
     set_arrays_for_comps(pipeline, created_arrays, flat_scratch)
 
     # collect users for each array created
-    array_users = {}
+    array_writers = {}
     for comp in pipeline.comps:
-        if comp.array not in array_users:
-            array_users[comp.array] = []
-        array_users[comp.array].append(comp)
+        if comp.array not in array_writers:
+            array_writers[comp.array] = []
+        array_writers[comp.array].append(comp)
 
-    return array_users
+    return array_writers
 
 def map_reverse(map_):
     '''
@@ -529,7 +529,7 @@ def create_array_freelist(pipeline):
     Create a list of arrays for each time in the group schedule, at which
     these arrays have their last use.
     '''
-    def logs(liveness_map2, array_users, last_use):
+    def logs(liveness_map2, array_writers, last_use):
         # ***
         log_level = logging.DEBUG-2
         LOG(log_level, "\n_______")
@@ -540,10 +540,10 @@ def create_array_freelist(pipeline):
         log_level = logging.DEBUG-2
         LOG(log_level, "\n_______")
         LOG(log_level, "Array Users:")
-        for array in array_users:
-            if True in [comp.is_liveout for comp in array_users[array]]:
+        for array in array_writers:
+            if True in [comp.is_liveout for comp in array_writers[array]]:
                 LOG(log_level, array.name+":"+\
-                    str([comp.func.name for comp in array_users[array]]))
+                    str([comp.func.name for comp in array_writers[array]]))
         # ***
         log_level = logging.DEBUG-1
         LOG(log_level, "\n_______")
@@ -559,7 +559,7 @@ def create_array_freelist(pipeline):
                 str([arr.name for arr in free_arrays[g]]))
         return
 
-    array_users = pipeline.array_users
+    array_writers = pipeline.array_writers
     g_schedule = pipeline.group_schedule
     liveness_map = pipeline.liveness_map
     # get a map-reverse
@@ -567,13 +567,13 @@ def create_array_freelist(pipeline):
 
     # find the scheduled time (of group) at which arrays have thier last use
     last_use = {}
-    for array in array_users:
+    for array in array_writers:
         # are we dealing with full arrays? -
-        if True in [comp.is_liveout for comp in array_users[array]]:
+        if True in [comp.is_liveout for comp in array_writers[array]]:
             writer_sched = {}
-            for writer in array_users[array]:
+            for writer in array_writers[array]:
                 writer_sched[writer] = g_schedule[writer.group]
-            last_writer = max(array_users[array],
+            last_writer = max(array_writers[array],
                               key=lambda x:writer_sched[x])
             if last_writer in liveness_map2:  # not pipeline outputs
                 last_use[array] = liveness_map2[last_writer]
