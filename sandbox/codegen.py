@@ -929,7 +929,8 @@ def generate_code_for_pipeline(pipeline,
 
             # Boolean to check if the memory allocations should be done using
             # malloc or the custom pool allocator
-            pooled = 'pool_alloc' in pipeline._options
+            pooled = 'pool_alloc' in pipeline.options
+            early_free = 'early_free' in pipeline.options
 
             # arrays allocated
             alloc_arrays = []
@@ -940,12 +941,21 @@ def generate_code_for_pipeline(pipeline,
 
             # 3. generate code for each group, deallocate arrays not going to
             # be used by any group further
+            free_list = []
             for g in sorted_groups:
                 generate_code_for_group(pipeline, g, pbody, out_arrays,
                                         alloc_arrays, cparam_map, outputs)
-                # deallocate arrays
-                grp_free_arrays = pipeline.free_arrays[g]
-                for array in grp_free_arrays:
+                if early_free:
+                    # deallocate arrays now
+                    for array in pipeline.free_arrays[g]:
+                        array.deallocate(pbody, pooled)
+                else:
+                    free_list += pipeline.free_arrays[g]
+            if not early_free:
+                free_list = list(set(free_list))
+                # deallocate arrays now
+                for array in free_list:
                     array.deallocate(pbody, pooled)
+
 
     return m

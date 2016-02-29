@@ -791,13 +791,13 @@ class Pipeline:
 
     def create_compute_objects(self):
         funcs, parents, children = \
-            get_funcs_and_dep_maps(self._outputs)
+            get_funcs_and_dep_maps(self.outputs)
 
         comps = []
         func_map = {}
         for func in funcs:
             output = False
-            if func in self._outputs:
+            if func in self.outputs:
                 output = True
             comp = ComputeObject(func, output)
             func_map[func] = comp
