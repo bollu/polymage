@@ -1,7 +1,7 @@
 import sys
 import os.path
 import numpy as np
-
+from arg_parser import parse_args
 from printer         import printHeader, printUsage, \
                             printLine
 from polymage_common import setVars, setCases
@@ -61,7 +61,7 @@ def initBorderPiecewise(grid, borderWidth, borderValues):
 
     return
 
-def initGrids(appData):
+def initGrids(app_args,appData):
     print("[init_mg.py] : grids")
 
     N = appData['N']
@@ -80,6 +80,18 @@ def initGrids(appData):
         # exact solution
         U_EXACT_ = np.zeros((N+2, N+2), np.float64)
     else:
+        #'''
+        N1 = {}
+        L = int(app_args.L) 
+        n = int(app_args.n)
+        for l in range(0,L+1):
+            if l == 0:
+                N1[0] = n
+            else:
+                N1[l] = 2*N1[l-1]+1
+
+            h = 1.0/(N1[l]+1)
+        #'''
         indices = np.indices((N+2, N+2))
         x = indices[0] * h
         y = indices[1] * h
@@ -135,7 +147,7 @@ def initGrids(appData):
             # initialize f
             F_ = np.zeros((N+2, N+2), np.float64) # f(i, j) <- 0
             # initialize u
-            U_ = xx_yy
+            U_EXACT_ = xx_yy
 
     grid_data = {}
     grid_data['U_']       = U_
@@ -147,13 +159,13 @@ def initGrids(appData):
 
     return 
 
-def initParams(appData):
+def initParams(app_args,appData):
     print("[init_mg.py] : parameters")
 
     # size of each dimension of the coarsest grid
-    n = 255
+    n = int(app_args.n)
     # number of multigrid levels
-    L = 2
+    L = int(app_args.L)
 
     N = n
     # compute the size of the finest grid
@@ -166,15 +178,15 @@ def initParams(appData):
 
     # pre-smoother, post-smoother and
     # coarse-grid relaxation steps
-    appData['nu1'] = 10
-    appData['nuc'] = 0
-    appData['nu2'] = 0
+    appData['nu1'] = int(app_args.nu1)
+    appData['nuc'] = int(app_args.nuc)
+    appData['nu2'] = int(app_args.nu2)
 
     # problem type
-    appData['problem'] = 1
+    appData['problem'] = int(app_args.problem)
 
     # pool allocate option
-    appData['pool_alloc'] = False
+    appData['pool_alloc'] = app_args.pool_alloc
 
     assert not (appData['nu1'] == 0 and \
                 appData['nu2'] == 0 and
@@ -182,30 +194,26 @@ def initParams(appData):
 
     return appData
 
-def getInput(appData):
-    if len(sys.argv) > 3:
-        appData['mode'] = sys.argv[1]
-        appData['cycle'] = sys.argv[2]
-        appData['nit']  = int(sys.argv[3])
-    else:
-        printUsage()
-        sys.exit(1)
+def getInput(app_args,appData):
+    appData['app_args'] = app_args
+    appData['mode'] = app_args.mode
+    appData['cycle'] = app_args.cycle
+    appData['nit'] = int(app_args.nit)
 
-    cycle_name = appData['cycle']+"cycle"
-    appData['cycle_name'] = cycle_name
-
-    appData['timer'] = os.path.isfile("timer.flag")
-
+    #cycle_name = app_data['cycle']+"cycle"
+    appData['cycle_name'] = app_args.cycle_name
+    appData['timer'] = app_args.timer
+  
     return
 
 def initAll(impipeData, appData):
     # TODO init cycle type {V, W}
+    app_args = parse_args()
+    getInput(app_args,appData)
 
-    getInput(appData)
+    initParams(app_args,appData)
 
-    initParams(appData)
-
-    initGrids(appData)
+    initGrids(app_args,appData)
 
     setVars(impipeData, appData)
 

@@ -139,6 +139,6 @@ def multigrid(app_data):
 
         timeTaken = float(t2) - float(t1)
         print("")
-        print("[execMG] : time taken to execute = ", timeTaken, " ms")
+        print("[execMG] : time taken to execute = ", timeTaken*1000, " ms")
 
     return
