@@ -4,6 +4,7 @@ import logging
 import targetc as genc
 from expression import *
 from pipe import *
+from liveness import *
 
 # LOG CONFIG #
 storage_logger = logging.getLogger("storage_mapping.py")
@@ -151,7 +152,6 @@ def classify_storage(pipeline):
     Classifies the compute objects into separate groups based on their storage
     sizes.
     '''
-    comps = pipeline.comps
 
     def find_storage_equivalence(comps):
         '''
@@ -183,6 +183,7 @@ def classify_storage(pipeline):
         '''
         # ***
         log_level = logging.DEBUG
+        LOG(log_level, "_______")
         LOG(log_level, "Storage classes:")
         # ***
         new_storage_class_map = {}
@@ -191,7 +192,6 @@ def classify_storage(pipeline):
 
             # ***
             log_level = logging.DEBUG
-            LOG(log_level, "_______")
             LOG(log_level, key)
             LOG(log_level, [comp.func.name for comp in class_comps])
             # ***
@@ -227,45 +227,81 @@ def classify_storage(pipeline):
             max_storage.generate_id()
 
             # all comps of this class now have identical storage
+            new_storage_class_map[max_storage] = []
             for comp in class_comps:
                 comp.set_storage_class(max_storage)
-                new_storage_class_map[max_storage] = comp
+                new_storage_class_map[max_storage].append(comp)
 
         # clear the temporary mappings
         storage_class_map.clear()
 
         return new_storage_class_map
 
-    def set_input_objects_storage(pipeline, storage_class_map):
-        func_map = pipeline.func_map
-        inputs = pipeline.inputs
-        for inp in inputs:
-            inp_comp = func_map[inp]
-            storage_class = inp_comp.orig_storage_class
+    def naive_classification(comps):
+        '''
+        For each comp, use it's original storage class to set it's storage
+        class.
+        '''
+        storage_class_map = {}
+        for comp in comps:
+            storage_class = comp.orig_storage_class
             storage_class.generate_id()
-            storage_class_map[inp_comp] = storage_class
-            inp_comp.set_storage_class(storage_class)
+            storage_class_map[comp] = storage_class
+            comp.set_storage_class(storage_class)
+        return storage_class_map
+
+    def set_input_objects_storage(pipeline):
+        '''
+        Collect compute objects of functions of type input, and return a naive
+        classification map for them.
+        '''
+        inp_comps = [pipeline.func_map[inp] for inp in pipeline.inputs]
+        storage_class_map = \
+            naive_classification(inp_comps)
+        return storage_class_map
+
+    def classify_storage_for_comps(comps, opt=False):
+        '''
+        If storage optimization is enabled, classify storage based on certain
+        equivalence criteria.
+        '''
+        if opt:
+            # find equivalence in size between storage objects and create
+            # classes of storage objects
+            storage_class_map = find_storage_equivalence(comps)
+
+            # compute the maximal offsets in each dimension of the compute
+            # objects, and compute the total_size of the storage for each
+            # storage class
+            storage_class_map = maximal_storage(comps, storage_class_map)
+        else:
+            storage_class_map = naive_classification(comps)
 
         return storage_class_map
 
-    # find equivalence in size between storage objects and create classes of
-    # storage objects
-    storage_class_map = find_storage_equivalence(comps)
+    # ''' main '''
+    opt = 'optimize_storage' in pipeline.options
+    storage_class_map = {}
 
-    # compute the maximal offsets in each dimension of the compute objects,
-    # and compute the total_size of the storage for each storage class
-    storage_class_map = maximal_storage(comps, storage_class_map)
+    # storage classification for pipeline inputs
+    storage_class_map['inputs'] = set_input_objects_storage(pipeline)
 
-    # collect the pipeline inputs, set the storage class to original storage
-    # class, and generate class id
-    set_input_objects_storage(pipeline, storage_class_map)
+    # storage classification for group compute objects
+    for group in pipeline.groups:
+        storage_class_map[group] = classify_storage_for_comps(group.comps, opt)
+
+    # storage classification for liveouts
+    # except pipeline outputs -
+    out_comps = [pipeline.func_map[func] for func in pipeline.outputs]
+    live_comps = list(set(pipeline.liveouts).difference(set(out_comps)))
+    storage_class_map['liveouts'] = classify_storage_for_comps(live_comps, opt=False)
 
     return storage_class_map
 
 
 def log_schedule(comps, schedule):
     log_level = logging.DEBUG
-    LOG(log_level, "\n_______")
+    LOG(log_level, "\n=======")
     LOG(log_level, "Schedules:")
     for comp in comps:
         LOG(log_level, "\t%-*s" % (15, comp.func.name) + ": "+str(schedule[comp]))
@@ -273,22 +309,33 @@ def log_schedule(comps, schedule):
 
 def log_storage_mapping(comps, storage_map):
     log_level = logging.DEBUG
-    LOG(log_level, "\n_______")
+    LOG(log_level, "")
     LOG(log_level, "Storage mapping:")
     for comp in comps:
         LOG(log_level, "\t%-*s" % (15, comp.func.name) + ": "+str(storage_map[comp]))
     return
 
-def remap_storage_for_comps(storage_class_map, schedule,
-                            liveness_map, storage_map):
+def remap_storage_for_comps(comps, storage_class_map, schedule,
+                            liveness_map, storage_map, opt=False):
+    '''
+    If storage optimization is enabled, enable reuse by setting array numbers
+    for comps which can use the same array for computation.
+    '''
+    array_count = 0
+
+    if not opt:
+        for comp in comps:
+            array_count += 1
+            storage_map[comp] = array_count
+        return
 
     # sort comps according to their schedule
     sorted_comps = get_sorted_objs(schedule)
 
     # initialize a pool of arrays for each storage class
+    stg_classes = list(set([comp.storage_class for comp in sorted_comps]))
     array_pool = {}
-    array_count = 0
-    for stg_class in storage_class_map:
+    for stg_class in stg_classes:
         array_pool[stg_class] = []
 
     for comp in sorted_comps:
@@ -318,72 +365,27 @@ def remap_storage_for_comps(storage_class_map, schedule,
 
     return
 
-def remap_storage_for_group(group, storage_class_map, storage_map):
-
-    # compute liveness
-    # 1. prepare children map for liveness computation
-    children_map = {}
-    for comp in group.comps:
-        children_map[comp] = \
-            [child for child in comp.children \
-                     if child.group == group]
-    # 2. get schedule for compute objects
-    comps_schedule = group.comps_schedule
-
-    liveness_map = compute_liveness(children_map, comps_schedule)
-
-    remap_storage_for_comps(storage_class_map, comps_schedule,
-                            liveness_map, storage_map)
-
-    return
-
-def remap_storage_for_liveout(pipeline, storage_class_map, storage_map):
-    '''
-    Separate out the liveout compute objects in the pipeline, create a
-    temporary graph using a children_map, compute liveness_map for this graph,
-    and remap storage objects for liveout comps.
-    '''
-    liveouts = [comp for comp in pipeline.comps \
-                       if comp.is_liveout]
-    grp_schedule = pipeline.group_schedule
-    comps_schedule = {}
-    children_map = {}
-    for comp in liveouts:
-        # schedule of the group liveouts is the group schedule itself
-        comps_schedule[comp] = grp_schedule[comp.group]
-
-        # find temporary children map involving only the compute objects which
-        # are not scratchpads
-        # collect groups where comp is livein
-        g_liveouts = []
-        if comp.children:
-            livein_groups = [child.group for child in comp.children]
-            # collect liveouts of these groups
-            for g in livein_groups:
-                g_liveouts += g.liveouts
-        children_map[comp] = g_liveouts
-
-    liveness_map = compute_liveness(children_map, comps_schedule)
-
-    remap_storage_for_comps(storage_class_map, comps_schedule,
-                            liveness_map, storage_map)
-
-    return
-
 def remap_storage(pipeline):
     '''
     Map logical storage objects to representative physical arrays
     The mapping can be switched between naive and optimized (with reuse)
     versions, given a schedule for the comps within its group.
     '''
-    storage_class_map = pipeline.storage_class_map
-    # a mapping from comp -> index of array of comp's storage class
+    opt = 'optimize_storage' in pipeline.options
+
+    # a mapping from comp -> index of array of comp's storage class:
     storage_map = {}
 
+    storage_class_map = pipeline.storage_class_map
+    # 1. remap for group
     for group in pipeline.groups:
-        remap_storage_for_group(group, storage_class_map, storage_map)
-
-    remap_storage_for_liveout(pipeline, storage_class_map, storage_map)
+        remap_storage_for_comps(group.comps, storage_class_map[group],
+                                group.comps_schedule, group.liveness_map,
+                                storage_map, opt)
+    # 2. remap for liveouts
+    remap_storage_for_comps(pipeline.liveouts, storage_class_map['liveouts'],
+                            pipeline.liveouts_schedule, pipeline.liveness_map,
+                            storage_map, opt)
 
     return storage_map
 
@@ -392,6 +394,8 @@ def create_physical_arrays(pipeline):
     Create cgen CArrays for compute objects using the storage mapping from
     logical storage object of the comp (assumed to be available at this point).
     '''
+
+    opt = 'optimize_storage' in pipeline.options
 
     def create_new_array(comp, flat_scratch=False):
         '''
@@ -404,14 +408,20 @@ def create_physical_arrays(pipeline):
             array_name = comp.func.name
         else:
             tag = str(stg_class.id_)
-            array_name = genc.CNameGen.get_array_name(tag)
+            # array naming
+            if opt:
+                array_name = genc.CNameGen.get_array_name(tag)
+            else:
+                array_name = comp.func.name
+
             if not comp.is_liveout:  # live out
                 if flat_scratch:  # linearized array
                     array_layout = 'contiguous_static'
                 else:
                     array_layout = 'multidim'
         array_type = genc.TypeMap.convert(comp.func.typ)
-        array_sizes = stg_class.dim_sizes
+        array_sizes = [size[1] for size in stg_class.dim_sizes]
+
         # create CArray object
         array = genc.CArray(array_type, array_name, array_sizes)
         array.layout = array_layout
@@ -433,6 +443,9 @@ def create_physical_arrays(pipeline):
         return array
 
     def set_arrays_for_inputs(pipeline):
+        '''
+        Representative CArray objects for inputs. Should not allocate.
+        '''
         func_map = pipeline.func_map
         inputs = pipeline.inputs
         for inp in inputs:
@@ -442,18 +455,25 @@ def create_physical_arrays(pipeline):
         return
 
     def set_arrays_for_outputs(pipeline, created):
+        '''
+        Representative CArray objects for outputs. Should not allocate.
+        '''
         func_map = pipeline.func_map
         outputs = pipeline.outputs
         for out in outputs:
             out_comp = func_map[out]
             array = create_new_array(out_comp)
             out_comp.set_storage_object(array)
-            # record array creation
+            # record array creation. Outputs may collide with non-output
+            # liveouts for reuse.
             array_id = pipeline.storage_map[out_comp]
             created[array_id] = array
         return
 
     def set_arrays_for_comps(pipeline, created_arrays, flat_scratch):
+        '''
+        CArray objects for intermediate and non-output liveout compute objects.
+        '''
         for group in pipeline.groups:
             # place where created scratchpads are recorded
             created_scratch = {}
@@ -487,5 +507,97 @@ def create_physical_arrays(pipeline):
     # create arrays for the rest of the comps
     set_arrays_for_comps(pipeline, created_arrays, flat_scratch)
 
-    return
+    # collect users for each array created
+    array_writers = {}
+    for comp in pipeline.comps:
+        if comp.array not in array_writers:
+            array_writers[comp.array] = []
+        array_writers[comp.array].append(comp)
 
+    return array_writers
+
+def map_reverse(map_):
+    '''
+    Assumes map_[key] = val, where val is a list
+    '''
+    rmap = {}
+    for key in map_:
+        for map_val in map_[key]:
+            rmap[map_val] = key
+
+    return rmap
+
+def create_array_freelist(pipeline):
+    '''
+    Create a list of arrays for each time in the group schedule, at which
+    these arrays have their last use.
+    '''
+    def logs(liveness_map2, array_writers, last_use, free_arrays):
+        # ***
+        log_level = logging.DEBUG-2
+        LOG(log_level, "\n_______")
+        LOG(log_level, "Reverse liveness map for Liveouts:")
+        for comp in liveness_map2:
+            LOG(log_level, comp.func.name+":"+str(liveness_map2[comp]))
+        # ***
+        log_level = logging.DEBUG
+        LOG(log_level, "\n_______")
+        LOG(log_level, "Array Users:")
+        for array in array_writers:
+            if True in [comp.is_liveout for comp in array_writers[array]] or True:
+                LOG(log_level, array.name+":"+\
+                    str([comp.func.name for comp in array_writers[array]]))
+        # ***
+        log_level = logging.DEBUG-1
+        LOG(log_level, "\n_______")
+        LOG(log_level, "Last use map for arrays:")
+        for array in last_use:
+            LOG(log_level, array.name+":"+str(last_use[array]))
+        # ***
+        log_level = logging.DEBUG-1
+        LOG(log_level, "\n_______")
+        LOG(log_level, "Free arrays :")
+        for g in free_arrays:
+            LOG(log_level, g.name+" ("+str(g_schedule[g])+") : "+\
+                str([arr.name for arr in free_arrays[g]]))
+        return
+
+    array_writers = pipeline.array_writers
+    g_schedule = pipeline.group_schedule
+    liveness_map = pipeline.liveness_map
+    # get a map-reverse
+    liveness_map2 = map_reverse(liveness_map)
+
+    # find the scheduled time (of group) at which arrays have thier last use
+    last_use = {}
+    for array in array_writers:
+        # are we dealing with full arrays? -
+        if True in [comp.is_liveout for comp in array_writers[array]]:
+            writer_sched = {}
+            for writer in array_writers[array]:
+                writer_sched[writer] = g_schedule[writer.group]
+            last_writer = max(array_writers[array],
+                              key=lambda x:writer_sched[x])
+            if last_writer in liveness_map2:  # not pipeline outputs
+                last_use[array] = liveness_map2[last_writer]
+
+    # reverse-map from group_schedule -> group
+    schedule_g = dict((v, k) for k, v in g_schedule.items())
+
+    # create a direct mapping from groups to arrays that are not live after
+    # the group's execution is complete
+    freed = []
+    free_arrays = {}
+    for group in g_schedule:
+        free_arrays[group] = []
+    for array in last_use:
+        user_sched = last_use[array]
+        # find the group with schedule time = user_sched
+        group = schedule_g[user_sched]
+        free_arrays[group].append(array)
+        freed.append(array)
+
+    # ***
+    logs(liveness_map2, array_writers, last_use, free_arrays)
+
+    return free_arrays

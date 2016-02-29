@@ -20,6 +20,7 @@ from align_scale import *
 from poly import *
 from bounds import *
 from inline import *
+from liveness import *
 from storage_mapping import *
 
 # LOG CONFIG #
@@ -118,7 +119,7 @@ class ComputeObject:
         self._orig_storage_class = None
         self._storage_class = None
         self._array = None
-        self._scratch_info = None
+        self._scratch_info = []
 
     @property
     def func(self):
@@ -350,6 +351,7 @@ class Group:
         self._live_outs = None
         self._image_refs = self.collect_image_refs()
 
+        self._children_map = None
         self._polyrep = None
 
         # Create a polyhedral representation if possible.
@@ -359,6 +361,7 @@ class Group:
             self._polyrep = PolyRep(_ctx, self, [], _param_constraints)
 
         self._comps_schedule = None
+        self._liveness_map = None
 
     @property
     def id_(self):
@@ -394,6 +397,10 @@ class Group:
         return str([comp.func.name for comp in self.comps])
 
     @property
+    def children_map(self):
+        return self._children_map
+
+    @property
     def get_ordered_comps(self):  # <- cant have such a name for property
         return self._level_order_comps
     @property
@@ -403,6 +410,9 @@ class Group:
     @property
     def comps_schedule(self):
         return self._comps_schedule
+    @property
+    def liveness_map(self):
+        return self._liveness_map
 
     def set_comp_group(self):
         for comp in self.comps:
@@ -513,6 +523,17 @@ class Group:
         image_refs = list(set(image_refs))
         return image_refs
 
+    def collect_comps_children(self):
+        children_map = {}
+        for comp in self.comps:
+            comp_children = \
+                [child for child in comp.children \
+                         if child.group == self]
+            if comp_children:
+                children_map[comp] = comp_children
+        self._children_map = children_map
+        return
+
     def get_sorted_comps(self):
         sorted_comps = sorted(self._level_order_comps.items(),
                               key=lambda x: x[1])
@@ -521,6 +542,10 @@ class Group:
 
     def set_comp_and_parts_sched(self):
         self._comps_schedule = schedule_within_group(self)
+        return
+
+    def set_liveness_map(self, _liveness_map):
+        self._liveness_map = _liveness_map
         return
 
     def __str__(self):
@@ -599,12 +624,6 @@ class Pipeline:
         # the pipeline by inlining functions.
         # self._initial_graph = self.draw_pipeline_graph()
 
-        # Make a list of all the input groups
-        live_ins = []
-        for group in self.groups:
-            live_ins = live_ins + group.root_comps
-        self._live_comps = list(set(live_ins))
-
         # Checking bounds
         bounds_check_pass(self)
 
@@ -641,13 +660,18 @@ class Pipeline:
             auto_group(self)
             pass
 
+        ''' GRAPH UPDATES '''
         # level order traversal of groups
         self._level_order_groups = self.order_group_objs()
         self._groups = self.get_sorted_groups()
 
-        # update liveness of compute objects in each new group
         for group in self.groups:
+            # update liveness of compute objects in each new group
             group.compute_liveness()
+            # children map for comps within the group
+            group.collect_comps_children()
+        self._liveouts = self.collect_liveouts()
+        self._liveouts_children_map = self.build_liveout_graph()
 
         # ***
         log_level = logging.INFO
@@ -666,24 +690,34 @@ class Pipeline:
             # grouping and tiling
             fused_schedule(self, g, self._param_estimates)
 
+        # group
         self._grp_schedule = schedule_groups(self)
-
+        # comps and poly parts
         for group in self._grp_schedule:
             group.set_comp_and_parts_sched()
+        self._liveouts_schedule = schedule_liveouts(self)
+
+        ''' COMPUTE LIVENESS '''
+        # liveouts
+        self._liveness_map = liveness_for_pipe_outputs(self)
+        # groups
+        for group in self.groups:
+            liveness_for_group_comps(group, group.children_map,
+                                     group.comps_schedule)
 
         ''' STORAGE '''
         # MAPPING
         self.initialize_storage()
 
         # OPTIMIZATION
-        # storage optimization for liveout (full array) allocations
-        # 1. classify the storage based on type, dimensionality and size
+        # classify the storage based on type, dimensionality and size
         self._storage_class_map = classify_storage(self)
-        # 2. map logical storage to physical storage
+        # remap logical storage
         self._storage_map = remap_storage(self)
 
         # ALLOCATION
-        create_physical_arrays(self)
+        self._array_writers_map = create_physical_arrays(self)
+        self._free_arrays = create_array_freelist(self)
 
         # use graphviz to create pipeline graph
         self._pipeline_graph = self.draw_pipeline_graph()
@@ -707,9 +741,6 @@ class Pipeline:
     def inputs(self):
         return self._inputs
     @property
-    def live_comps(self):
-        return self._live_comps
-    @property
     def outputs(self):
         return self._outputs
     @property
@@ -725,14 +756,32 @@ class Pipeline:
     def get_ordered_groups(self):  # <- naming
         return self._level_order_groups
     @property
+    def liveouts(self):
+        return self._liveouts
+    @property
+    def liveouts_children_map(self):
+        return self._liveouts_children_map
+    @property
     def group_schedule(self):
         return self._grp_schedule
+    @property
+    def liveouts_schedule(self):
+        return self._liveouts_schedule
     @property
     def storage_class_map(self):
         return self._storage_class_map
     @property
     def storage_map(self):
         return self._storage_map
+    @property
+    def liveness_map(self):
+        return self._liveness_map
+    @property
+    def array_writers(self):
+        return self._array_writers_map
+    @property
+    def free_arrays(self):
+        return self._free_arrays
 
     def get_parameters(self):
         params=[]
@@ -742,13 +791,13 @@ class Pipeline:
 
     def create_compute_objects(self):
         funcs, parents, children = \
-            get_funcs_and_dep_maps(self._outputs)
+            get_funcs_and_dep_maps(self.outputs)
 
         comps = []
         func_map = {}
         for func in funcs:
             output = False
-            if func in self._outputs:
+            if func in self.outputs:
                 output = True
             comp = ComputeObject(func, output)
             func_map[func] = comp
@@ -1019,6 +1068,26 @@ class Pipeline:
             return_str = return_str + s.__str__() + "\n"
         return return_str
 
+    def collect_liveouts(self):
+        liveouts = [comp for group in self.groups \
+                           for comp in group.liveouts]
+        return liveouts
+
+    def build_liveout_graph(self):
+        liveouts = self.liveouts
+        children_map = {}
+        for comp in liveouts:
+            g_liveouts = []
+            if comp.children:
+                # collect groups where comp is livein
+                livein_groups = [child.group for child in comp.children]
+                # collect liveouts of these groups
+                for g in livein_groups:
+                    g_liveouts += g.liveouts
+            if g_liveouts:
+                children_map[comp] = g_liveouts
+        return children_map
+
     def initialize_storage(self):
         for func in self.func_map:
             comp = self.func_map[func]
@@ -1029,12 +1098,12 @@ class Pipeline:
             # 1. Input Images
             # 2. Group Live-Outs
             # 3. Not a scratchpad  (maybe Reduction)
+            reduced_dims = [ -1 for i in range(0, ndims) ]
+            is_scratch = [ False for i in range(0, ndims) ]
             if comp.is_image_typ or comp.is_liveout or comp not in part_map:
                 interval_sizes = comp.size
             # 4. Scratchpads
             else:
-                reduced_dims = [ -1 for i in range(0, ndims) ]
-                is_scratch = [ False for i in range(0, ndims) ]
                 for part in part_map[comp]:
                     for i in range(0, ndims):
                         if i in part.dim_scratch_size:  # as a key
@@ -1042,11 +1111,12 @@ class Pipeline:
                                                   part.dim_scratch_size[i])
                             is_scratch[i] = True
 
-                comp.set_scratch_info(is_scratch)
                 for i in range(0, ndims):
                     dim_sizes.append(reduced_dims[i])
 
                 interval_sizes = comp.compute_size(dim_sizes)
+
+            comp.set_scratch_info(is_scratch)
 
             storage = Storage(typ, ndims, interval_sizes)
             comp.set_orig_storage_class(storage)

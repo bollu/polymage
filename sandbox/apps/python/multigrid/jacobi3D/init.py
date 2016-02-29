@@ -1,7 +1,7 @@
 import sys
 import os.path
 import numpy as np
-
+from arg_parser import parse_args
 from printer         import printHeader, printUsage, \
                             printLine
 from polymage_common import setVars, setCases
@@ -72,13 +72,13 @@ def initGrids(appData):
 
     return 
 
-def initParams(appData):
+def initParams(app_args,appData):
     print("[init_mg.py] : parameters")
 
     # size of each dimension of the coarsest grid
-    n = 31
+    n = int(app_args.n)
     # number of multigrid levels
-    L = 3
+    L = int(app_args.L)
 
     N = n
     # compute the size of the finest grid
@@ -91,9 +91,9 @@ def initParams(appData):
 
     # pre-smoother, post-smoother and
     # coarse-grid relaxation steps
-    appData['nu1'] = 10
-    appData['nuc'] = 0
-    appData['nu2'] = 0
+    appData['nu1'] = int(app_args.nu1)
+    appData['nuc'] = int(app_args.nuc)
+    appData['nu2'] = int(app_args.nu2)
 
     # pool allocate option
     appData['pool_alloc'] = False
@@ -104,28 +104,24 @@ def initParams(appData):
 
     return appData
 
-def getInput(appData):
-    if len(sys.argv) > 3:
-        appData['mode'] = sys.argv[1]
-        appData['cycle'] = sys.argv[2]
-        appData['nit']  = int(sys.argv[3])
-    else:
-        printUsage()
-        sys.exit(1)
-
+def getInput(app_args,appData):
+    appData['app_args'] = app_args
+    appData['mode'] = app_args.mode
+    appData['cycle'] = app_args.cycle
+    appData['nit']  = int(app_args.nit)
     cycle_name = appData['cycle']+"cycle"
-    appData['cycle_name'] = cycle_name
+    appData['cycle_name'] = app_args.cycle_name
 
-    appData['timer'] = os.path.isfile("timer.flag")
+    appData['timer'] = app_args.timer
 
     return
 
 def initAll(pipeData, appData):
     # TODO init cycle type {V, W}
+    app_args = parse_args()
+    getInput(app_args,appData)
 
-    getInput(appData)
-
-    initParams(appData)
+    initParams(app_args,appData)
 
     initGrids(appData)
 
