@@ -183,6 +183,7 @@ def classify_storage(pipeline):
         '''
         # ***
         log_level = logging.DEBUG
+        LOG(log_level, "_______")
         LOG(log_level, "Storage classes:")
         # ***
         new_storage_class_map = {}
@@ -191,7 +192,6 @@ def classify_storage(pipeline):
 
             # ***
             log_level = logging.DEBUG
-            LOG(log_level, "_______")
             LOG(log_level, key)
             LOG(log_level, [comp.func.name for comp in class_comps])
             # ***
@@ -227,9 +227,10 @@ def classify_storage(pipeline):
             max_storage.generate_id()
 
             # all comps of this class now have identical storage
+            new_storage_class_map[max_storage] = []
             for comp in class_comps:
                 comp.set_storage_class(max_storage)
-                new_storage_class_map[max_storage] = comp
+                new_storage_class_map[max_storage].append(comp)
 
         # clear the temporary mappings
         storage_class_map.clear()
@@ -290,15 +291,17 @@ def classify_storage(pipeline):
         storage_class_map[group] = classify_storage_for_comps(group.comps, opt)
 
     # storage classification for liveouts
-    storage_class_map['liveouts'] = \
-        classify_storage_for_comps(pipeline.liveouts, opt)
+    # except pipeline outputs -
+    out_comps = [pipeline.func_map[func] for func in pipeline.outputs]
+    live_comps = list(set(pipeline.liveouts).difference(set(out_comps)))
+    storage_class_map['liveouts'] = classify_storage_for_comps(live_comps, opt=False)
 
     return storage_class_map
 
 
 def log_schedule(comps, schedule):
     log_level = logging.DEBUG
-    LOG(log_level, "\n_______")
+    LOG(log_level, "\n=======")
     LOG(log_level, "Schedules:")
     for comp in comps:
         LOG(log_level, "\t%-*s" % (15, comp.func.name) + ": "+str(schedule[comp]))
@@ -306,7 +309,7 @@ def log_schedule(comps, schedule):
 
 def log_storage_mapping(comps, storage_map):
     log_level = logging.DEBUG
-    LOG(log_level, "\n_______")
+    LOG(log_level, "")
     LOG(log_level, "Storage mapping:")
     for comp in comps:
         LOG(log_level, "\t%-*s" % (15, comp.func.name) + ": "+str(storage_map[comp]))
@@ -529,7 +532,7 @@ def create_array_freelist(pipeline):
     Create a list of arrays for each time in the group schedule, at which
     these arrays have their last use.
     '''
-    def logs(liveness_map2, array_writers, last_use):
+    def logs(liveness_map2, array_writers, last_use, free_arrays):
         # ***
         log_level = logging.DEBUG-2
         LOG(log_level, "\n_______")
@@ -537,11 +540,11 @@ def create_array_freelist(pipeline):
         for comp in liveness_map2:
             LOG(log_level, comp.func.name+":"+str(liveness_map2[comp]))
         # ***
-        log_level = logging.DEBUG-2
+        log_level = logging.DEBUG
         LOG(log_level, "\n_______")
         LOG(log_level, "Array Users:")
         for array in array_writers:
-            if True in [comp.is_liveout for comp in array_writers[array]]:
+            if True in [comp.is_liveout for comp in array_writers[array]] or True:
                 LOG(log_level, array.name+":"+\
                     str([comp.func.name for comp in array_writers[array]]))
         # ***
@@ -551,7 +554,7 @@ def create_array_freelist(pipeline):
         for array in last_use:
             LOG(log_level, array.name+":"+str(last_use[array]))
         # ***
-        log_level = logging.DEBUG
+        log_level = logging.DEBUG-1
         LOG(log_level, "\n_______")
         LOG(log_level, "Free arrays :")
         for g in free_arrays:
@@ -593,5 +596,8 @@ def create_array_freelist(pipeline):
         group = schedule_g[user_sched]
         free_arrays[group].append(array)
         freed.append(array)
+
+    # ***
+    logs(liveness_map2, array_writers, last_use, free_arrays)
 
     return free_arrays
