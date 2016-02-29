@@ -288,13 +288,19 @@ def classify_storage(pipeline):
 
     # storage classification for group compute objects
     for group in pipeline.groups:
-        storage_class_map[group] = classify_storage_for_comps(group.comps, opt)
+        g_comps = [comp for comp in group.comps if not comp.is_liveout]
+        storage_class_map[group] = classify_storage_for_comps(g_comps, opt)
+
+    # storage classification for outputs
+    out_comps = [pipeline.func_map[func] for func in pipeline.outputs]
+    storage_class_map['liveouts'] = classify_storage_for_comps(out_comps,
+                                    opt=False)
 
     # storage classification for liveouts
-    # except pipeline outputs -
-    out_comps = [pipeline.func_map[func] for func in pipeline.outputs]
     live_comps = list(set(pipeline.liveouts).difference(set(out_comps)))
-    storage_class_map['liveouts'] = classify_storage_for_comps(live_comps, opt=False)
+    liveout_stg_class_map = classify_storage_for_comps(live_comps,
+                            opt=False)
+    storage_class_map['liveouts'].update(liveout_stg_class_map)
 
     return storage_class_map
 

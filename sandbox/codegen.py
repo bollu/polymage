@@ -392,8 +392,7 @@ def generate_c_naive_from_isl_ast(pipe, polyrep, node, body,
                 vec_pragma = genc.CPragma("ivdep")
                 body.add(vec_pragma)
 
-            #flat_scratch = 'flatten_scratchpad' in pipeline._options
-            flat_scratch = True
+            flat_scratch = 'flatten_scratchpad' in pipe.options
 
             body.add(loop)
             # Assuming only one parallel dimension and a whole lot
