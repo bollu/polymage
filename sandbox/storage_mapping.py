@@ -8,7 +8,7 @@ from liveness import *
 
 # LOG CONFIG #
 storage_logger = logging.getLogger("storage_mapping.py")
-storage_logger.setLevel(logging.DEBUG)
+storage_logger.setLevel(logging.INFO)
 LOG = storage_logger.log
 
 class TypeSizeMap(object):
@@ -196,8 +196,8 @@ def classify_storage(pipeline):
             LOG(log_level, [comp.func.name for comp in class_comps])
             # ***
 
-            # pick a dummpy comp to get the total number of dimensions and the
-            # original parameter associated with each dimesnion
+            # pick a dummy comp to get the total number of dimensions and the
+            # original parameter associated with each dimension
             helper_comp = class_comps[0]
             typ = helper_comp.func.typ
             dims = helper_comp.func.ndims
@@ -296,29 +296,31 @@ def classify_storage(pipeline):
     storage_class_map['liveouts'] = classify_storage_for_comps(out_comps,
                                     opt=False)
 
-    # storage classification for liveouts
+    # storage classification for other liveouts
     live_comps = list(set(pipeline.liveouts).difference(set(out_comps)))
     liveout_stg_class_map = classify_storage_for_comps(live_comps,
-                            opt=False)
+                            opt)
     storage_class_map['liveouts'].update(liveout_stg_class_map)
 
     return storage_class_map
 
 
 def log_schedule(comps, schedule):
-    log_level = logging.DEBUG
+    log_level = logging.DEBUG-1
     LOG(log_level, "\n=======")
     LOG(log_level, "Schedules:")
     for comp in comps:
-        LOG(log_level, "\t%-*s" % (15, comp.func.name) + ": "+str(schedule[comp]))
+        LOG(log_level, "\t%-*s" % (15, comp.func.name) + \
+            ": "+str(schedule[comp]))
     return
 
 def log_storage_mapping(comps, storage_map):
-    log_level = logging.DEBUG
+    log_level = logging.DEBUG-1
     LOG(log_level, "")
     LOG(log_level, "Storage mapping:")
     for comp in comps:
-        LOG(log_level, "\t%-*s" % (15, comp.func.name) + ": "+str(storage_map[comp]))
+        LOG(log_level, "\t%-*s" % (15, comp.func.name) + \
+            ": "+str(storage_map[comp]))
     return
 
 def remap_storage_for_comps(comps, storage_class_map, schedule,
@@ -544,28 +546,31 @@ def create_array_freelist(pipeline):
         LOG(log_level, "\n_______")
         LOG(log_level, "Reverse liveness map for Liveouts:")
         for comp in liveness_map2:
-            LOG(log_level, comp.func.name+":"+str(liveness_map2[comp]))
+            LOG(log_level, "\t%-*s" % (15, comp.func.name) + \
+                ": " + str(liveness_map2[comp]))
         # ***
-        log_level = logging.DEBUG
+        log_level = logging.DEBUG-2
         LOG(log_level, "\n_______")
         LOG(log_level, "Array Users:")
         for array in array_writers:
-            if True in [comp.is_liveout for comp in array_writers[array]] or True:
-                LOG(log_level, array.name+":"+\
+            if True in [comp.is_liveout for comp in array_writers[array]]:
+                LOG(log_level, "\t%-*s" % (15, array.name) + ": " + \
                     str([comp.func.name for comp in array_writers[array]]))
         # ***
         log_level = logging.DEBUG-1
         LOG(log_level, "\n_______")
         LOG(log_level, "Last use map for arrays:")
         for array in last_use:
-            LOG(log_level, array.name+":"+str(last_use[array]))
+            LOG(log_level, "\t%-*s" % (15, array.name) + \
+                ": " + str(last_use[array]))
         # ***
         log_level = logging.DEBUG-1
         LOG(log_level, "\n_______")
         LOG(log_level, "Free arrays :")
         for g in free_arrays:
-            LOG(log_level, g.name+" ("+str(g_schedule[g])+") : "+\
-                str([arr.name for arr in free_arrays[g]]))
+            LOG(log_level,
+                "\t%-*s" % (15, g.name+" ("+str(g_schedule[g])+")") + \
+                ": " + str([arr.name for arr in free_arrays[g]]))
         return
 
     array_writers = pipeline.array_writers

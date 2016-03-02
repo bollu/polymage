@@ -956,5 +956,4 @@ def generate_code_for_pipeline(pipeline,
                 for array in free_list:
                     array.deallocate(pbody, pooled)
 
-
     return m
