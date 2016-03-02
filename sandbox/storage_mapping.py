@@ -8,7 +8,7 @@ from liveness import *
 
 # LOG CONFIG #
 storage_logger = logging.getLogger("storage_mapping.py")
-storage_logger.setLevel(logging.INFO)
+storage_logger.setLevel(logging.DEBUG-2)
 LOG = storage_logger.log
 
 class TypeSizeMap(object):
@@ -38,7 +38,7 @@ class Dimension:
         self._size_expr = size_map[1]
 
         coeff_map = get_affine_var_and_param_coeff(self._size_expr)
-        self._const = get_constant_from_expr(self._size_expr)
+        self._const = int(get_constant_from_expr(self._size_expr))
         self._coeff = 1
         if not self.is_constant:
             self._coeff = coeff_map[_param]
@@ -63,6 +63,14 @@ class Dimension:
     @property
     def is_constant(self):
         return self._param == '0'
+
+    def __str__(self):
+        const = str(self.const)
+        if self.param == '0':
+            return '['+const+']'
+        coeff = str(self.coeff)
+        dim_str = '['+self.param+'*('+coeff+') + ('+const+')]'
+        return dim_str
 
 class Storage:
     def __init__(self, _typ, _dims, _dim_sizes):
@@ -146,6 +154,18 @@ class Storage:
 
     def generate_id(self):
         self._id = IdGen.get_stg_id()
+
+    def __str__(self):
+        typ_str = str(self.typ.c_type_name())
+        ndims_str = str(self.dims)
+        dims_str = ''
+        for i in range(0, self.dims):
+            dim = self.get_dim(i)
+            dims_str += str(dim)
+            if i < self.dims-1:
+                dims_str += ' :: '
+        stg_str = '{'+typ_str+', '+ndims_str+', '+dims_str+'}'
+        return stg_str
 
 def classify_storage(pipeline):
     '''

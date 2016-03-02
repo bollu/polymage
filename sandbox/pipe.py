@@ -1089,6 +1089,10 @@ class Pipeline:
         return children_map
 
     def initialize_storage(self):
+        # ***
+        log_level = logging.DEBUG
+        LOG(log_level, "Initializing Storage ...")
+
         for func in self.func_map:
             comp = self.func_map[func]
             typ = comp.func.typ
@@ -1120,5 +1124,10 @@ class Pipeline:
 
             storage = Storage(typ, ndims, interval_sizes)
             comp.set_orig_storage_class(storage)
+
+            # ***
+            LOG(log_level, "  "+comp.func.name)
+            LOG(log_level, "    "+str(storage))
+
         return
 
