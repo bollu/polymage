@@ -1090,7 +1090,7 @@ class Pipeline:
 
     def initialize_storage(self):
         # ***
-        log_level = logging.DEBUG
+        log_level = logging.DEBUG-1
         LOG(log_level, "Initializing Storage ...")
 
         for func in self.func_map:

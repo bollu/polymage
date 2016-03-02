@@ -8,7 +8,7 @@ from liveness import *
 
 # LOG CONFIG #
 storage_logger = logging.getLogger("storage_mapping.py")
-storage_logger.setLevel(logging.DEBUG-2)
+storage_logger.setLevel(logging.DEBUG)
 LOG = storage_logger.log
 
 class TypeSizeMap(object):
@@ -140,7 +140,8 @@ class Storage:
         param_offsets = []
         for dim in range(0, self.dims):
             storage_dim = self.get_dim(dim)
-            param_offsets.append((storage_dim.param, storage_dim.const))
+            offset_tuple = (storage_dim.param, storage_dim.const)
+            param_offsets.append(offset_tuple)
         param_offsets = sorted(param_offsets, key=lambda x:x[0])
 
         return param_offsets
@@ -210,21 +211,17 @@ def classify_storage(pipeline):
         for key in storage_class_map:
             class_comps = storage_class_map[key]  # a list
 
-            # ***
-            log_level = logging.DEBUG
-            LOG(log_level, key)
-            LOG(log_level, [comp.func.name for comp in class_comps])
-            # ***
-
             # pick a dummy comp to get the total number of dimensions and the
             # original parameter associated with each dimension
             helper_comp = class_comps[0]
             typ = helper_comp.func.typ
             dims = helper_comp.func.ndims
             helper_storage = helper_comp.orig_storage_class
+            offsets = helper_storage.offsets
 
             # this list holds the maximal offset value for each dimension
-            max_offset = [0 for dim in range(0, dims)]
+            max_offset = [offsets[dim][1] for dim in range(0, dims)]
+
             for comp in class_comps:
                 storage = comp.orig_storage_class
                 offsets = storage.offsets
@@ -251,6 +248,14 @@ def classify_storage(pipeline):
             for comp in class_comps:
                 comp.set_storage_class(max_storage)
                 new_storage_class_map[max_storage].append(comp)
+
+            # ***
+            log_level = logging.DEBUG
+            LOG(log_level, key)
+            LOG(log_level, "\t%-*s" % \
+                (15, [comp.func.name for comp in class_comps]))
+            LOG(log_level, "\t%-*s" % (15, str(max_storage)))
+            # ***
 
         # clear the temporary mappings
         storage_class_map.clear()
