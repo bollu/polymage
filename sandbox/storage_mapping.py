@@ -331,7 +331,7 @@ def classify_storage(pipeline):
 
 
 def log_schedule(comps, schedule):
-    log_level = logging.DEBUG-1
+    log_level = logging.DEBUG-2
     LOG(log_level, "\n=======")
     LOG(log_level, "Schedules:")
     for comp in comps:
@@ -443,7 +443,7 @@ def create_physical_arrays(pipeline):
             tag = str(stg_class.id_)
             # array naming
             if opt:
-                array_name = genc.CNameGen.get_array_name(tag)
+                array_name = genc.CNameGen.get_array_name(comp.is_liveout, tag)
             else:
                 array_name = comp.func.name
 

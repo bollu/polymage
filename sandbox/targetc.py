@@ -26,6 +26,7 @@ class CNameGen(object):
     _iterator_prefix = "_ci"
     _temporary_prefix = "_ct"
     _array_prefix = "_arr"
+    _scratch_prefix = "_buf"
 
     _iterator_count = 0
     _temp_count = 0
@@ -44,10 +45,16 @@ class CNameGen(object):
         return name
 
     @classmethod
-    def get_array_name(cls, tag=""):
+    def get_array_name(cls, full_array=False, tag=""):
+        if full_array:
+            prefix = cls._array_prefix
+        else:
+            prefix = cls._scratch_prefix
+
         if tag != "":
             tag = "_"+tag+"_"
-        name = cls._array_prefix + tag + str(cls._array_count)
+
+        name = prefix + tag + str(cls._array_count)
         cls._array_count+=1
         return name
 

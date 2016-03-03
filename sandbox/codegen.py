@@ -781,8 +781,8 @@ def generate_code_for_group(pipeline, g, body, alloc_arrays,
                     comment = add_users_as_comment(pipeline, array)
                     body.add(comment)
                     # add a line print comment
-                    printf = genc.c_printf("\"%d\\n\", __LINE__")
-                    body.add(genc.CStatement(printf))
+                    #printf = genc.c_printf("\"%d\\n\", __LINE__")
+                    #body.add(genc.CStatement(printf))
 
                     array_ptr = genc.CPointer(array.typ, 1)
                     array_decl = genc.CDeclaration(array_ptr, array)
