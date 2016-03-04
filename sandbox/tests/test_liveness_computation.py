@@ -6,7 +6,7 @@ sys.path.insert(0, '../')
 from compiler import *
 from constructs import *
 
-from schedule import compute_liveness
+from liveness import compute_liveness
 
 class Node:
     def __init__(self, _name, _parents=None):

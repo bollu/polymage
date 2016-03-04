@@ -1,8 +1,5 @@
 from __future__ import absolute_import, division, print_function
 
-#import sys
-#sys.path.insert(0, '../../cgen')
-
 import cgen
 from cexpr import *
 
