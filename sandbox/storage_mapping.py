@@ -79,11 +79,13 @@ class Dimension:
         return self._param == '0'
 
     def __str__(self):
+        '''
         const = str(self.const)
         if self.param == '0':
             return '['+const+']'
         coeff = str(self.coeff)
-        dim_str = '['+self.param+'*('+coeff+') + ('+const+')]'
+        '''
+        dim_str = '['+str(get_dim_size(self))+']'
         return dim_str
 
 class Storage:
@@ -156,7 +158,6 @@ class Storage:
             storage_dim = self.get_dim(dim)
             offset_tuple = (storage_dim.param, storage_dim.const)
             param_offsets.append(offset_tuple)
-        param_offsets = sorted(param_offsets, key=lambda x:x[0])
 
         return param_offsets
 
