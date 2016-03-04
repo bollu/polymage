@@ -25,6 +25,20 @@ class TypeSizeMap(object):
         assert typ_name in cls._type_size_map
         return cls._type_size_map[typ_name]
 
+def get_dim_size(dim_storage, const=None):
+    if const == None:
+        const = dim_storage.const
+    if isinstance(dim_storage.coeff, Fraction):
+        numr = dim_storage.coeff.numerator
+        denr = dim_storage.coeff.denominator
+        param_part = numr * dim_storage.orig_param // denr
+    else:
+        param_part = dim_storage.coeff * dim_storage.orig_param
+    size = param_part + const
+    size = simplify_expr(size)
+
+    return size
+
 class Dimension:
     def __init__(self, size_map):
         _param = size_map[0]
@@ -234,10 +248,8 @@ def classify_storage(pipeline):
             dim_sizes = []
             for dim in range(0, dims):
                 dim_storage = helper_storage.get_dim(dim)
-                param = dim_storage.orig_param
-                coeff = dim_storage.coeff
-                size = Fraction(coeff) * param + max_offset[dim]
-                dim_sizes.append((param, size))
+                new_size = get_dim_size(dim_storage, max_offset[dim])
+                dim_sizes.append((dim_storage.orig_param, new_size))
 
             # final maximal storage for this class
             max_storage = Storage(typ, dims, dim_sizes)
@@ -453,7 +465,10 @@ def create_physical_arrays(pipeline):
                 else:
                     array_layout = 'multidim'
         array_type = genc.TypeMap.convert(comp.func.typ)
-        array_sizes = [size[1] for size in stg_class.dim_sizes]
+        array_sizes = []
+        for dim in range(0, stg_class.dims):
+            dim_storage = stg_class.get_dim(dim)
+            array_sizes.append(get_dim_size(dim_storage))
 
         # create CArray object
         array = genc.CArray(array_type, array_name, array_sizes)
