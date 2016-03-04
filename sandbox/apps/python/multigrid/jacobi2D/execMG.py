@@ -112,33 +112,46 @@ def multigrid(app_data):
 
     nit = app_data['nit']
     it  = 0
+    runs = 0
+    t1 = {}
+    t2 = {}
+    time_taken = 0
 
     printLayout(app_data)
     printErrors(it, app_data)
 
     timer = app_data['timer']
-    if timer == True:
-        t1 = time.time()
+    print(app_data)
+    nruns = int(app_data['runs'])
 
-    while it < nit :
-        it += 1
-        if it%2 == 1:
-            callMGCycle(U_, W_, app_data)
+    while runs < nruns :
+        it = 0
+        if timer == True:
+            t1[runs] = time.time()
+        while it < nit :
+            it += 1
+            if it%2 == 1:
+                callMGCycle(U_, W_, app_data)
+                if timer == False:
+                    calcNorm(W_, app_data)
+            else:
+                callMGCycle(W_, U_, app_data)
+                if timer == False:
+                    calcNorm(U_, app_data)
+
             if timer == False:
-                calcNorm(W_, app_data)
-        else:
-            callMGCycle(W_, U_, app_data)
-            if timer == False:
-                calcNorm(U_, app_data)
-
-        if timer == False:
-            printErrors(it, app_data)
+                printErrors(it, app_data)
+        if timer == True:
+            t2[runs] = time.time()
+            time1 = float(t2[runs]) - float(t1[runs])
+            print("Time taken for iter ", runs," = ",time1*1000, "ms")
+            time_taken += time1
+        runs += 1
 
     if timer == True:
-        t2 = time.time()
-
-        timeTaken = float(t2) - float(t1)
+        #t2 = time.time()
+        time_taken = time_taken / nruns
         print("")
-        print("[execMG] : time taken to execute = ", timeTaken*1000, " ms")
+        print("[execMG] : Average time taken to execute = ", time_taken*1000, " ms")
 
     return

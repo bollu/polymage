@@ -175,6 +175,7 @@ def initParams(app_args,appData):
     appData['n'] = n
     appData['N'] = N
     appData['L'] = L
+    appData['runs'] = int(app_args.runs)
 
     # pre-smoother, post-smoother and
     # coarse-grid relaxation steps
