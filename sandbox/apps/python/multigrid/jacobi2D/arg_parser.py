@@ -24,11 +24,6 @@ def parse_args():
                        dest='nit',
                        help='nit')
 
-    parser.add_option('-d', '--cycle_name',
-                       action='store',
-                       dest='cycle_name',
-                       help='Ucycle or Vcycle')
-
     parser.add_option('-n', '--n',
                        action='store',
                        dest='n',

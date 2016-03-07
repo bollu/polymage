@@ -159,7 +159,7 @@ def initGrids(app_args,appData):
 
     return 
 
-def initParams(app_args,appData):
+def initParams(app_args, appData):
     print("[init_mg.py] : parameters")
 
     # size of each dimension of the coarsest grid
@@ -195,14 +195,14 @@ def initParams(app_args,appData):
 
     return appData
 
-def getInput(app_args,appData):
+def getInput(app_args, appData):
     appData['app_args'] = app_args
     appData['mode'] = app_args.mode
     appData['cycle'] = app_args.cycle
     appData['nit'] = int(app_args.nit)
 
-    #cycle_name = app_data['cycle']+"cycle"
-    appData['cycle_name'] = app_args.cycle_name
+    cycle_name = appData['cycle']+"cycle"
+    appData['cycle_name'] = cycle_name
     appData['timer'] = app_args.timer
   
     return
