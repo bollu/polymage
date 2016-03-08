@@ -59,7 +59,9 @@ def init_border_piecewise(grid, border_width, border_values):
 
     return
 
-def init_grids(app_args,app_data):
+def init_grids(app_data):
+    app_args = app_data['app_args']
+
     print("[init_mg.py] : grids")
 
     N = app_data['N']
@@ -156,7 +158,9 @@ def init_grids(app_args,app_data):
 
     return 
 
-def init_params(app_args, app_data):
+def init_params(app_data):
+    app_args = app_data['app_args']
+
     print("[init_mg.py] : parameters")
 
     # size of each dimension of the coarsest grid
@@ -192,7 +196,9 @@ def init_params(app_args, app_data):
 
     return app_data
 
-def get_input(app_args, app_data):
+def get_input(app_data):
+    app_args = app_data['app_args']
+
     app_data['app_args'] = app_args
     app_data['mode'] = app_args.mode
     app_data['cycle'] = app_args.cycle
@@ -204,17 +210,18 @@ def get_input(app_args, app_data):
   
     return
 
-def init_all(impipe_data, app_data):
-    # TODO init cycle type {V, W}
+def init_all(app_data):
     app_args = parse_args()
-    get_input(app_args, app_data)
+    app_data['app_args'] = app_args
 
-    init_params(app_args,app_data)
+    get_input(app_data)
+    init_params(app_data)
+    init_grids(app_data)
 
-    init_grids(app_args,app_data)
+    pipe_data = {}
+    app_data['pipe_data'] = pipe_data
 
-    set_vars(impipe_data, app_data)
-
-    set_cases(impipe_data, app_data)
+    set_vars(app_data)
+    set_cases(app_data)
 
     return

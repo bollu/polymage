@@ -9,8 +9,9 @@ sys.path.insert(0, '../../../../')
 from compiler   import *
 from constructs import *
 
-def w_cycle(impipe_data, app_data):
-    N = impipe_data['N']
+def w_cycle(app_data):
+    pipe_data = app_data['pipe_data']
+    N = pipe_data['N']
     L = app_data['L']
 
     nu1 = app_data['nu1']
@@ -22,7 +23,7 @@ def w_cycle(impipe_data, app_data):
     # rhs
     F = Image(Double, "F_", [N[L]+2, N[L]+2])
 
-    jacobi_c = impipe_data['jacobi_c']
+    jacobi_c = pipe_data['jacobi_c']
 
     # pre-smoothing and coarse-smoothing outputs
     smooth_p1 = {}
@@ -68,7 +69,7 @@ def w_cycle(impipe_data, app_data):
                     in_func = smooth_p1[l][visit[l]][t-1]
 
                 smooth_p1[l][visit[l]][t] = \
-                    w_jacobi(in_func, f, l, fname, impipe_data, app_data)
+                    w_jacobi(in_func, f, l, fname, pipe_data, app_data)
 
             return smooth_p1[l][visit[l]][nuc-1]
         ###################################################
@@ -88,7 +89,7 @@ def w_cycle(impipe_data, app_data):
                     in_func = smooth_p1[l][visit[l]][t-1]
 
                 smooth_p1[l][visit[l]][t] = \
-                    w_jacobi(in_func, f, l, fname, impipe_data, app_data)
+                    w_jacobi(in_func, f, l, fname, pipe_data, app_data)
 
             if nu1 <= 0:
                 smooth_out = v
@@ -102,7 +103,7 @@ def w_cycle(impipe_data, app_data):
                 r_h[l] = {}
 
             name = "defect_L"+str(l)+"__"+str(visit[l])
-            r_h[l][visit[l]] = defect(smooth_out, f, l, name, impipe_data)
+            r_h[l][visit[l]] = defect(smooth_out, f, l, name, pipe_data)
 
             ###############################################
   
@@ -111,7 +112,7 @@ def w_cycle(impipe_data, app_data):
                 r_2h[l] = {}
 
             name = "restrict_L"+str(l-1)+"__"+str(visit[l])
-            r_2h[l][visit[l]] = restrict(r_h[l][visit[l]], l, name, impipe_data)
+            r_2h[l][visit[l]] = restrict(r_h[l][visit[l]], l, name, pipe_data)
 
             ###############################################
  
@@ -146,7 +147,7 @@ def w_cycle(impipe_data, app_data):
                 ec[l] = {}
 
             ec[l][visit[l]] = \
-                interpolate(e_2h[l][visit[l]], correct_in, l, fname, impipe_data)
+                interpolate(e_2h[l][visit[l]], correct_in, l, fname, pipe_data)
 
             if nu2 <= 0:
                 return ec[l][visit[l]]
@@ -170,7 +171,7 @@ def w_cycle(impipe_data, app_data):
                     in_func = smooth_p2[l][visit[l]][t-1]
 
                 smooth_p2[l][visit[l]][t] = \
-                    w_jacobi(in_func, f, l, fname, impipe_data, app_data)
+                    w_jacobi(in_func, f, l, fname, pipe_data, app_data)
  
             return smooth_p2[l][visit[l]][nu2-1]
     #######################################################

@@ -8,7 +8,9 @@ def print_line(to_file=None):
         print("--------------------------------------------------")
 
 def print_header():
+    print_line()
     print("              Multigrid Jacobi-2D")
+    print_line()
 
 def print_usage():
     print("[main]: Usage: ")

@@ -6,11 +6,13 @@ from polymage_interpolate import interpolate
 
 sys.path.insert(0, '../../../../')
 
-from compiler   import *
+from compiler import *
 from constructs import *
 
-def v_cycle(impipe_data, app_data):
-    N = impipe_data['N']
+def v_cycle(app_data):
+    pipe_data = app_data['pipe_data']
+
+    N = pipe_data['N']
     L = app_data['L']
 
     nu1 = app_data['nu1']
@@ -22,7 +24,7 @@ def v_cycle(impipe_data, app_data):
     # rhs
     F = Image(Double, "F_", [N[L]+2, N[L]+2])
 
-    jacobi_c = impipe_data['jacobi_c']
+    jacobi_c = pipe_data['jacobi_c']
 
     # pre-smoothing and coarse-smoothing outputs
     smooth_p1 = {}
@@ -62,7 +64,7 @@ def v_cycle(impipe_data, app_data):
                     in_func = smooth_p1[l][t-1]
 
                 smooth_p1[l][t] = w_jacobi(in_func, f, l, fname,
-                                           impipe_data, app_data)
+                                           pipe_data, app_data)
 
             return smooth_p1[l][nuc-1]
         ###################################################
@@ -78,7 +80,7 @@ def v_cycle(impipe_data, app_data):
                     in_func = smooth_p1[l][t-1]
 
                 smooth_p1[l][t] = w_jacobi(in_func, f, l, fname,
-                                           impipe_data, app_data)
+                                           pipe_data, app_data)
 
             if nu1 <= 0:
                 smooth_out = v
@@ -89,13 +91,13 @@ def v_cycle(impipe_data, app_data):
             ''' RESIDUAL '''
 
             r_h[l] = defect(smooth_out, f, l, "defect_L"+str(l),
-                            impipe_data)
+                            pipe_data)
 
             ###############################################
   
             ''' RESTRICTION '''
             r_2h[l] = restrict(r_h[l], l, "restrict_L"+str(l-1),
-                               impipe_data)
+                               pipe_data)
 
             ###############################################
  
@@ -119,7 +121,7 @@ def v_cycle(impipe_data, app_data):
                 correct_in = smooth_p1[l][nu1-1]
 
             ec[l] = interpolate(e_2h[l], correct_in, l, fname,
-                                impipe_data)
+                                pipe_data)
 
             if nu2 <= 0:
                 return ec[l]
@@ -139,7 +141,7 @@ def v_cycle(impipe_data, app_data):
                     in_func = smooth_p2[l][t-1]
 
                 smooth_p2[l][t] = w_jacobi(in_func, f, l, fname,
-                                           impipe_data, app_data)
+                                           pipe_data, app_data)
  
             return smooth_p2[l][nu2-1]
     #######################################################

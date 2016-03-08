@@ -14,17 +14,19 @@ def set_ghosts(r, ghosts, value):
 
     return
 
-def set_vars(impipe_data, app_data):
+def set_vars(app_data):
+    pipe_data = app_data['pipe_data']
+
     L = app_data['L']
 
     y = Variable(Int, "y")
     x = Variable(Int, "x")
 
-    impipe_data['y'] = y
-    impipe_data['x'] = x
+    pipe_data['y'] = y
+    pipe_data['x'] = x
 
     n = Parameter(Int, "n")
-    impipe_data['n'] = n
+    pipe_data['n'] = n
 
     # grid size at each level
     N = {}
@@ -50,25 +52,26 @@ def set_vars(impipe_data, app_data):
         jacobi_c[l] = omega * dinv
     #endfor
 
-    impipe_data['N'] = N
+    pipe_data['N'] = N
 
-    impipe_data['invhh']    = invhh
-    impipe_data['jacobi_c'] = jacobi_c
+    pipe_data['invhh']    = invhh
+    pipe_data['jacobi_c'] = jacobi_c
 
     # extent in each dimension
     extent = {}
     for l in range(0, L+1):
         extent[l] = Interval(Int, 0, N[l]+1)
 
-    impipe_data['extent'] = extent
+    pipe_data['extent'] = extent
 
     return
 
-def set_cases(impipe_data, app_data):
-    y = impipe_data['y']
-    x = impipe_data['x']
+def set_cases(app_data):
+    pipe_data = app_data['pipe_data']
+    y = pipe_data['y']
+    x = pipe_data['x']
 
-    N = impipe_data['N']
+    N = pipe_data['N']
     L = app_data['L']
 
     interior = {}
@@ -98,7 +101,7 @@ def set_cases(impipe_data, app_data):
         ghosts[l]['ghost_right'] = Condition(x, "==", N[l]+1) \
                                  & interior[l]['in_y']
 
-    impipe_data['interior'] = interior
-    impipe_data['ghosts'] = ghosts
+    pipe_data['interior'] = interior
+    pipe_data['ghosts'] = ghosts
 
     return

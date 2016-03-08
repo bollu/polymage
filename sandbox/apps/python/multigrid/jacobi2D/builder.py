@@ -44,17 +44,18 @@ def graph_gen(pipe, file_name, app_data):
 
     return
 
-def build_mg_cycle(impipe_data, app_data):
+def build_mg_cycle(app_data):
+    pipe_data = app_data['pipe_data']
     cycle_type = app_data['cycle']
 
     if cycle_type == 'V':
         # construct the multigrid v-cycle pipeline
-        mg = v_cycle(impipe_data, app_data)
+        mg = v_cycle(app_data)
     elif cycle_type == 'W':
         # construct the multigrid w-cycle pipeline
-        mg = w_cycle(impipe_data, app_data)
+        mg = w_cycle(app_data)
 
-    n = impipe_data['n']
+    n = pipe_data['n']
 
     live_outs = [mg]
     pipe_name = app_data['cycle_name']
@@ -76,7 +77,9 @@ def build_mg_cycle(impipe_data, app_data):
 
     return mg_pipe
 
-def create_lib(build_func, pipe_name, impipe_data, app_data, mode):
+def create_lib(build_func, pipe_name, app_data):
+    pipe_data = app_data['pipe_data']
+    mode = app_data['mode']
     app_args = app_data['app_args']
     pipe_src = pipe_name+".cpp"
     pipe_so = pipe_name+".so"
@@ -84,7 +87,7 @@ def create_lib(build_func, pipe_name, impipe_data, app_data, mode):
     if build_func != None:
         if mode == 'new':
             # build the polymage pipeline
-            pipe = build_func(impipe_data, app_data)
+            pipe = build_func(app_data)
 
             # draw the pipeline graph to a png file
             graph_gen(pipe, pipe_name, app_data)

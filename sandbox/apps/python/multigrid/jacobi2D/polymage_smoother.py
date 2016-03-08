@@ -6,20 +6,20 @@ sys.path.insert(0, '../../../../')
 from compiler   import *
 from constructs import *
 
-def w_jacobi(U_, F_, l, name, impipe_data, app_data):
-    y = impipe_data['y']
-    x = impipe_data['x']
+def w_jacobi(U_, F_, l, name, pipe_data, app_data):
+    y = pipe_data['y']
+    x = pipe_data['x']
 
     L = app_data['L']
 
-    invhh = impipe_data['invhh']
+    invhh = pipe_data['invhh']
 
-    jacobi_c = impipe_data['jacobi_c']
+    jacobi_c = pipe_data['jacobi_c']
     c = jacobi_c[l]
 
-    extent = impipe_data['extent']
-    interior = impipe_data['interior']
-    ghosts = impipe_data['ghosts']
+    extent = pipe_data['extent']
+    interior = pipe_data['interior']
+    ghosts = pipe_data['ghosts']
 
     inner_box = interior[l]['inner_box']
 

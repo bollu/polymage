@@ -8,17 +8,18 @@ from constructs import *
 from compiler import *
 import tuner
 
-def auto_tune(impipe_data, app_data):
+def auto_tune(app_data):
+    pipe_data = app_data['pipe_data']
 
     cycle_type = app_data['cycle']
     if cycle_type == 'V':
-        mg = v_cycle(impipe_data, app_data)
+        mg = v_cycle(pipe_data, app_data)
     elif cycle_type == 'W':
-        mg = w_cycle(impipe_data, app_data)
+        mg = w_cycle(pipe_data, app_data)
 
     app_name = app_data['cycle_name']
     live_outs = [mg]
-    n = impipe_data['n']
+    n = pipe_data['n']
     param_estimates = [(n, app_data['n'])]
     param_constraints = [ Condition(n, '==', app_data['n']) ]
     dst_path = "/tmp"
