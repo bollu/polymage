@@ -4,7 +4,7 @@ import ctypes
 import numpy as np
 import time
 
-from printer import printLine, printLayout, printErrors
+from printer import print_line, print_layout, print_errors
 
 from compiler   import *
 from constructs import *
@@ -48,11 +48,11 @@ def minimal_exec_mg(pipe_lib, pipe_lib_func, func_params,
 
     return
 
-def calcNorm(U_, app_data):
+def calc_norm(U_, app_data):
     N = app_data['N']
 
     grid_data = app_data['grid_data']
-    F_       = grid_data['F_']
+    F_ = grid_data['F_']
     U_EXACT_ = grid_data['U_EXACT_']
 
     # lib function name
@@ -62,46 +62,46 @@ def calcNorm(U_, app_data):
     err   = np.zeros((1), np.float64)
 
     # lib function args
-    normArgs = []
-    normArgs += [ctypes.c_int(N)]
-    normArgs += [ctypes.c_void_p(      F_.ctypes.data)]
-    normArgs += [ctypes.c_void_p(U_EXACT_.ctypes.data)]
-    normArgs += [ctypes.c_void_p(      U_.ctypes.data)]
-    normArgs += [ctypes.c_void_p(     err.ctypes.data)]
-    normArgs += [ctypes.c_void_p(   resid.ctypes.data)]
+    norm_args = []
+    norm_args += [ctypes.c_int(N)]
+    norm_args += [ctypes.c_void_p(F_.ctypes.data)]
+    norm_args += [ctypes.c_void_p(U_EXACT_.ctypes.data)]
+    norm_args += [ctypes.c_void_p(U_.ctypes.data)]
+    norm_args += [ctypes.c_void_p(err.ctypes.data)]
+    norm_args += [ctypes.c_void_p(resid.ctypes.data)]
 
     # call lib function
-    norm(*normArgs)
+    norm(*norm_args)
 
     # save the old norm values
-    app_data['oldResidual'] = app_data['resid']
-    app_data['oldErr']      = app_data['err']
+    app_data['old_residual'] = app_data['resid']
+    app_data['old_err'] = app_data['err']
 
     # register the norm values in the data dictionary
     app_data['resid'] = resid[0]
-    app_data['err']   = err[0]
+    app_data['err'] = err[0]
 
     return
 
-def callMGCycle(U_, W_, app_data):
+def call_mg_cycle(U_, W_, app_data):
     n = app_data['n']
 
     grid_data = app_data['grid_data']
-    F_       = grid_data['F_']
+    F_ = grid_data['F_']
 
     # lib function name
     func_name = 'pipeline_'+app_data['cycle_name']
-    mgCycleFunc = app_data[func_name]
+    mg_cycle_func = app_data[func_name]
 
     # lib function args
-    mgCycleArgs = []
-    mgCycleArgs += [ctypes.c_int(n)]
-    mgCycleArgs += [ctypes.c_void_p(F_.ctypes.data)]
-    mgCycleArgs += [ctypes.c_void_p(U_.ctypes.data)]
-    mgCycleArgs += [ctypes.c_void_p(W_.ctypes.data)]
+    mg_cycle_args = []
+    mg_cycle_args += [ctypes.c_int(n)]
+    mg_cycle_args += [ctypes.c_void_p(F_.ctypes.data)]
+    mg_cycle_args += [ctypes.c_void_p(U_.ctypes.data)]
+    mg_cycle_args += [ctypes.c_void_p(W_.ctypes.data)]
 
     # call lib function
-    mgCycleFunc(*mgCycleArgs)
+    mg_cycle_func(*mg_cycle_args)
 
     return
 
@@ -115,23 +115,23 @@ def multigrid(app_data):
     time_store = {}
     time_taken = 0
 
-    printLayout(app_data)
-    printErrors(0, app_data)
+    print_layout(app_data)
+    print_errors(0, app_data)
 
     timer = app_data['timer']
     nruns = int(app_data['runs'])
 
     run = 0
-    while run < nruns :
+    while run < nruns:
         it = 0
         if timer:
             t1 = time.time()
-        while it < nit :
+        while it < nit:
             it += 1
-            callMGCycle(UW[(it-1)%2], UW[it%2], app_data)
+            call_mg_cycle(UW[(it-1)%2], UW[it%2], app_data)
             if not timer:
-                calcNorm(UW[it%2], app_data)
-                printErrors(it, app_data)
+                calc_norm(UW[it%2], app_data)
+                print_errors(it, app_data)
         if timer:
             t2 = time.time()
             time_store[run] = float(t2) - float(t1)
@@ -142,7 +142,7 @@ def multigrid(app_data):
     if timer:
         time_taken = time_taken / nruns
         print("")
-        print("[execMG] : Average time taken to execute = ",
+        print("[exec_mg] : Average time taken to execute = ",
               time_taken*1000, " ms")
 
     return

@@ -1,31 +1,31 @@
 import sys
-from polymage_common import setGhosts
+from polymage_common import set_ghosts
 
 sys.path.insert(0, '../../../../')
 
 from compiler   import *
 from constructs import *
 
-def wJacobi(U_, F_, l, name, impipeData, appData):
-    y = impipeData['y']
-    x = impipeData['x']
+def w_jacobi(U_, F_, l, name, impipe_data, app_data):
+    y = impipe_data['y']
+    x = impipe_data['x']
 
-    L = appData['L']
+    L = app_data['L']
 
-    invhh = impipeData['invhh']
+    invhh = impipe_data['invhh']
 
-    jacobi_c = impipeData['jacobi_c']
+    jacobi_c = impipe_data['jacobi_c']
     c = jacobi_c[l]
 
-    extent = impipeData['extent']
-    interior = impipeData['interior']
-    ghosts = impipeData['ghosts']
+    extent = impipe_data['extent']
+    interior = impipe_data['interior']
+    ghosts = impipe_data['ghosts']
 
-    innerBox = interior[l]['innerBox']
+    inner_box = interior[l]['inner_box']
 
     W_ = Function(([y, x], [extent[l], extent[l]]), Double, str(name))
     if U_ != None:
-        W_.defn = [ Case(innerBox,
+        W_.defn = [ Case(inner_box,
                          U_(y, x) - c * (( \
                          U_(y  , x  ) * 4.0 \
                        - U_(y-1, x  )       \
@@ -35,11 +35,11 @@ def wJacobi(U_, F_, l, name, impipeData, appData):
                        ) * invhh[l]         \
                        - F_(y, x))) ]
     else:
-        W_.defn = [ Case(innerBox, c * F_(y, x)) ]
+        W_.defn = [ Case(inner_box, c * F_(y, x)) ]
 
     if l == L:
-        setGhosts(W_, ghosts[l], U_(y, x))
+        set_ghosts(W_, ghosts[l], U_(y, x))
     else:
-        setGhosts(W_, ghosts[l], 0.0)
+        set_ghosts(W_, ghosts[l], 0.0)
 
     return W_

@@ -2,30 +2,30 @@ from __future__ import absolute_import, division, print_function
 
 import sys
 from fractions  import Fraction
-from polymage_common import setGhosts
+from polymage_common import set_ghosts
 
 sys.path.insert(0, '../../../../')
 
-from compiler   import *
+from compiler import *
 from constructs import *
 
-def interpolate(U_, correction, l, name, impipeData):
+def interpolate(U_, correction, l, name, impipe_data):
     if U_ == None:
         return correction
 
-    y = impipeData['y']
-    x = impipeData['x']
+    y = impipe_data['y']
+    x = impipe_data['x']
 
     if correction == None:
         correct = 0.0
     else:
         correct = correction(y, x)
 
-    extent = impipeData['extent']
-    interior = impipeData['interior']
-    ghosts = impipeData['ghosts']
+    extent = impipe_data['extent']
+    interior = impipe_data['interior']
+    ghosts = impipe_data['ghosts']
 
-    innerBox = interior[l]['innerBox']
+    inner_box = interior[l]['inner_box']
 
     W_ = Function(([y, x], [extent[l], extent[l]]), Double, str(name))
 
@@ -42,16 +42,16 @@ def interpolate(U_, correction, l, name, impipeData):
              + U_(y/2  , x/2+1)
              + U_(y/2+1, x/2+1)) * 0.25
 
-    W_.defn = [ Case(innerBox,
-                    correct + \
-                      Select(even_y,
-                        Select(even_x,
-                          expr_00,
-                          expr_01),
-                        Select(even_x,
-                          expr_10,
-                          expr_11))) ]
+    W_.defn = [ Case(inner_box,
+                     correct + \
+                       Select(even_y,
+                         Select(even_x,
+                           expr_00,
+                           expr_01),
+                         Select(even_x,
+                           expr_10,
+                           expr_11))) ]
 
-    setGhosts(W_, ghosts[l], correct)
+    set_ghosts(W_, ghosts[l], correct)
 
     return W_

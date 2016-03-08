@@ -2,32 +2,30 @@ import sys
 import os.path
 import numpy as np
 from arg_parser import parse_args
-from printer         import printHeader, printUsage, \
-                            printLine
-from polymage_common import setVars, setCases
-from execMG          import calcNorm
+from printer import print_header, print_usage, print_line
+from polymage_common import set_vars, set_cases
+from exec_mg import calc_norm
 
-def initNorm(appData):
-    grid_data = appData['grid_data']
+def init_norm(app_data):
+    grid_data = app_data['grid_data']
     U_ = grid_data['U_']
 
-    appData['resid'] = 0.0
-    appData['err']   = 0.0
+    app_data['resid'] = 0.0
+    app_data['err']   = 0.0
 
     # calculate the initial residual norm and error
     print("[init]: calculating the initial norm and error ...")
-    calcNorm(U_, appData)
+    calc_norm(U_, app_data)
     print("[init]: ... DONE")
 
     return
 
-def initBorder(grid, borderWidth, borderValues):
-    # size of the grid - assumed to be same in
-    # all the dimensions
+def init_border(grid, border_width, border_values):
+    # size of the grid - assumed to be same in all the dimensions
     n = grid.shape[0]
 
-    w = borderWidth
-    v = borderValues
+    w = border_width
+    v = border_values
 
     # y-planes
     grid[  0:w] = v
@@ -39,9 +37,9 @@ def initBorder(grid, borderWidth, borderValues):
 
     return
 
-def initBorderPiecewise(grid, borderWidth, borderValues):
-    w = borderWidth
-    v = borderValues
+def init_border_piecewise(grid, border_width, border_values):
+    w = border_width
+    v = border_values
 
     N = grid.shape[0]
     n = N-2*w+1
@@ -61,11 +59,11 @@ def initBorderPiecewise(grid, borderWidth, borderValues):
 
     return
 
-def initGrids(app_args,appData):
+def init_grids(app_args,app_data):
     print("[init_mg.py] : grids")
 
-    N = appData['N']
-    problem = appData['problem']
+    N = app_data['N']
+    problem = app_data['problem']
 
     # working grid (even step)
     U_ = np.ones((N+2, N+2), np.float64)
@@ -73,14 +71,13 @@ def initGrids(app_args,appData):
     W_ = np.zeros((N+2, N+2), np.float64)
 
     if problem == 1:
-        initBorder(U_, borderWidth=1, borderValues=0.0)
-        initBorder(W_, borderWidth=1, borderValues=0.0)
+        init_border(U_, border_width=1, border_values=0.0)
+        init_border(W_, border_width=1, border_values=0.0)
         # RHS
         F_ = np.zeros((N+2, N+2), np.float64)
         # exact solution
         U_EXACT_ = np.zeros((N+2, N+2), np.float64)
     else:
-        #'''
         N1 = {}
         L = int(app_args.L) 
         n = int(app_args.n)
@@ -91,7 +88,7 @@ def initGrids(app_args,appData):
                 N1[l] = 2*N1[l-1]+1
 
             h = 1.0/(N1[l]+1)
-        #'''
+
         indices = np.indices((N+2, N+2))
         x = indices[0] * h
         y = indices[1] * h
@@ -103,11 +100,11 @@ def initGrids(app_args,appData):
 
         x_y = x + y
         if problem == 2:
-            b = {(0, 0):x, (0, 1):y  , (0, 2):x_1, \
-                 (1, 0):x, (1, 1):U_ , (1, 2):x_1, \
+            b = {(0, 0):x, (0, 1):y  , (0, 2):x_1,
+                 (1, 0):x, (1, 1):U_ , (1, 2):x_1,
                  (2, 0):x, (2, 1):y_1, (2, 2):x_1}
-            initBorderPiecewise(U_, borderWidth=1, borderValues=b)
-            initBorderPiecewise(W_, borderWidth=1, borderValues=b)
+            init_border_piecewise(U_, border_width=1, border_values=b)
+            init_border_piecewise(W_, border_width=1, border_values=b)
             # initialize F_
             F_ = np.zeros((N+2, N+2), np.float64) # f(i, j) <- 0
             # initialize U_
@@ -121,11 +118,11 @@ def initGrids(app_args,appData):
 
             sx_y = np.sin(x_y)
 
-            b = {(0, 0):sx, (0, 1):sy  , (0, 2):sx_1, \
-                 (1, 0):sx, (1, 1):U_  , (1, 2):sx_1, \
+            b = {(0, 0):sx, (0, 1):sy  , (0, 2):sx_1,
+                 (1, 0):sx, (1, 1):U_  , (1, 2):sx_1,
                  (2, 0):sx, (2, 1):sy_1, (2, 2):sx_1}
-            initBorderPiecewise(U_, borderWidth=1, borderValues=b)
-            initBorderPiecewise(W_, borderWidth=1, borderValues=b)
+            init_border_piecewise(U_, border_width=1, border_values=b)
+            init_border_piecewise(W_, border_width=1, border_values=b)
             # initialize F_
             F_ = -2.0 * sx_y
             # initialize U_EXACT_
@@ -142,24 +139,24 @@ def initGrids(app_args,appData):
             b = {(0, 0):xx, (0, 1):yy  , (0, 2):xx_1, \
                  (1, 0):xx, (1, 1):U_  , (1, 2):xx_1, \
                  (2, 0):xx, (2, 1):yy_1, (2, 2):xx_1}
-            initBorderPiecewise(U_, borderWidth=1, borderValues=b)
-            initBorderPiecewise(W_, borderWidth=1, borderValues=b)
+            init_border_piecewise(U_, border_width=1, border_values=b)
+            init_border_piecewise(W_, border_width=1, border_values=b)
             # initialize f
             F_ = np.zeros((N+2, N+2), np.float64) # f(i, j) <- 0
             # initialize u
             U_EXACT_ = xx_yy
 
     grid_data = {}
-    grid_data['U_']       = U_
-    grid_data['W_']       = W_
-    grid_data['F_']       = F_
+    grid_data['U_'] = U_
+    grid_data['W_'] = W_
+    grid_data['F_'] = F_
     grid_data['U_EXACT_'] = U_EXACT_
 
-    appData['grid_data'] = grid_data
+    app_data['grid_data'] = grid_data
 
     return 
 
-def initParams(app_args, appData):
+def init_params(app_args, app_data):
     print("[init_mg.py] : parameters")
 
     # size of each dimension of the coarsest grid
@@ -172,52 +169,52 @@ def initParams(app_args, appData):
     for l in range(0,L):
         N = 2*N+1
 
-    appData['n'] = n
-    appData['N'] = N
-    appData['L'] = L
-    appData['runs'] = int(app_args.runs)
+    app_data['n'] = n
+    app_data['N'] = N
+    app_data['L'] = L
+    app_data['runs'] = int(app_args.runs)
 
     # pre-smoother, post-smoother and
     # coarse-grid relaxation steps
-    appData['nu1'] = int(app_args.nu1)
-    appData['nuc'] = int(app_args.nuc)
-    appData['nu2'] = int(app_args.nu2)
+    app_data['nu1'] = int(app_args.nu1)
+    app_data['nuc'] = int(app_args.nuc)
+    app_data['nu2'] = int(app_args.nu2)
 
     # problem type
-    appData['problem'] = int(app_args.problem)
+    app_data['problem'] = int(app_args.problem)
 
     # pool allocate option
-    appData['pool_alloc'] = app_args.pool_alloc
+    app_data['pool_alloc'] = app_args.pool_alloc
 
-    assert not (appData['nu1'] == 0 and \
-                appData['nu2'] == 0 and
-                appData['nuc'] == 0)
+    assert not (app_data['nu1'] == 0 and \
+                app_data['nu2'] == 0 and
+                app_data['nuc'] == 0)
 
-    return appData
+    return app_data
 
-def getInput(app_args, appData):
-    appData['app_args'] = app_args
-    appData['mode'] = app_args.mode
-    appData['cycle'] = app_args.cycle
-    appData['nit'] = int(app_args.nit)
+def get_input(app_args, app_data):
+    app_data['app_args'] = app_args
+    app_data['mode'] = app_args.mode
+    app_data['cycle'] = app_args.cycle
+    app_data['nit'] = int(app_args.nit)
 
-    cycle_name = appData['cycle']+"cycle"
-    appData['cycle_name'] = cycle_name
-    appData['timer'] = app_args.timer
+    cycle_name = app_data['cycle']+"cycle"
+    app_data['cycle_name'] = cycle_name
+    app_data['timer'] = app_args.timer
   
     return
 
-def initAll(impipeData, appData):
+def init_all(impipe_data, app_data):
     # TODO init cycle type {V, W}
     app_args = parse_args()
-    getInput(app_args,appData)
+    get_input(app_args,app_data)
 
-    initParams(app_args,appData)
+    init_params(app_args,app_data)
 
-    initGrids(app_args,appData)
+    init_grids(app_args,app_data)
 
-    setVars(impipeData, appData)
+    set_vars(impipe_data, app_data)
 
-    setCases(impipeData, appData)
+    set_cases(impipe_data, app_data)
 
     return

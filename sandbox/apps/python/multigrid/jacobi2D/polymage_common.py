@@ -8,23 +8,23 @@ from constructs import *
 
 from fractions  import Fraction
 
-def setGhosts(r, ghosts, value):
+def set_ghosts(r, ghosts, value):
     for ghost in ghosts:
         r.defn.append(Case(ghosts[ghost], value))
 
     return
 
-def setVars(impipeData, appData):
-    L = appData['L']
+def set_vars(impipe_data, app_data):
+    L = app_data['L']
 
     y = Variable(Int, "y")
     x = Variable(Int, "x")
 
-    impipeData['y'] = y
-    impipeData['x'] = x
+    impipe_data['y'] = y
+    impipe_data['x'] = x
 
     n = Parameter(Int, "n")
-    impipeData['n'] = n
+    impipe_data['n'] = n
 
     # grid size at each level
     N = {}
@@ -50,26 +50,26 @@ def setVars(impipeData, appData):
         jacobi_c[l] = omega * dinv
     #endfor
 
-    impipeData['N'] = N
+    impipe_data['N'] = N
 
-    impipeData['invhh']    = invhh
-    impipeData['jacobi_c'] = jacobi_c
+    impipe_data['invhh']    = invhh
+    impipe_data['jacobi_c'] = jacobi_c
 
     # extent in each dimension
     extent = {}
     for l in range(0, L+1):
         extent[l] = Interval(Int, 0, N[l]+1)
 
-    impipeData['extent'] = extent
+    impipe_data['extent'] = extent
 
     return
 
-def setCases(impipeData, appData):
-    y = impipeData['y']
-    x = impipeData['x']
+def set_cases(impipe_data, app_data):
+    y = impipe_data['y']
+    x = impipe_data['x']
 
-    N = impipeData['N']
-    L = appData['L']
+    N = impipe_data['N']
+    L = app_data['L']
 
     interior = {}
     ghosts = {}
@@ -77,28 +77,28 @@ def setCases(impipeData, appData):
         # grid interior
         interior[l] = {}
 
-        interior[l]['inY'] = Condition(y, ">=", 1  ) \
-                           & Condition(y, "<=", N[l])
-        interior[l]['inX'] = Condition(x, ">=", 1  ) \
-                           & Condition(x, "<=", N[l])
- 
-        interior[l]['innerBox'] = interior[l]['inY'] \
-                                & interior[l]['inX']
- 
+        interior[l]['in_y'] = Condition(y, ">=", 1) \
+                            & Condition(y, "<=", N[l])
+        interior[l]['in_x'] = Condition(x, ">=", 1) \
+                            & Condition(x, "<=", N[l])
+
+        interior[l]['inner_box'] = interior[l]['in_y'] \
+                                 & interior[l]['in_x']
+
         # grid ghosts
         ghosts[l] = {}
- 
-        # top and bottom planes
-        ghosts[l]['ghostTop']    = Condition(y, "==", 0)
-        ghosts[l]['ghostBottom'] = Condition(y, "==", N[l]+1)
- 
-        # left and right planes
-        ghosts[l]['ghostLeft']   = Condition(x, "==", 0) \
-                                 & interior[l]['inY']
-        ghosts[l]['ghostRight']  = Condition(x, "==", N[l]+1) \
-                                 & interior[l]['inY']
 
-    impipeData['interior'] = interior
-    impipeData['ghosts'] = ghosts
+        # top and bottom planes
+        ghosts[l]['ghost_top'] = Condition(y, "==", 0)
+        ghosts[l]['ghost_bottom'] = Condition(y, "==", N[l]+1)
+
+        # left and right planes
+        ghosts[l]['ghost_left'] = Condition(x, "==", 0) \
+                                & interior[l]['in_y']
+        ghosts[l]['ghost_right'] = Condition(x, "==", N[l]+1) \
+                                 & interior[l]['in_y']
+
+    impipe_data['interior'] = interior
+    impipe_data['ghosts'] = ghosts
 
     return

@@ -5,7 +5,7 @@ def parse_args():
     parser = optparse.OptionParser()
 
     help_str = \
-        '"new" : from scratch | "existing" : compile and run |  "ready" : just run'
+    '"new" : from scratch | "existing" : compile and run |  "ready" : just run'
     parser.add_option('-m', '--mode',
                        type='choice',
                        action='store',

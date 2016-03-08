@@ -1,8 +1,8 @@
 import sys
 
-from polymage_vcycle import vCycle
-from polymage_wcycle import wCycle
-from execMG import minimal_exec_mg
+from polymage_vcycle import v_cycle
+from polymage_wcycle import w_cycle
+from exec_mg import minimal_exec_mg
 from constructs import *
 
 from compiler import *
@@ -12,9 +12,9 @@ def auto_tune(impipe_data, app_data):
 
     cycle_type = app_data['cycle']
     if cycle_type == 'V':
-        mg = vCycle(impipe_data, app_data)
+        mg = v_cycle(impipe_data, app_data)
     elif cycle_type == 'W':
-        mg = wCycle(impipe_data, app_data)
+        mg = w_cycle(impipe_data, app_data)
 
     app_name = app_data['cycle_name']
     live_outs = [mg]

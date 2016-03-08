@@ -1,29 +1,29 @@
 import sys
-from polymage_common import setGhosts
+from polymage_common import set_ghosts
 
 sys.path.insert(0, '../../../../')
 
 from compiler   import *
 from constructs import *
 
-def defect(U_, F_, l, name, impipeData):
+def defect(U_, F_, l, name, impipe_data):
     if U_ == None:
         return F_
 
-    y = impipeData['y']
-    x = impipeData['x']
+    y = impipe_data['y']
+    x = impipe_data['x']
 
-    invhh = impipeData['invhh']
+    invhh = impipe_data['invhh']
 
-    extent = impipeData['extent']
-    interior = impipeData['interior']
-    ghosts = impipeData['ghosts']
+    extent = impipe_data['extent']
+    interior = impipe_data['interior']
+    ghosts = impipe_data['ghosts']
 
-    innerBox = interior[l]['innerBox']
+    inner_box = interior[l]['inner_box']
 
     W_ = Function(([y, x], [extent[l], extent[l]]), Double, str(name))
-    W_.defn = [ Case(innerBox,
-                      F_(y, x)
+    W_.defn = [ Case(inner_box,
+                     F_(y, x) \
                    - (U_(y  , x  ) * 4.0 \
                    -  U_(y-1, x  )       \
                    -  U_(y+1, x  )       \
@@ -31,6 +31,6 @@ def defect(U_, F_, l, name, impipeData):
                    -  U_(y  , x+1)       \
                      ) * invhh[l]) ]
 
-    setGhosts(W_, ghosts[l], 0.0)
+    set_ghosts(W_, ghosts[l], 0.0)
 
     return W_

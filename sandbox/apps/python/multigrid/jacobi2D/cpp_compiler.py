@@ -4,11 +4,11 @@ import subprocess
 from compiler   import *
 from constructs import *
 
-def cCompile(inFile, outFile, cCompiler=None):
-    if cCompiler == None or cCompiler == "intel":
+def c_compile(in_file, out_file, c_compiler=None):
+    if c_compiler == None or c_compiler == "intel":
         cxx = "icpc"
         opt = "-openmp -xhost -O3 -ipo -ansi-alias"
-    elif cCompiler == "gnu":
+    elif c_compiler == "gnu":
         cxx = "g++"
         opt = "-fopenmp -march=native -O3 -ftree-vectorize"
     #fi
@@ -18,19 +18,19 @@ def cCompile(inFile, outFile, cCompiler=None):
     inc = ""
 
     shared = "-fPIC -shared"
-    out = "-o "+outFile
+    out = "-o "+out_file
 
-    compileStr = cxx + " " \
-               + opt + " " \
-               + inc + " " \
-               + shared + " " \
-               + inFile + " " \
-               + out
+    compile_str = cxx + " " \
+                + opt + " " \
+                + inc + " " \
+                + shared + " " \
+                + in_file + " " \
+                + out
 
     print("")
-    print("[cpp_compiler]: compiling", inFile, "to", outFile, "...")
-    print(">", compileStr)
-    subprocess.check_output(compileStr, shell=True)
+    print("[cpp_compiler]: compiling", in_file, "to", out_file, "...")
+    print(">", compile_str)
+    subprocess.check_output(compile_str, shell=True)
     print("[cpp_compiler]: ... DONE")
 
     return
