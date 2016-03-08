@@ -13,9 +13,9 @@ def auto_tune(app_data):
 
     cycle_type = app_data['cycle']
     if cycle_type == 'V':
-        mg = v_cycle(pipe_data, app_data)
+        mg = v_cycle(app_data)
     elif cycle_type == 'W':
-        mg = w_cycle(pipe_data, app_data)
+        mg = w_cycle(app_data)
 
     app_name = app_data['cycle_name']
     live_outs = [mg]
