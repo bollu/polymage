@@ -1,36 +1,36 @@
 import sys
-from polymage_common import setGhosts
+from polymage_common import set_ghosts
 
 sys.path.insert(0, '../../../../')
 
 from compiler   import *
 from constructs import *
 
-def wJacobi(U_, F_, l, name, pipeData, appData):
-    z = pipeData['z']
-    y = pipeData['y']
-    x = pipeData['x']
+def w_jacobi(U_, F_, l, name, app_data):
+    pipe_data = app_data['pipe_data']
 
-    L = appData['L']
+    z = pipe_data['z']
+    y = pipe_data['y']
+    x = pipe_data['x']
 
-    invhh = pipeData['invhh']
+    L = app_data['L']
 
-    jacobi_c = pipeData['jacobi_c']
+    invhh = pipe_data['invhh']
+
+    jacobi_c = pipe_data['jacobi_c']
     c = jacobi_c[l]
 
-    extent = pipeData['extent']
-    interior = pipeData['interior']
-    ghosts = pipeData['ghosts']
+    extent = pipe_data['extent']
+    interior = pipe_data['interior']
+    ghosts = pipe_data['ghosts']
 
-    innerBox = interior[l]['innerBox']
+    inner_box = interior[l]['inner_box']
 
-    W_ = Function(([z, y, x], \
-                   [extent[l], extent[l], extent[l]]), \
-                   Double, \
-                   str(name))
+    W_ = Function(([z, y, x], [extent[l], extent[l], extent[l]]),
+                  Double, str(name))
 
     if U_ != None:
-        W_.defn = [ Case(innerBox,
+        W_.defn = [ Case(inner_box,
                          U_(z, y, x) \
                        - c * (( \
                          U_(z  , y  , x  ) * 6.0 \
@@ -43,11 +43,11 @@ def wJacobi(U_, F_, l, name, pipeData, appData):
                        ) * invhh[l]              \
                        - F_(z  , y  , x  ))) ]
     else:
-        W_.defn = [ Case(innerBox, c * F_(z, y, x)) ]
+        W_.defn = [ Case(inner_box, c * F_(z, y, x)) ]
 
     if l == L:
-        setGhosts(W_, ghosts[l], U_(z, y, x))
+        set_ghosts(W_, ghosts[l], U_(z, y, x))
     else:
-        setGhosts(W_, ghosts[l], 0.0)
+        set_ghosts(W_, ghosts[l], 0.0)
 
     return W_

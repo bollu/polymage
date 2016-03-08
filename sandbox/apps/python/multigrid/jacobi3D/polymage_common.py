@@ -8,25 +8,27 @@ from constructs import *
 
 from fractions  import Fraction
 
-def setGhosts(r, ghosts, value):
+def set_ghosts(r, ghosts, value):
     for ghost in ghosts:
         r.defn.append(Case(ghosts[ghost], value))
 
     return
 
-def setVars(pipeData, appData):
+def set_vars(app_data):
+    pipe_data = app_data['pipe_data']
+
     L = appData['L']
 
     z = Variable(Int, "z")
     y = Variable(Int, "y")
     x = Variable(Int, "x")
 
-    pipeData['z'] = z
-    pipeData['y'] = y
-    pipeData['x'] = x
+    pipe_data['z'] = z
+    pipe_data['y'] = y
+    pipe_data['x'] = x
 
     n = Parameter(Int, "n")
-    pipeData['n'] = n
+    pipe_data['n'] = n
 
     # grid size at each level
     N = {}
@@ -52,27 +54,28 @@ def setVars(pipeData, appData):
         jacobi_c[l] = omega * dinv
     #endfor
 
-    pipeData['N'] = N
+    pipe_data['N'] = N
 
-    pipeData['invhh']    = invhh
-    pipeData['jacobi_c'] = jacobi_c
+    pipe_data['invhh']    = invhh
+    pipe_data['jacobi_c'] = jacobi_c
 
     # extent in each dimension
     extent = {}
     for l in range(0, L+1):
         extent[l] = Interval(Int, 0, N[l]+1)
 
-    pipeData['extent'] = extent
+    pipe_data['extent'] = extent
 
     return
 
-def setCases(pipeData, appData):
-    z = pipeData['z']
-    y = pipeData['y']
-    x = pipeData['x']
+def set_cases(app_data):
+    pipe_data = app_data['pipe_data']
+    z = pipe_data['z']
+    y = pipe_data['y']
+    x = pipe_data['x']
 
-    N = pipeData['N']
-    L = appData['L']
+    N = pipe_data['N']
+    L = app_data['L']
 
     interior = {}
     ghosts = {}
@@ -80,39 +83,39 @@ def setCases(pipeData, appData):
         # grid interior
         interior[l] = {}
 
-        interior[l]['inZ'] = Condition(z, ">=", 1  ) \
-                           & Condition(z, "<=", N[l])
-        interior[l]['inY'] = Condition(y, ">=", 1  ) \
-                           & Condition(y, "<=", N[l])
-        interior[l]['inX'] = Condition(x, ">=", 1  ) \
-                           & Condition(x, "<=", N[l])
- 
-        interior[l]['innerBox'] = interior[l]['inZ'] \
-                                & interior[l]['inY'] \
-                                & interior[l]['inX']
- 
+        interior[l]['in_z'] = Condition(z, ">=", 1) \
+                            & Condition(z, "<=", N[l])
+        interior[l]['in_y'] = Condition(y, ">=", 1) \
+                            & Condition(y, "<=", N[l])
+        interior[l]['in_x'] = Condition(x, ">=", 1) \
+                            & Condition(x, "<=", N[l])
+
+        interior[l]['inner_box'] = interior[l]['in_z'] \
+                                 & interior[l]['in_y'] \
+                                 & interior[l]['in_x']
+
         # grid ghosts
         ghosts[l] = {}
- 
+
         # front and back planes
-        ghosts[l]['ghostFront']  = Condition(z, "==", 0)
-        ghosts[l]['ghostBack']   = Condition(z, "==", N[l]+1)
+        ghosts[l]['ghost_front']  = Condition(z, "==", 0)
+        ghosts[l]['ghost_back']   = Condition(z, "==", N[l]+1)
  
         # top and bottom planes
-        ghosts[l]['ghostTop']    = Condition(y, "==", 0) \
-                                 & interior[l]['inZ']
-        ghosts[l]['ghostBottom'] = Condition(y, "==", N[l]+1) \
-                                 & interior[l]['inZ']
- 
-        # left and right planes
-        ghosts[l]['ghostLeft']   = Condition(x, "==", 0) \
-                                 & interior[l]['inY'] \
-                                 & interior[l]['inZ']
-        ghosts[l]['ghostRight']  = Condition(x, "==", N[l]+1) \
-                                 & interior[l]['inY'] \
-                                 & interior[l]['inZ']
+        ghosts[l]['ghost_top'] = Condition(y, "==", 0) \
+                               & interior[l]['in_z']
+        ghosts[l]['ghost_bottom'] = Condition(y, "==", N[l]+1) \
+                                  & interior[l]['in_z']
 
-    pipeData['interior'] = interior
-    pipeData['ghosts'] = ghosts
+        # left and right planes
+        ghosts[l]['ghost_left'] = Condition(x, "==", 0) \
+                                & interior[l]['in_y'] \
+                                & interior[l]['in_z']
+        ghosts[l]['ghost_right'] = Condition(x, "==", N[l]+1) \
+                                 & interior[l]['in_y'] \
+                                 & interior[l]['in_z']
+
+    pipe_data['interior'] = interior
+    pipe_data['ghosts'] = ghosts
 
     return

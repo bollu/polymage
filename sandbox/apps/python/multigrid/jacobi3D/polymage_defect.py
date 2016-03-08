@@ -1,33 +1,31 @@
 import sys
-from polymage_common import setGhosts
+from polymage_common import set_ghosts
 
 sys.path.insert(0, '../../../../')
 
 from compiler   import *
 from constructs import *
 
-def defect(U_, F_, l, name, pipeData):
+def defect(U_, F_, l, name, pipe_data):
     if U_ == None:
         return F_
 
-    z = pipeData['z']
-    y = pipeData['y']
-    x = pipeData['x']
+    z = pipe_data['z']
+    y = pipe_data['y']
+    x = pipe_data['x']
 
-    invhh = pipeData['invhh']
+    invhh = pipe_data['invhh']
 
-    extent = pipeData['extent']
-    interior = pipeData['interior']
-    ghosts = pipeData['ghosts']
+    extent = pipe_data['extent']
+    interior = pipe_data['interior']
+    ghosts = pipe_data['ghosts']
 
-    innerBox = interior[l]['innerBox']
+    inner_box = interior[l]['inner_box']
 
-    W_ = Function(([z, y, x], \
-                   [extent[l], extent[l], extent[l]]), \
-                   Double, \
-                   str(name))
-    W_.defn = [ Case(innerBox,
-                      F_(z  , y  , x  )
+    W_ = Function(([z, y, x], [extent[l], extent[l], extent[l]]),
+                   Double, str(name))
+    W_.defn = [ Case(inner_box,
+                      F_(z  , y  , x  ) \
                    - (U_(z  , y  , x  ) * 6.0 \
                    -  U_(z-1, y  , x  )       \
                    -  U_(z+1, y  , x  )       \
@@ -37,6 +35,6 @@ def defect(U_, F_, l, name, pipeData):
                    -  U_(z  , y  , x+1)       \
                      ) * invhh[l]) ]
 
-    setGhosts(W_, ghosts[l], 0.0)
+    set_ghosts(W_, ghosts[l], 0.0)
 
     return W_
