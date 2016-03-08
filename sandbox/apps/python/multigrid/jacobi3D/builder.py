@@ -61,7 +61,7 @@ def build_mg_cycle(app_data):
     pipe_name = app_data['cycle_name']
     p_estimates = [(n, app_data['n'])]
     p_constraints = [ Condition(n, "==", app_data['n']) ]
-    t_size = [16, 16]
+    t_size = [8, 8, 32]
     g_size = 100
     opts = []
     if app_data['pool_alloc'] == True:

@@ -47,16 +47,16 @@ def init_grids(app_data):
     N = app_data['N']
 
     # working grid (even step)
-    U_ = np.ones((N+2, N+2), np.float64)
+    U_ = np.ones((N+2, N+2, N+2), np.float64)
     # working grid (odd step)
-    W_ = np.zeros((N+2, N+2), np.float64)
+    W_ = np.zeros((N+2, N+2, N+2), np.float64)
 
     init_border(U_, border_width=1, border_values=0.0)
     init_border(W_, border_width=1, border_values=0.0)
     # RHS
-    F_ = np.zeros((N+2, N+2), np.float64)
+    F_ = np.zeros((N+2, N+2, N+2), np.float64)
     # exact solution
-    U_EXACT_ = np.zeros((N+2, N+2), np.float64)
+    U_EXACT_ = np.zeros((N+2, N+2, N+2), np.float64)
 
     grid_data = {}
     grid_data['U_'] = U_
