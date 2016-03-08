@@ -69,7 +69,7 @@ def w_cycle(app_data):
                     in_func = smooth_p1[l][visit[l]][t-1]
 
                 smooth_p1[l][visit[l]][t] = \
-                    w_jacobi(in_func, f, l, fname, pipe_data, app_data)
+                    w_jacobi(in_func, f, l, fname, app_data)
 
             return smooth_p1[l][visit[l]][nuc-1]
         ###################################################
@@ -89,7 +89,7 @@ def w_cycle(app_data):
                     in_func = smooth_p1[l][visit[l]][t-1]
 
                 smooth_p1[l][visit[l]][t] = \
-                    w_jacobi(in_func, f, l, fname, pipe_data, app_data)
+                    w_jacobi(in_func, f, l, fname, app_data)
 
             if nu1 <= 0:
                 smooth_out = v
@@ -171,7 +171,7 @@ def w_cycle(app_data):
                     in_func = smooth_p2[l][visit[l]][t-1]
 
                 smooth_p2[l][visit[l]][t] = \
-                    w_jacobi(in_func, f, l, fname, pipe_data, app_data)
+                    w_jacobi(in_func, f, l, fname, app_data)
  
             return smooth_p2[l][visit[l]][nu2-1]
     #######################################################

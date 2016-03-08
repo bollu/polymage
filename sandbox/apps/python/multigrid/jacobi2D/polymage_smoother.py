@@ -6,7 +6,9 @@ sys.path.insert(0, '../../../../')
 from compiler   import *
 from constructs import *
 
-def w_jacobi(U_, F_, l, name, pipe_data, app_data):
+def w_jacobi(U_, F_, l, name, app_data):
+    pipe_data = app_data['pipe_data']
+
     y = pipe_data['y']
     x = pipe_data['x']
 

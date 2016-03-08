@@ -27,7 +27,7 @@ def auto_tune(app_data):
     group_size_configs = [3, 5, 7, 9, 11, 13, 15]
     #group_size_configs = [15]
 
-    tile_size_configs = []    
+    tile_size_configs = []
     tile_size_configs.append([64, 256])
     tile_size_configs.append([64, 128])    
     
@@ -51,6 +51,7 @@ def auto_tune(app_data):
     
     #opts = ['pool_alloc']
     opts = []
+
 
     # Generate Variants for Tuning
     # ============================

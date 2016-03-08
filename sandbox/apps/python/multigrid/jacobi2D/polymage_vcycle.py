@@ -63,8 +63,7 @@ def v_cycle(app_data):
                 else:
                     in_func = smooth_p1[l][t-1]
 
-                smooth_p1[l][t] = w_jacobi(in_func, f, l, fname,
-                                           pipe_data, app_data)
+                smooth_p1[l][t] = w_jacobi(in_func, f, l, fname, app_data)
 
             return smooth_p1[l][nuc-1]
         ###################################################
@@ -79,8 +78,7 @@ def v_cycle(app_data):
                 else:
                     in_func = smooth_p1[l][t-1]
 
-                smooth_p1[l][t] = w_jacobi(in_func, f, l, fname,
-                                           pipe_data, app_data)
+                smooth_p1[l][t] = w_jacobi(in_func, f, l, fname, app_data)
 
             if nu1 <= 0:
                 smooth_out = v
@@ -94,10 +92,8 @@ def v_cycle(app_data):
                             pipe_data)
 
             ###############################################
-  
             ''' RESTRICTION '''
-            r_2h[l] = restrict(r_h[l], l, "restrict_L"+str(l-1),
-                               pipe_data)
+            r_2h[l] = restrict(r_h[l], l, "restrict_L"+str(l-1), pipe_data)
 
             ###############################################
  
@@ -120,8 +116,7 @@ def v_cycle(app_data):
             else:
                 correct_in = smooth_p1[l][nu1-1]
 
-            ec[l] = interpolate(e_2h[l], correct_in, l, fname,
-                                pipe_data)
+            ec[l] = interpolate(e_2h[l], correct_in, l, fname, pipe_data)
 
             if nu2 <= 0:
                 return ec[l]
@@ -140,8 +135,7 @@ def v_cycle(app_data):
                 else:
                     in_func = smooth_p2[l][t-1]
 
-                smooth_p2[l][t] = w_jacobi(in_func, f, l, fname,
-                                           pipe_data, app_data)
+                smooth_p2[l][t] = w_jacobi(in_func, f, l, fname, app_data)
  
             return smooth_p2[l][nu2-1]
     #######################################################
