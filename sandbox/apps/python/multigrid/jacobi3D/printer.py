@@ -1,53 +1,57 @@
 import sys
 
-def printLine(to_file=None):
+def print_line(to_file=None):
     if to_file:
-        print("--------------------------------------------------", file=to_file)
+        print("--------------------------------------------------",
+              file=to_file)
     else:
         print("--------------------------------------------------")
 
-def printHeader():
-    print("              Multigrid Jacobi-3D")
+def print_header():
+    print_line()
+    print("              Multigrid Jacobi-2D")
+    print_line()
 
-def printUsage():
+def print_usage():
     print("[main]: Usage: ")
     print("[main]: "+sys.argv[0]+" <mode> <#iters>")
-    print("[main]: 'mode'  :: {'new', 'existing', 'tune'}")
+    print("[main]: 'mode'  :: {'new', 'existing', 'ready', 'tune'}")
 
-def printConfig(appData):
-    nx = ny = nz = appData['N']
-    printLine()
+def print_config(app_data):
+    nx = ny = nz = app_data['N']
+    print_line()
     print("# Problem Settings #")
     print("")
-    print("[main]: multigrid levels =", appData['L'])
-    print("[main]: grid size        =", nx, "x", ny, "x", nz)
-    print("[main]: n-iterations     =", appData['nit'])
+    print("[main]: multigrid levels =", app_data['L'])
+    print("[main]: grid size        =", nx, "x", ny)
+    print("[main]: n-iterations     =", app_data['nit'])
 
-    print("[main]: nu1              =", appData['nu1'])
-    print("[main]: nu2              =", appData['nu2'])
-    print("[main]: nuc              =", appData['nuc'])
-    printLine()
+    print("[main]: nu1              =", app_data['nu1'])
+    print("[main]: nu2              =", app_data['nu2'])
+    print("[main]: nuc              =", app_data['nuc'])
+    print_line()
 
-def printLayout(appData):
-    L = appData['L']
-    n = appData['n']
-    nu1 = appData['nu1']
-    nu2 = appData['nu2']
-    nuc = appData['nuc']
+def print_layout(app_data):
+    L = app_data['L']
+    n = app_data['n']
+    nu1 = app_data['nu1']
+    nu2 = app_data['nu2']
+    nuc = app_data['nuc']
 
     print(": levels: 0.."+str(L)+" , coarse grid: "+str(n)+"x"+str(n)+"x"+str(n))
-    print("# pre-smoothing: ",nu1,", post-smoothing: ",nu2,", coarse relaxation: ",nuc)
+    print("# pre-smoothing: ", nu1,", post-smoothing: ", nu2,
+          ", coarse relaxation: ", nuc)
     print("")
     print("# discr                 iter       error         residual       rho-error    rho-residual")
     print("# ---------------       ----       -----         --------       ---------    ------------")
 
 
-def printErrors(it, appData):
-    N = appData['N']
-    oldResidual = appData['oldResidual']
-    oldErr      = appData['oldErr']
-    resid       = appData['resid']
-    err         = appData['err']
+def print_errors(it, app_data):
+    N = app_data['N']
+    old_residual = app_data['old_residual']
+    old_err = app_data['old_err']
+    resid = app_data['resid']
+    err = app_data['err']
 
     if it == 0:
         print("")
@@ -55,20 +59,20 @@ def printErrors(it, appData):
               "%3d" % it+"  :  "+ \
               "%0.6e" % err+"   "+"%0.6e" % resid)
     else:
-        if oldResidual == 0.0:
-            rhoResidual = 1.0
+        if old_residual == 0.0:
+            rho_residual = 1.0
         else:
-            rhoResidual =  (resid/oldResidual)
+            rho_residual =  (resid/old_residual)
 
-        if oldErr == 0.0:
-            rhoErr   = 1.0
+        if old_err == 0.0:
+            rho_err   = 1.0
         else:
-            rhoErr = (err/oldErr)
+            rho_err = (err/old_err)
 
         print("# "+"%4d"%N+"x"+"%d"%N+"x"+"%-4d"%N+"       :  "+ \
               "%3d" % it+"  :  "+ \
               "%0.6e" % err+"   "+"%0.6e" % resid+"  :  "+ \
-              "%0.6f" % rhoErr+"     "+"%0.6f" % rhoResidual)
+              "%0.6f" % rho_err+"     "+"%0.6f" % rho_residual)
 
     return
 
