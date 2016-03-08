@@ -207,7 +207,7 @@ def get_input(app_args, app_data):
 def init_all(impipe_data, app_data):
     # TODO init cycle type {V, W}
     app_args = parse_args()
-    get_input(app_args,app_data)
+    get_input(app_args, app_data)
 
     init_params(app_args,app_data)
 

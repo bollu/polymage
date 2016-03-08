@@ -77,8 +77,9 @@ def build_mg_cycle(impipe_data, app_data):
     return mg_pipe
 
 def create_lib(build_func, pipe_name, impipe_data, app_data, mode):
-    pipe_src  = pipe_name+".cpp"
-    pipe_so   = pipe_name+".so"
+    app_args = app_data['app_args']
+    pipe_src = pipe_name+".cpp"
+    pipe_so = pipe_name+".so"
 
     if build_func != None:
         if mode == 'new':
@@ -95,7 +96,7 @@ def create_lib(build_func, pipe_name, impipe_data, app_data, mode):
 
     if mode != 'ready':
         # compile the cpp code
-        c_compile(pipe_src, pipe_so, c_compiler="gnu")
+        c_compile(pipe_src, pipe_so, app_args)
     #fi
 
     # load the shared library

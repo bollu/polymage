@@ -80,6 +80,19 @@ def parse_args():
                        help='True : Use a pool of memory allocations, \
                              False: generate simple malloc function call',)
 
+    parser.add_option('--cxx',
+                       action='store',
+                       dest='cxx',
+                       choices=['g++', 'icpc'],
+                       default=['new'],
+                       help='')
+
+    parser.add_option('--cxx_flags',
+                       action='store',
+                       dest='cxx_flags',
+                       default=['-O3'],
+                       help='')
+
     (options, args) = parser.parse_args()
 
     return options

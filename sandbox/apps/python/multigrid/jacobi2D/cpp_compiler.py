@@ -4,25 +4,24 @@ import subprocess
 from compiler   import *
 from constructs import *
 
-def c_compile(in_file, out_file, c_compiler=None):
-    if c_compiler == None or c_compiler == "intel":
-        cxx = "icpc"
-        opt = "-openmp -xhost -O3 -ipo -ansi-alias"
-    elif c_compiler == "gnu":
-        cxx = "g++"
-        opt = "-fopenmp -march=native -O3 -ftree-vectorize"
+def c_compile(in_file, out_file, arg_data):
+    # CXX compiler and flags :
+    cxx = arg_data.cxx
+    cxx_flags = arg_data.cxx_flags
     #fi
 
-    #inc = "-I../../../memory_allocation/ "+\
-    #      "../../../memory_allocation/simple_pool_allocator.cpp"
-    inc = ""
+    # Include Flags :
+    #include = "-I../../../../memory_allocation/ "+\
+    #          "../../../../memory_allocation/simple_pool_allocator.cpp"
+    include = ""
 
+    # Shared library Flags
     shared = "-fPIC -shared"
     out = "-o "+out_file
 
     compile_str = cxx + " " \
-                + opt + " " \
-                + inc + " " \
+                + cxx_flags + " " \
+                + include + " " \
                 + shared + " " \
                 + in_file + " " \
                 + out
