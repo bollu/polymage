@@ -4,7 +4,7 @@ import sys
 
 from init import init_all, init_norm
 from printer import print_header, print_config, print_line
-from builder import create_lib, build_mGCycle
+from builder import create_lib, build_mg_cycle
 from exec_mg import multigrid
 from app_tuner import auto_tune
 
@@ -33,7 +33,7 @@ def main():
     else:
         #-------------------------------------------------------------------
         create_lib(        None,    "norm", pipe_data, app_data, app_data['mode'])
-        create_lib(build_mGCycle, cycle_name, pipe_data, app_data, app_data['mode'])
+        create_lib(build_mg_cycle, cycle_name, pipe_data, app_data, app_data['mode'])
         #-------------------------------------------------------------------
         init_norm(app_data)
         multigrid(app_data)

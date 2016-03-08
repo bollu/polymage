@@ -66,13 +66,13 @@ def build_mg_cycle(impipe_data, app_data):
     if app_data['pool_alloc'] == True:
         opts += ['pool_alloc']
 
-    mg_pipe = build_pipeline(live_outs,
-                           param_estimates=p_estimates,
-                           param_constraints=p_constraints,
-                           tile_sizes = t_size,
-                           group_size = g_size,
-                           options = opts,
-                           pipe_name = pipe_name)
+    mg_pipe = buildPipeline(live_outs,
+                            param_estimates=p_estimates,
+                            param_constraints=p_constraints,
+                            tile_sizes = t_size,
+                            group_size = g_size,
+                            options = opts,
+                            pipe_name = pipe_name)
 
     return mg_pipe
 
