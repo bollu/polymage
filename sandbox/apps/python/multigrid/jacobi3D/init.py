@@ -2,32 +2,30 @@ import sys
 import os.path
 import numpy as np
 from arg_parser import parse_args
-from printer         import printHeader, printUsage, \
-                            printLine
-from polymage_common import setVars, setCases
-from execMG          import calcNorm
+from printer import print_header, print_usage, print_line
+from polymage_common import set_vars, set_cases
+from exec_mg import calc_norm
 
-def initNorm(appData):
-    grid_data = appData['grid_data']
+def init_norm(app_data):
+    grid_data = app_data['grid_data']
     U_ = grid_data['U_']
 
-    appData['resid'] = 0.0
-    appData['err']   = 0.0
+    app_data['resid'] = 0.0
+    app_data['err']   = 0.0
 
     # calculate the initial residual norm and error
     print("[init]: calculating the initial norm and error ...")
-    calcNorm(U_, appData)
+    calc_norm(U_, app_data)
     print("[init]: ... DONE")
 
     return
 
-def initBorder(grid, borderWidth, borderValues):
-    # size of the grid - assumed to be same in
-    # all the dimesnions
+def init_border(grid, border_width, border_values):
+    # size of the grid - assumed to be same in all the dimensions
     n = grid.shape[0]
 
-    w = borderWidth
-    v = borderValues
+    w = border_width
+    v = border_values
 
     # z-planes
     grid[  0:w] = v
@@ -43,36 +41,36 @@ def initBorder(grid, borderWidth, borderValues):
 
     return
 
-def initGrids(appData):
+def init_grids(app_data):
     print("[init_mg.py] : grids")
 
-    N = appData['N']
+    N = app_data['N']
 
     # working grid (even step)
-    U_ = np.ones((N+2, N+2, N+2), np.float64)
-    initBorder(U_, borderWidth=1, borderValues=0.0)
-
+    U_ = np.ones((N+2, N+2), np.float64)
     # working grid (odd step)
-    W_ = np.zeros((N+2, N+2, N+2), np.float64)
-    initBorder(W_, borderWidth=1, borderValues=0.0)
+    W_ = np.zeros((N+2, N+2), np.float64)
 
+    init_border(U_, border_width=1, border_values=0.0)
+    init_border(W_, border_width=1, border_values=0.0)
     # RHS
-    F_ = np.zeros((N+2, N+2, N+2), np.float64)
-
+    F_ = np.zeros((N+2, N+2), np.float64)
     # exact solution
-    U_EXACT_ = np.zeros((N+2, N+2, N+2), np.float64)
+    U_EXACT_ = np.zeros((N+2, N+2), np.float64)
 
     grid_data = {}
-    grid_data['U_']       = U_
-    grid_data['W_']       = W_
-    grid_data['F_']       = F_
+    grid_data['U_'] = U_
+    grid_data['W_'] = W_
+    grid_data['F_'] = F_
     grid_data['U_EXACT_'] = U_EXACT_
 
-    appData['grid_data'] = grid_data
+    app_data['grid_data'] = grid_data
 
     return 
 
-def initParams(app_args,appData):
+def init_params(app_data):
+    app_args = app_data['app_args']
+
     print("[init_mg.py] : parameters")
 
     # size of each dimension of the coarsest grid
@@ -85,48 +83,52 @@ def initParams(app_args,appData):
     for l in range(0,L):
         N = 2*N+1
 
-    appData['n'] = n
-    appData['N'] = N
-    appData['L'] = L
+    app_data['n'] = n
+    app_data['N'] = N
+    app_data['L'] = L
+    app_data['runs'] = int(app_args.runs)
 
     # pre-smoother, post-smoother and
     # coarse-grid relaxation steps
-    appData['nu1'] = int(app_args.nu1)
-    appData['nuc'] = int(app_args.nuc)
-    appData['nu2'] = int(app_args.nu2)
+    app_data['nu1'] = int(app_args.nu1)
+    app_data['nuc'] = int(app_args.nuc)
+    app_data['nu2'] = int(app_args.nu2)
 
     # pool allocate option
-    appData['pool_alloc'] = False
+    app_data['pool_alloc'] = app_args.pool_alloc
 
-    assert not (appData['nu1'] == 0 and \
-                appData['nu2'] == 0 and
-                appData['nuc'] == 0)
+    assert not (app_data['nu1'] == 0 and \
+                app_data['nu2'] == 0 and
+                app_data['nuc'] == 0)
 
-    return appData
+    return app_data
 
-def getInput(app_args,appData):
-    appData['app_args'] = app_args
-    appData['mode'] = app_args.mode
-    appData['cycle'] = app_args.cycle
-    appData['nit']  = int(app_args.nit)
-    cycle_name = appData['cycle']+"cycle"
-    appData['cycle_name'] = app_args.cycle_name
+def get_input(app_data):
+    app_args = app_data['app_args']
 
-    appData['timer'] = app_args.timer
+    app_data['app_args'] = app_args
+    app_data['mode'] = app_args.mode
+    app_data['cycle'] = app_args.cycle
+    app_data['nit'] = int(app_args.nit)
 
+    cycle_name = app_data['cycle']+"cycle"
+    app_data['cycle_name'] = cycle_name
+    app_data['timer'] = app_args.timer
+  
     return
 
-def initAll(pipeData, appData):
-    # TODO init cycle type {V, W}
+def init_all(app_data):
     app_args = parse_args()
-    getInput(app_args,appData)
+    app_data['app_args'] = app_args
 
-    initParams(app_args,appData)
+    get_input(app_data)
+    init_params(app_data)
+    init_grids(app_data)
 
-    initGrids(appData)
+    pipe_data = {}
+    app_data['pipe_data'] = pipe_data
 
-    setVars(pipeData, appData)
-
-    setCases(pipeData, appData)
+    set_vars(app_data)
+    set_cases(app_data)
 
     return

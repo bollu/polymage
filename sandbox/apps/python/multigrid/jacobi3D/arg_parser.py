@@ -5,7 +5,7 @@ def parse_args():
     parser = optparse.OptionParser()
 
     help_str = \
-        '"new" : from scratch | "existing" : compile and run |  "ready" : just run'
+    '"new" : from scratch | "existing" : compile and run |  "ready" : just run'
     parser.add_option('-m', '--mode',
                        type='choice',
                        action='store',
@@ -23,11 +23,6 @@ def parse_args():
                        action='store',
                        dest='nit',
                        help='nit')
-
-    parser.add_option('-d', '--cycle_name',
-                       action='store',
-                       dest='cycle_name',
-                       help='Ucycle or Vcycle')
 
     parser.add_option('-n', '--n',
                        action='store',
@@ -84,6 +79,19 @@ def parse_args():
                        default=False,
                        help='True : Use a pool of memory allocations, \
                              False: generate simple malloc function call',)
+
+    parser.add_option('--cxx',
+                       action='store',
+                       dest='cxx',
+                       choices=['g++', 'icpc'],
+                       default=['new'],
+                       help='')
+
+    parser.add_option('--cxx_flags',
+                       action='store',
+                       dest='cxx_flags',
+                       default=['-O3'],
+                       help='')
 
     (options, args) = parser.parse_args()
 

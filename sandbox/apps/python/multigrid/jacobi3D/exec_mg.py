@@ -4,7 +4,7 @@ import ctypes
 import numpy as np
 import time
 
-from printer import printLine, printLayout, printErrors
+from printer import print_line, print_layout, print_errors
 
 from compiler   import *
 from constructs import *
@@ -48,97 +48,101 @@ def minimal_exec_mg(pipe_lib, pipe_lib_func, func_params,
 
     return
 
-def calcNorm(U_, appData):
-    N = appData['N']
+def calc_norm(U_, app_data):
+    N = app_data['N']
 
-    grid_data = appData['grid_data']
-    F_       = grid_data['F_']
+    grid_data = app_data['grid_data']
+    F_ = grid_data['F_']
     U_EXACT_ = grid_data['U_EXACT_']
 
     # lib function name
-    norm = appData['pipeline_norm']
+    norm = app_data['pipeline_norm']
 
     resid = np.zeros((1), np.float64)
     err   = np.zeros((1), np.float64)
 
     # lib function args
-    normArgs = []
-    normArgs += [ctypes.c_int(N)]
-    normArgs += [ctypes.c_void_p(      F_.ctypes.data)]
-    normArgs += [ctypes.c_void_p(U_EXACT_.ctypes.data)]
-    normArgs += [ctypes.c_void_p(      U_.ctypes.data)]
-    normArgs += [ctypes.c_void_p(     err.ctypes.data)]
-    normArgs += [ctypes.c_void_p(   resid.ctypes.data)]
+    norm_args = []
+    norm_args += [ctypes.c_int(N)]
+    norm_args += [ctypes.c_void_p(F_.ctypes.data)]
+    norm_args += [ctypes.c_void_p(U_EXACT_.ctypes.data)]
+    norm_args += [ctypes.c_void_p(U_.ctypes.data)]
+    norm_args += [ctypes.c_void_p(err.ctypes.data)]
+    norm_args += [ctypes.c_void_p(resid.ctypes.data)]
 
     # call lib function
-    norm(*normArgs)
+    norm(*norm_args)
 
     # save the old norm values
-    appData['oldResidual'] = appData['resid']
-    appData['oldErr']      = appData['err']
+    app_data['old_residual'] = app_data['resid']
+    app_data['old_err'] = app_data['err']
 
     # register the norm values in the data dictionary
-    appData['resid'] = resid[0]
-    appData['err']   = err[0]
+    app_data['resid'] = resid[0]
+    app_data['err'] = err[0]
 
     return
 
-def callMGCycle(U_, W_, appData):
-    n = appData['n']
+def call_mg_cycle(U_, W_, app_data):
+    n = app_data['n']
 
-    grid_data = appData['grid_data']
-    F_       = grid_data['F_']
+    grid_data = app_data['grid_data']
+    F_ = grid_data['F_']
 
     # lib function name
-    cycleName = "pipeline_"+appData['cycle']+"cycle"
-    mgCycleFunc = appData[cycleName]
+    func_name = 'pipeline_'+app_data['cycle_name']
+    mg_cycle_func = app_data[func_name]
 
     # lib function args
-    mgCycleArgs = []
-    mgCycleArgs += [ctypes.c_int(n)]
-    mgCycleArgs += [ctypes.c_void_p(F_.ctypes.data)]
-    mgCycleArgs += [ctypes.c_void_p(U_.ctypes.data)]
-    mgCycleArgs += [ctypes.c_void_p(W_.ctypes.data)]
+    mg_cycle_args = []
+    mg_cycle_args += [ctypes.c_int(n)]
+    mg_cycle_args += [ctypes.c_void_p(F_.ctypes.data)]
+    mg_cycle_args += [ctypes.c_void_p(U_.ctypes.data)]
+    mg_cycle_args += [ctypes.c_void_p(W_.ctypes.data)]
 
     # call lib function
-    mgCycleFunc(*mgCycleArgs)
+    mg_cycle_func(*mg_cycle_args)
 
     return
 
-def multigrid(appData):
-    grid_data = appData['grid_data']
+def multigrid(app_data):
+    grid_data = app_data['grid_data']
     U_ = grid_data['U_']
     W_ = grid_data['W_']
+    UW = [U_, W_]
 
-    nit = appData['nit']
-    it  = 0
+    nit = app_data['nit']
+    time_store = {}
+    time_taken = 0
 
-    printLayout(appData)
-    printErrors(it, appData)
+    print_layout(app_data)
+    print_errors(0, app_data)
 
-    timer = appData['timer']
-    if timer == True:
-        t1 = time.time()
+    timer = app_data['timer']
+    nruns = app_data['runs']
 
-    while it < nit :
-        it += 1
-        if it%2 == 1:
-            callMGCycle(U_, W_, appData)
-            if timer == False:
-                calcNorm(W_, appData)
-        else:
-            callMGCycle(W_, U_, appData)
-            if timer == False:
-                calcNorm(U_, appData)
+    run = 0
+    while run < nruns:
+        it = 0
+        if timer:
+            t1 = time.time()
+        while it < nit:
+            it += 1
+            call_mg_cycle(UW[(it-1)%2], UW[it%2], app_data)
+            if not timer:
+                calc_norm(UW[it%2], app_data)
+                print_errors(it, app_data)
+        if timer:
+            t2 = time.time()
+            time_store[run] = float(t2) - float(t1)
+            #print("Time taken for iter ", run," = ",time_store[run]*1000, "ms")
+            time_taken += time_store[run]
+        run += 1
 
-        if timer == False:
-            printErrors(it, appData)
-
-    if timer == True:
-        t2 = time.time()
-
-        timeTaken = float(t2) - float(t1)
+    if timer:
+        time_taken = time_taken / nruns
         print("")
-        print("[execMG] : time taken to execute = ", timeTaken, " ms")
+        print("[exec_mg] : Average time taken to execute = ",
+              time_taken*1000, " ms")
 
     return
