@@ -2,11 +2,10 @@ import numpy as np
 import time
 import sys
 
-from init    import initAll
-from verify  import verifyNorm
-from builder import createPipeLib, \
-                    buildResid, buildMg3P
-from execMG  import multigrid
+from init import init_all
+from verify import verify_norm
+from builder import create_lib, build_resid, build_mg_3p
+from execMG import multigrid
 
 sys.path.insert(0, '../../../')
 from misc import printLine
