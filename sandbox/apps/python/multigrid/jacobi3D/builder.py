@@ -1,6 +1,8 @@
 import sys
 import subprocess
 
+sys.path.insert(0, '../../')
+
 from cpp_compiler import c_compile
 from loader import load_lib
 from polymage_vcycle import v_cycle
