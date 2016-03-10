@@ -1,37 +1,35 @@
 import sys
 import subprocess
 
-sys.path.insert(0, '../../../../optimizer')
-sys.path.insert(0, '../../../../frontend')
+from compiler   import *
+from constructs import *
 
-from Compiler   import *
-from Constructs import *
-
-def cCompile(inFile, outFile, cCompiler=None):
-    if cCompiler == None or cCompiler == "intel":
-        cxx = "icpc"
-        opt = "-openmp -xhost -O3 -ipo -ansi-alias"
-    elif cCompiler == "gnu":
-        cxx = "g++"
-        opt = "-fopenmp -march=native -O3 -ftree-vectorize"
+def c_compile(in_file, out_file, arg_data):
+    # CXX compiler and flags :
+    cxx = arg_data.cxx
+    cxx_flags = arg_data.cxx_flags
     #fi
 
-    inc = "-I../../../memory_allocation/ "+\
-          "../../../memory_allocation/simple_pool_allocator.cpp"
+    # Include Flags :
+    #include = "-I../../../../memory_allocation/ "+\
+    #          "../../../../memory_allocation/simple_pool_allocator.cpp"
+    include = ""
+
+    # Shared library Flags
     shared = "-fPIC -shared"
-    out = "-o "+outFile
+    out = "-o "+out_file
 
-    compileStr = cxx + " " \
-               + opt + " " \
-               + inc + " " \
-               + shared + " " \
-               + inFile + " " \
-               + out
+    compile_str = cxx + " " \
+                + cxx_flags + " " \
+                + include + " " \
+                + shared + " " \
+                + in_file + " " \
+                + out
 
-    print
-    print "[compiler]: compiling residual function to", outFile, "..."
-    print ">", compileStr
-    subprocess.check_output(compileStr, shell=True)
-    print "[compiler]: ... DONE"
+    print("")
+    print("[cpp_compiler]: compiling", in_file, "to", out_file, "...")
+    print(">", compile_str)
+    subprocess.check_output(compile_str, shell=True)
+    print("[cpp_compiler]: ... DONE")
 
     return
