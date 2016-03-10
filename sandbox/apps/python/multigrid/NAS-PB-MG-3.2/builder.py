@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division, print_function
-
 import sys
 import subprocess
 
@@ -8,137 +6,129 @@ from loader import load_lib
 from polymage_residual import resid_pipe
 from polymage_mg3p import mg3p_pipe
 
-sys.path.insert(0, '../../../../optimizer')
-sys.path.insert(0, '../../../../frontend')
+from compiler   import *
+from constructs import *
 
-from Compiler   import *
-from Constructs import *
+def code_gen(pipe, file_name, app_data):
+    print("")
+    print("[builder]: writing the code to", file_name, "...")
 
-def codeGen(pipe, fileName, dataDict):
-    print
-    print("[builder]: writing the code to", fileName, "...")
-     
-    code = pipe.generateCNaive(isExternAlloc=True,
-                               isExternFunc=True,
-                               areParamsVoidPtrs=True)
+    code = pipe.generate_code(is_extern_c_func=True,
+                              are_io_void_ptrs=True)
 
-    f = open(fileName, 'w')
+    f = open(file_name, 'w')
     f.write(code.__str__())
     f.close()
 
     return
 
-def graphGen(pipe, fileName, dataDict):
-    graphFile = fileName+".dot"
-    pngGraph = fileName+".png"
+def graph_gen(pipe, file_name, app_data):
+    graph_file = file_name+".dot"
+    png_graph = file_name+".png"
 
-    print()
-    print("[builder]: writing the graph dot file to", graphFile, "...")
+    print("")
+    print("[builder]: writing the graph dot file to", graph_file, "...")
 
-    graph = pipe.originalGraph
-    graph.write(graphFile)
+    graph = pipe.pipeline_graph
+    #graph = pipe.original_graph
+    graph.write(graph_file)
     print("[builder]: ... DONE")
 
-    dottyStr = "dot -Tpng "+graphFile+" -o "+pngGraph
+    dotty_str = "dot -Tpng "+graph_file+" -o "+png_graph
 
-    print
-    print("[builder]: drawing the graph using dotty to", pngGraph)
-    print(">", dottyStr)
-    subprocess.check_output(dottyStr, shell=True)
+    print("")
+    print("[builder]: drawing the graph using dotty to", png_graph)
+    print(">", dotty_str)
+    subprocess.check_output(dotty_str, shell=True)
     print("[builder]: ... DONE")
 
     return
 
-def buildResid(impipeDict, dataDict):
+def build_resid(app_data):
+    pipe_data = app_data['pipe_data']
 
     # construct the residual pipeline on the finest grid
-    r = residPipe(impipeDict, dataDict)
+    r = resid_pipe(app_data)
 
-    n = impipeDict['n']
-    N = dataDict['N']
-    lt = dataDict['lt']
+    n = pipe_data['n']
+    N = app_data['N']
+    lt = app_data['lt']
 
-    liveOuts = [r]
+    live_outs = [r]
+    pipe_name = "resid"
+    p_estimates = [(n, N[lt])]
+    p_constraints = [ Condition(n, "==", N[lt]) ]
+    t_size = [16, 16, 16]
+    g_size = 1
+    opts = []
+    if app_data['pool_alloc']:
+        opts += ['pool_alloc']
 
-    pEstimates = [(n, N[lt])]
-    pConstraints = [ Condition(n, "==", N[lt]) ]
-    tSize = [16, 16, 16]
-    gSize = 1
-    opts = ["pool_alloc"]
 
-    '''
-    rPipe = buildPipeline(liveOuts,
-                                 paramEstimates=pEstimates,
-                                 paramConstraints=pConstraints,
-                                 tileSizes=tSize,
-                                 groupSize=gSize,
-                                 inlineDirectives=[],
-                                 options=opts)
-    '''
-    rPipe = buildPipeline(liveOuts)
+    r_pipe = buildPipeline(live_outs,
+                           param_estimates=p_estimates,
+                           param_constraints=p_constraints,
+                           tile_sizes = t_size,
+                           group_size = g_size,
+                           options = opts,
+                           pipe_name = pipe_name)
 
-    return rPipe
+    return r_pipe
 
-def buildMg3P(impipeDict, dataDict):
+def build_mg3p(app_data):
+    pipe_data = app_data['pipe_data']
     
     # construct the multigrid v-cycle pipeline
-    mg_u, mg_r = mg3pPipe(impipeDict, dataDict)
+    mg_u, mg_r = mg3p_pipe(app_data)
 
-    n = impipeDict['n']
-    N = dataDict['N']
-    lt = dataDict['lt']
+    n = pipe_data['n']
+    N = app_data['N']
+    lt = app_data['lt']
 
-    gridDict = dataDict['gridDict']
-    u = gridDict['u']
-    v = gridDict['v']
-    r = gridDict['r']
+    live_outs = [mg_u, mg_r]
 
-    liveOuts = [mg_u, mg_r]
+    pipe_name = app_data['cycle_name']
+    p_estimates = [(n, N[lt])]
+    p_constraints = [ Condition(n, "==", N[lt]) ]
+    t_size = [16, 16, 16]
+    g_size = 1
 
-    pEstimates = [(n, N[lt])]
-    pConstraints = [ Condition(n, "==", N[lt]) ]
-    tSize = [16, 128, 128]
-    gSize = 10
-    opts = ["pool_alloc"]
+    mg_pipe = buildPipeline(live_outs,
+                            param_estimates=p_estimates,
+                            param_constraints=p_constraints,
+                            tile_sizes = t_size,
+                            group_size = g_size,
+                            options = opts,
+                            pipe_name = pipe_name)
 
-    '''
-    mgPipe = buildPipeline(liveOuts,
-                                  paramEstimates=pEstimates,
-                                  paramConstraints=pConstraints,
-                                  tileSizes=tSize,
-                                  groupSize=gSize,
-                                  inlineDirectives=[],
-                                  options=opts)
-    '''
-    mgPipe = buildPipeline(liveOuts)
+    return mg_pipe
 
-    return mgPipe
+def create_lib(build_func, pipe_name, app_data):
+    mode = app_data['mode']
+    app_args = app_data['app_args']
+    pipe_src = pipe_name+".cpp"
+    pipe_so = pipe_name+".so"
 
-def createPipeLib(buildFunc, pipeName, impipeDict, dataDict, mode):
-    pipeSrc  = pipeName+".cpp"
-    pipeSo   = pipeName+".so"
+    if build_func != None:
+        if mode == 'new':
+            # build the polymage pipeline
+            pipe = build_func(app_data)
 
-    if mode == 'new':
-        # build the polymage pipeline
-        pipe = buildFunc(impipeDict, dataDict)
+            # draw the pipeline graph to a png file
+            graph_gen(pipe, pipe_name, app_data)
 
-        # draw the pipeline graph to a png file
-        graphGen(pipe, pipeName, dataDict)
-
-        print("Stop here")
-        assert(False)
-
-        # generate pipeline cpp source
-        codeGen(pipe, pipeSrc, dataDict)
+            # generate pipeline cpp source
+            code_gen(pipe, pipe_src, app_data)
+        #fi
     #fi
 
     if mode != 'ready':
         # compile the cpp code
-        cCompile(pipeSrc, pipeSo, cCompiler="intel")
+        c_compile(pipe_src, pipe_so, app_args)
     #fi
 
     # load the shared library
-    pipeFuncName = "pipeline_"+pipeName
-    loadLib(pipeSo, pipeFuncName, dataDict)
+    pipe_func_name = "pipeline_"+pipe_name
+    load_lib(pipe_so, pipe_func_name, app_data)
 
     return

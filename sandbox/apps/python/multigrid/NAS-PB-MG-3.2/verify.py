@@ -1,4 +1,7 @@
 def set_verification(app_data, is_periodic):
+    print_line()
+    print("[verify]: Setting the verification values ...")
+
     verify_data = {}
     verify_data['verified'] = False
     verify_data['epsilon'] = 1.0e-8
@@ -46,6 +49,9 @@ def set_verification(app_data, is_periodic):
     return
 
 def verify_norm(app_data):
+    print_line()
+    print("[verify]: Verifying the results ...")
+
     verify_data = app_data['verify_data']
     rnm2 = app_data['rnm2']
 

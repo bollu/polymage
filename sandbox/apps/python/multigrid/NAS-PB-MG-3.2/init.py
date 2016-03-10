@@ -1,7 +1,6 @@
 import numpy as np
 
 from verify  import set_verification
-from misc import unpack_input, ilog2
 from exec_mg import calc_norm
 from polymage_common import set_cases, set_vars
 
@@ -201,6 +200,9 @@ def get_input(app_data):
 
     app_data['mode'] = app_args.mode
     app_data['prob_class'] = app_args.prob_class
+
+    app_data['runs'] = int(app_args.runs)
+    app_data['pool_alloc'] = bool(app_args.pool_alloc)
 
     return
 
