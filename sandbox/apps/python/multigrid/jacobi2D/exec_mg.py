@@ -6,10 +6,6 @@ import time
 
 from printer import print_line, print_layout, print_errors
 
-from compiler   import *
-from constructs import *
-from utils import *
-
 def minimal_exec_mg(pipe_lib, pipe_lib_func, func_params,
                     func_args, tuner_data, app_data):
     it = 0
