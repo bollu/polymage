@@ -95,18 +95,18 @@ def init_params(app_data):
     app_data['nu2'] = int(app_args.nu2)
 
     # pool allocate option
-    app_data['pool_alloc'] = app_args.pool_alloc
+    app_data['pool_alloc'] = bool(app_args.pool_alloc)
 
     assert not (app_data['nu1'] == 0 and \
                 app_data['nu2'] == 0 and
                 app_data['nuc'] == 0)
 
-    return app_data
+    return
 
 def get_input(app_data):
-    app_args = app_data['app_args']
-
+    app_args = parse_args()
     app_data['app_args'] = app_args
+
     app_data['mode'] = app_args.mode
     app_data['cycle'] = app_args.cycle
     app_data['nit'] = int(app_args.nit)
@@ -118,9 +118,6 @@ def get_input(app_data):
     return
 
 def init_all(app_data):
-    app_args = parse_args()
-    app_data['app_args'] = app_args
-
     get_input(app_data)
     init_params(app_data)
     init_grids(app_data)

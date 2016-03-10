@@ -64,7 +64,7 @@ def build_mg_cycle(app_data):
     t_size = [8, 8, 32]
     g_size = 100
     opts = []
-    if app_data['pool_alloc'] == True:
+    if app_data['pool_alloc']:
         opts += ['pool_alloc']
 
     mg_pipe = buildPipeline(live_outs,
@@ -78,7 +78,6 @@ def build_mg_cycle(app_data):
     return mg_pipe
 
 def create_lib(build_func, pipe_name, app_data):
-    pipe_data = app_data['pipe_data']
     mode = app_data['mode']
     app_args = app_data['app_args']
     pipe_src = pipe_name+".cpp"
