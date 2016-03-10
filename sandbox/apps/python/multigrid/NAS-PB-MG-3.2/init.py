@@ -1,73 +1,70 @@
 import numpy as np
 
-from verify          import setVerification
-from misc            import loadLib, unpackInput, \
-                            ilog2, makePeriodic
-from execMG          import calcNorm
-from polymage_common import setCases, setVars
+from verify  import set_verification
+from misc import load_lib, unpack_input, ilog2, make_periodic
+from exec_mg import calc_norm
+from polymage_common import set_cases, set_vars
 
-def initSizes(dataDict):
-    # init the problem size and other parameters
-    # and the respective solutions based on the
-    # input class (from NAS PB)
+def init_sizes(app_data):
+    # init the problem size and other parameters and the respective solutions
+    # based on the input class (from NAS PB)
     # TODO: generalize for custom specs
 
-    Class = dataDict['probClass']
+    _class = app_data['prob_class']
 
-    if Class == 'S':
-        dataDict['probSize'] = 32
-        dataDict['nit'] = 4
-    elif Class == 'W':
-        dataDict['probSize'] = 128
-        dataDict['nit'] = 4
-    elif Class == 'A':
-        dataDict['probSize'] = 256
-        dataDict['nit'] = 4
-    elif Class == 'B':
-        dataDict['probSize'] = 256
-        dataDict['nit'] = 20
-    elif Class == 'C':
-        dataDict['probSize'] = 512
-        dataDict['nit'] = 20
-    elif Class == 'D':
-        dataDict['probSize'] = 1024
-        dataDict['nit'] = 50
+    if _class == 'S':
+        app_data['prob_size'] = 32
+        app_data['nit'] = 4
+    elif _class == 'W':
+        app_data['prob_size'] = 128
+        app_data['nit'] = 4
+    elif _class == 'A':
+        app_data['prob_size'] = 256
+        app_data['nit'] = 4
+    elif _class == 'B':
+        app_data['prob_size'] = 256
+        app_data['nit'] = 20
+    elif _class == 'C':
+        app_data['prob_size'] = 512
+        app_data['nit'] = 20
+    elif _class == 'D':
+        app_data['prob_size'] = 1024
+        app_data['nit'] = 50
     else:
-        dataDict['probSize'] = 1
-        dataDict['nit'] = 1
+        app_data['prob_size'] = 1
+        app_data['nit'] = 1
 
-    lt = ilog2(dataDict['probSize'])
+    lt = ilog2(app_data['prob_size'])
     lb = 1
 
     # top and bottom levels
     # register in the data dictionary
-    dataDict['lt'] = lt
-    dataDict['lb'] = lb
+    app_data['lt'] = lt
+    app_data['lb'] = lb
 
     # grid sizes (with ghost) at each level
     N = {}
-    N[lt] = dataDict['probSize']+2
+    N[lt] = app_data['prob_size']+2
     for l in range(lt-1, 0, -1):
         N[l] = (N[l+1]-2)/2+2
 
     # register in the data dictionary
-    dataDict['N'] = N
+    app_data['N'] = N
 
     return
 
-def initCoefs(dataDict):
-
+def init_coefs(app_data):
     a = np.zeros((4), np.float64)
     c = np.zeros((4), np.float64)
 
-    Class = dataDict['probClass']
+    _class = app_data['prob_class']
 
     a[0] = -8.0/3.0
     a[1] =  0.0
     a[2] =  1.0/6.0
     a[3] =  1.0/12.0
 
-    if Class == 'A' or Class == 'S' or Class == 'W':
+    if _class == 'A' or _class == 'S' or _class == 'W':
         c[0] = -3.0/8.0
         c[1] =  1.0/32.0
         c[2] = -1.0/64.0
@@ -79,94 +76,94 @@ def initCoefs(dataDict):
         c[3] =  0.0
 
     # register in the data dictionary
-    dataDict['a'] = a
-    dataDict['c'] = c
+    app_data['a'] = a
+    app_data['c'] = c
 
     return
 
-def initGrids(dataDict):
-    withGhost = dataDict['probSize'] + 2
-    Class = dataDict['probClass']
+def init_grids(app_data):
+    with_ghost = app_data['prob_size'] + 2
+    _class = app_data['prob_class']
 
     # grids with ghost zone
-    n1 = n2 = n3 = withGhost
-    v = np.zeros((n1, n2, n3), np.float64)
-    u = np.zeros((n1, n2, n3), np.float64)
-    r = np.zeros((n1, n2, n3), np.float64)
+    n1 = n2 = n3 = with_ghost
+    V_ = np.zeros((n1, n2, n3), np.float64)
+    U0_ = np.zeros((n1, n2, n3), np.float64)
+    R0_ = np.zeros((n1, n2, n3), np.float64)
 
-    u1 = np.zeros((n1, n2, n3), np.float64)
-    r1 = np.zeros((n1, n2, n3), np.float64)
+    U1_ = np.zeros((n1, n2, n3), np.float64)
+    R1_ = np.zeros((n1, n2, n3), np.float64)
 
     # read the input file and unpack the co-ordinates
     index = np.zeros((20, 3), np.int16)
-    unpackInput(index, "inputs/input."+Class)
+    unpack_input(index, "inputs/"+_class+".txt")
 
     # set the initial values at these co-ord.s
     for i in range(0, 10):
-        v[index[i,0], index[i,1], index[i,2]] = -1.0
+        V_[index[i,0], index[i,1], index[i,2]] = -1.0
     for i in range(10, 20):
-        v[index[i,0], index[i,1], index[i,2]] = 1.0
+        V_[index[i,0], index[i,1], index[i,2]] = 1.0
 
-    #makePeriodic(v, dataDict)
+    #make_periodic(v, app_data)
 
-    gridDict = {}
+    grid_data = {}
 
     # register in grid dictionary
-    gridDict['v'] = v
-    gridDict['u'] = u
-    gridDict['r'] = r
+    grid_data['V_'] = V_
+    grid_data['U0_'] = U0_
+    grid_data['R0_'] = R0_
 
-    gridDict['u1'] = u1
-    gridDict['r1'] = r1
+    grid_data['U1_'] = U1_
+    grid_data['R1_'] = R1_
 
-    dataDict['gridDict'] = gridDict
+    app_data['grid_data'] = grid_data
 
     return
 
-def initNorm(dataDict):
+def init_norm(app_data):
     rnm2 = 0.0
     rnmu = 0.0
 
-    gridDict = dataDict['gridDict']
-    v = gridDict['v']
+    grid_data = app_data['grid_data']
+    V_ = grid_data['V_']
 
     # load the norm computation library
-    libFile = "./norm.so"
-    libFuncName = "norm2u3"
+    lib_file = "./norm.so"
+    lib_func_name = "norm2u3"
 
-    loadLib(libFile, libFuncName, dataDict)
+    load_lib(lib_file, lib_func_name, app_data)
 
     # calculate norm on the initial grid
-    calcNorm(v, dataDict)
+    calc_norm(v, app_data)
 
     return
 
-def initPolyMageData(impipeDict, dataDict):
+def init_polymage_data(app_data):
     # set variables, intervals etc
-    setVars(impipeDict, dataDict)
+    set_vars(app_data)
 
     # set boundary case conditions
-    setCases(impipeDict, dataDict)
+    set_cases(app_data)
 
     return
 
-def initAll(impipeDict, dataDict):
+def init_all(app_data):
     # initialize problem sizes and relevant params
-    initSizes(dataDict)
+    init_sizes(app_data)
     
     # initialize the stencil co-efficients
-    initCoefs(dataDict)
+    init_coefs(app_data)
     
     # set the verification values
-    setVerification(dataDict, isPeriodic=False)
+    set_verification(app_data, is_periodic=False)
     
     # initialize the grid contents
-    initGrids(dataDict)
+    init_grids(app_data)
     
     # initialize the norms
-    initNorm(dataDict)
+    init_norm(app_data)
     
     # initialize polymage specific parameters
-    initPolyMageData(impipeDict, dataDict)
+    init_polymage_data(app_data)
 
     return
