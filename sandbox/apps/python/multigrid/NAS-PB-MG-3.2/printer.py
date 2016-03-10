@@ -15,12 +15,6 @@ def print_header():
     print_line()
     print()
 
-def print_usage():
-    print("[main]: Usage: ")
-    print("[main]: "+sys.argv[0]+" <class> <mode>")
-    print("[main]: 'class' :: {'S', 'W', 'A', 'B', 'C', 'D'}")
-    print("[main]: 'mode'  :: {'new', 'existing', 'ready', 'tune'}")
-
 def print_config(app_data):
     nx = ny = nz = app_data['prob_size']
     print_line()

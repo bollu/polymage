@@ -2,12 +2,11 @@ from __future__ import absolute_import, division, print_function
 
 import sys
 import subprocess
-from fractions  import Fraction
 
-from polymage_residual import residPipe
-from polymage_mg3P     import mg3pPipe
-from compiler          import cCompile
-from misc              import loadLib
+from cpp_compiler import c_compile
+from loader import load_lib
+from polymage_residual import resid_pipe
+from polymage_mg3p import mg3p_pipe
 
 sys.path.insert(0, '../../../../optimizer')
 sys.path.insert(0, '../../../../frontend')

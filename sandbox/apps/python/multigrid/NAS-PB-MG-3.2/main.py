@@ -15,10 +15,7 @@ def main()
     print_header()
 
     app_data = {}
-    pipe_data = {}
-
     app_data['app'] = app
-    app_data['pipe_data'] = pipe_data
 
     # init all the required data
     init_all(app_data)

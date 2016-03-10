@@ -1,7 +1,7 @@
 import numpy as np
 
 from verify  import set_verification
-from misc import load_lib, unpack_input, ilog2, make_periodic
+from misc import unpack_input, ilog2
 from exec_mg import calc_norm
 from polymage_common import set_cases, set_vars
 
@@ -9,6 +9,16 @@ def init_sizes(app_data):
     # init the problem size and other parameters and the respective solutions
     # based on the input class (from NAS PB)
     # TODO: generalize for custom specs
+
+    # takes in an integer and returns its
+    # logarithm to the base 2
+    def ilog2(n):
+        l = -1
+        while n >= 1:
+            l += 1
+            n /= 2
+
+        return l
 
     _class = app_data['prob_class']
 
@@ -81,6 +91,44 @@ def init_coefs(app_data):
 
     return
 
+def make_periodic(V, app_data):
+    N = app_data['N']
+    lt = app_data['lt']
+
+    n = N[lt]
+
+    # for each ghost plane, copy the
+    # first non-ghost plane at the other end
+
+    # communicate left <-> right planes
+    v[1:n-2, 1:n-2, 0  ] = v[1:n-2, 1:n-2, n-2]
+    v[1:n-2, 1:n-2, n-1] = v[1:n-2, 1:n-2, 1  ]
+
+    # communicate top <-> bottom planes
+    v[1:n-2, 0  , 0:n-1] = v[1:n-2, n-2, 0:n-1]
+    v[1:n-2, n-1, 0:n-1] = v[1:n-2, 1  , 0:n-1]
+
+    # communicate front <-> back planes
+    v[0  , 0:n-1, 0:n-1] = v[n-2, 0:n-1, 0:n-1]
+    v[n-1, 0:n-1, 0:n-1] = v[1  , 0:n-1, 0:n-1]
+
+    return
+
+def unpack_input(index, file_name):
+    f = open(file_name, 'r')
+
+    i = 0
+    for line in f:
+        line_int = []
+        line_int.append([int(x) for x in line.split()])
+        for j in range(0, 3):
+            index[i, j] = line_int[0][j]-1
+        i += 1
+
+    f.close()
+
+    return
+
 def init_grids(app_data):
     with_ghost = app_data['prob_size'] + 2
     _class = app_data['prob_class']
@@ -134,7 +182,7 @@ def init_norm(app_data):
     load_lib(lib_file, lib_func_name, app_data)
 
     # calculate norm on the initial grid
-    calc_norm(v, app_data)
+    calc_norm(V_, app_data)
 
     return
 
@@ -147,23 +195,37 @@ def init_polymage_data(app_data):
 
     return
 
+def get_input(app_data):
+    app_args = parse_args()
+    app_data['app_args'] = app_args
+
+    app_data['mode'] = app_args.mode
+    app_data['prob_class'] = app_args.prob_class
+
+    return
+
 def init_all(app_data):
+    # collect the input data
+    get_input(app_data)
+
     # initialize problem sizes and relevant params
     init_sizes(app_data)
-    
+
     # initialize the stencil co-efficients
     init_coefs(app_data)
-    
+
     # set the verification values
     set_verification(app_data, is_periodic=False)
-    
+
     # initialize the grid contents
     init_grids(app_data)
-    
+
     # initialize the norms
     init_norm(app_data)
-    
+
     # initialize polymage specific parameters
+    pipe_data = {}
+    app_data['pipe_data'] = pipe_data
     init_polymage_data(app_data)
 
     return
