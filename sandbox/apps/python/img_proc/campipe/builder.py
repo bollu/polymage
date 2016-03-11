@@ -1,6 +1,8 @@
 import sys
 import subprocess
 
+sys.path.insert(0, '../../')
+
 from cpp_compiler import c_compile
 from loader import load_lib
 from polymage_campipe import camera_pipe
@@ -13,7 +15,6 @@ def codegen(pipe, file_name, app_data):
     print("[builder]: writing the code to", file_name, "...")
 
     code = pipe.generate_code(is_extern_c_func=True,
-                              outputs_no_alloc=True,
                               are_io_void_ptrs=True)
 
     f = open(file_name, 'w')

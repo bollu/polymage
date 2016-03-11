@@ -17,7 +17,7 @@ def set_ghosts(r, ghosts, value):
 def set_vars(app_data):
     pipe_data = app_data['pipe_data']
 
-    L = appData['L']
+    L = app_data['L']
 
     z = Variable(Int, "z")
     y = Variable(Int, "y")

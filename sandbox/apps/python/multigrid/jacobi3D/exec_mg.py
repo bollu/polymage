@@ -6,10 +6,6 @@ import time
 
 from printer import print_line, print_layout, print_errors
 
-from compiler   import *
-from constructs import *
-from utils import *
-
 def minimal_exec_mg(pipe_lib, pipe_lib_func, func_params,
                     func_args, tuner_data, app_data):
     it = 0
@@ -119,7 +115,7 @@ def multigrid(app_data):
     print_errors(0, app_data)
 
     timer = app_data['timer']
-    nruns = app_data['runs']
+    nruns = int(app_data['runs'])
 
     run = 0
     while run < nruns:

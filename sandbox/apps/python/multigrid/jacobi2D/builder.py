@@ -1,6 +1,8 @@
 import sys
 import subprocess
 
+sys.path.insert(0, '../../')
+
 from cpp_compiler import c_compile
 from loader import load_lib
 from polymage_vcycle import v_cycle
@@ -64,7 +66,7 @@ def build_mg_cycle(app_data):
     t_size = [16, 16]
     g_size = 100
     opts = []
-    if app_data['pool_alloc'] == True:
+    if app_data['pool_alloc']:
         opts += ['pool_alloc']
 
     mg_pipe = buildPipeline(live_outs,
@@ -78,7 +80,6 @@ def build_mg_cycle(app_data):
     return mg_pipe
 
 def create_lib(build_func, pipe_name, app_data):
-    pipe_data = app_data['pipe_data']
     mode = app_data['mode']
     app_args = app_data['app_args']
     pipe_src = pipe_name+".cpp"

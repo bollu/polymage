@@ -11,6 +11,8 @@ def print_header():
     print_line()
     print("              Multigrid Jacobi-2D")
     print_line()
+    print("[main]: initializing...")
+    print("")
 
 def print_usage():
     print("[main]: Usage: ")

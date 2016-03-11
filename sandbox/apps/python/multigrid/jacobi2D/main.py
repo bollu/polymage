@@ -14,10 +14,6 @@ def main():
     print_header()
 
     app_data = {}
-
-    print("[main]: initializing...")
-    print("")
-
     app_data['app'] = app
 
     # init all the required data

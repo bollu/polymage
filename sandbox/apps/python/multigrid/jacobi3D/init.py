@@ -47,16 +47,16 @@ def init_grids(app_data):
     N = app_data['N']
 
     # working grid (even step)
-    U_ = np.ones((N+2, N+2), np.float64)
+    U_ = np.ones((N+2, N+2, N+2), np.float64)
     # working grid (odd step)
-    W_ = np.zeros((N+2, N+2), np.float64)
+    W_ = np.zeros((N+2, N+2, N+2), np.float64)
 
     init_border(U_, border_width=1, border_values=0.0)
     init_border(W_, border_width=1, border_values=0.0)
     # RHS
-    F_ = np.zeros((N+2, N+2), np.float64)
+    F_ = np.zeros((N+2, N+2, N+2), np.float64)
     # exact solution
-    U_EXACT_ = np.zeros((N+2, N+2), np.float64)
+    U_EXACT_ = np.zeros((N+2, N+2, N+2), np.float64)
 
     grid_data = {}
     grid_data['U_'] = U_
@@ -95,18 +95,18 @@ def init_params(app_data):
     app_data['nu2'] = int(app_args.nu2)
 
     # pool allocate option
-    app_data['pool_alloc'] = app_args.pool_alloc
+    app_data['pool_alloc'] = bool(app_args.pool_alloc)
 
     assert not (app_data['nu1'] == 0 and \
                 app_data['nu2'] == 0 and
                 app_data['nuc'] == 0)
 
-    return app_data
+    return
 
 def get_input(app_data):
-    app_args = app_data['app_args']
-
+    app_args = parse_args()
     app_data['app_args'] = app_args
+
     app_data['mode'] = app_args.mode
     app_data['cycle'] = app_args.cycle
     app_data['nit'] = int(app_args.nit)
@@ -118,9 +118,6 @@ def get_input(app_data):
     return
 
 def init_all(app_data):
-    app_args = parse_args()
-    app_data['app_args'] = app_args
-
     get_input(app_data)
     init_params(app_data)
     init_grids(app_data)

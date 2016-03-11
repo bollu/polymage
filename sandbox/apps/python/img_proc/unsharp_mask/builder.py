@@ -1,6 +1,8 @@
 import sys
 import subprocess
 
+sys.path.insert(0, '../../')
+
 from cpp_compiler import c_compile
 from loader import load_lib
 from polymage_unsharp_mask import unsharp_mask
@@ -30,7 +32,6 @@ def generate_graph(pipe, file_name, app_data):
     print("[builder]: writing the graph dot file to", graph_file, "...")
 
     graph = pipe.pipeline_graph
-    graph = pipe.original_graph
     graph.write(graph_file)
     print("[builder]: ... DONE")
 
@@ -92,8 +93,8 @@ def create_lib(build_func, pipe_name, impipe_data, app_data, mode):
             pipe = build_func(impipe_data, app_data)
 
             # draw the pipeline graph to a png file
-            #if graph_gen:
-                #generate_graph(pipe, pipe_name, app_data)
+            if graph_gen:
+                generate_graph(pipe, pipe_name, app_data)
 
             # generate pipeline cpp source
             codegen(pipe, pipe_src, app_data)
