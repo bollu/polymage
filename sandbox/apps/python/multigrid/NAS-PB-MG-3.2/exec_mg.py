@@ -10,7 +10,7 @@ def calc_norm(V_, app_data):
     N = V_.shape[0]
 
     # lib function name
-    norm2u3 = app_data['norm2u3']
+    norm2u3 = app_data['pipeline_norm']
 
     rnm2 = np.zeros((1), np.float64)
     rnmu = np.zeros((1), np.float64)

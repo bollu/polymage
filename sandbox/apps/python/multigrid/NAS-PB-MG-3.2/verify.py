@@ -1,3 +1,5 @@
+from printer import print_line
+
 def set_verification(app_data, is_periodic):
     print_line()
     print("[verify]: Setting the verification values ...")

@@ -14,61 +14,32 @@ def parse_args():
                       default=['new'],
                       help=help_str)
 
-    parser.add_option('--n',
+    parser.add_option('-c', '--class',
                       action='store',
-                      dest='n',
-                      default=255,
-                      help='')
-
-    parser.add_option('--L',
-                      action='store',
-                      dest='L',
-                      default=2,
-                      help='Number of multigrid levels')
-
-    parser.add_option('--nu1',
-                      action='store',
-                      dest='nu1',
-                      default=1,
-                      help='Pre-smoothing steps')
-
-    parser.add_option('--nuc',
-                      action='store',
-                      dest='nuc',
-                      default=1,
-                      help='coarse smoothing steps')
-
-    parser.add_option('--nu2',
-                      action='store',
-                      dest='nu2',
-                      default=1,
-                      help='Post-smoothing steps')
-
-    parser.add_option('-p', '--problem',
-                      action='store',
-                      dest='problem',
-                      default=1,
-                      help='problem')
+                      dest='prob_class',
+                      choices=['S', 'W', 'A', 'B', 'C', 'D'],
+                      default=['W'],
+                      help='NAS MG PRoblem Class')
 
     parser.add_option('-r', '--runs',
                       action='store',
                       dest='runs',
                       default=1,
-                      help='number of runs',)
+                      help='number of runs')
 
     parser.add_option('-t', '--timer',
                       action='store_true',
                       dest='timer',
                       default=False,
                       help='True : report execution time, \
-                            False: do not collect timing info',)
+                            False: do not collect timing info')
 
     parser.add_option('--pool_alloc',
                       action='store_true',
                       dest='pool_alloc',
                       default=False,
                       help='True : Use a pool of memory allocations, \
-                            False: generate simple malloc function call',)
+                            False: generate simple malloc function call')
 
     parser.add_option('--cxx',
                       action='store',

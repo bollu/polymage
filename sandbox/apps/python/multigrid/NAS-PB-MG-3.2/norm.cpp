@@ -4,7 +4,7 @@
 
 using namespace std;
 
-extern "C" void norm2u3(int N, void * rnm2_void_arg, void * rnmu_void_arg, void * r_void_arg)
+extern "C" void pipeline_norm(int N, void * rnm2_void_arg, void * rnmu_void_arg, void * r_void_arg)
 {
   double * rnm2;
   rnm2 = (double *) (rnm2_void_arg);

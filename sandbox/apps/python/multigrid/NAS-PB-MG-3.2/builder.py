@@ -130,7 +130,7 @@ def create_lib(build_func, pipe_name, app_data):
     #fi
 
     # load the shared library
-    pipe_func_name = "pipeline_"+pipe_name
-    load_lib(pipe_so, pipe_func_name, app_data)
+    lib_func_name = "pipeline_"+pipe_name
+    load_lib(pipe_so, lib_func_name, app_data)
 
     return
