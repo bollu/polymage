@@ -1,33 +1,36 @@
+#CXX=icpc
+#CXX_FLAGS=-openmp -ipo -O3 -xhost -ansi-alias
+CXX=g++
+CXX_FLAGS=-fopenmp -O3 -march=native -ftree-vectorize
 
-#CXX='icpc'
-#CXX_FLAGS='-openmp -ipo -O3 -xhost -ansi-alias'
-CXX='g++'
-CXX_FLAGS='-fopenmp -O3 -march=native -ftree-vectorize'
+PYTHON=python3.4
 
-CYCLE='V'
-L=3
-SIZE=31
-NIT=10
-NU1=10
-NU2=0
-NUC=0
 RUNS=1
+
+# Multigrid specs :
+CYCLE='V'  # MG Cycle : V / W
+L=3  # MG levels
+SIZE=31  # coarse-grid size along each dimension
+NIT=10  # V / W Cycle iterations
+NU1=10  # pre-smoothing steps
+NU2=0  # post-smoothing steps
+NUC=0  # corase-smoothing steps
 
 PROB_ARGS=--cycle=${CYCLE} --nit=${NIT} --runs=${RUNS} --n=${SIZE} --L=${L} --nu1=${NU1} --nuc=${NUC} --nu2=${NU2}
 
 all: new
 
 new:
-	python3.4 main.py  --mode='new' ${PROB_ARGS} --cxx=${CXX} --cxx_flags=${CXX_FLAGS} --t
+	${PYTHON} main.py  --mode='new' ${PROB_ARGS} --cxx="${CXX}" --cxx_flags="${CXX_FLAGS}" -t
 
 tune:
-	python3.4 main.py  --mode='tune' ${PROB_ARGS} --cxx=${CXX} --cxx_flags=${CXX_FLAGS} --t
+	${PYTHON} main.py  --mode='tune' ${PROB_ARGS} --cxx="${CXX}" --cxx_flags="${CXX_FLAGS}" -t
 
 existing:
-	python3.4 main.py  --mode='existing' ${PROB_ARGS} --cxx=${CXX} --cxx_flags=${CXX_FLAGS} --t
+	${PYTHON} main.py  --mode='existing' ${PROB_ARGS} --cxx="${CXX}" --cxx_flags="${CXX_FLAGS}" -t
 
 ready:
-	python3.4 main.py  --mode='ready' ${PROB_ARGS}
+	${PYTHON} main.py  --mode='ready' ${PROB_ARGS} -t
 
 clean:
 	rm -rf *.pyc *.so *.dot *.png __pycache__

@@ -18,8 +18,8 @@ def parse_args():
                       action='store',
                       dest='cycle',
                       choices=['V', 'W'],
-                      default=['V']
-                      help='Multigrid Cycle Type (V or W)',)
+                      default=['V'],
+                      help='Multigrid Cycle Type (V or W)')
 
     parser.add_option('--nit',
                       action='store',
@@ -66,21 +66,21 @@ def parse_args():
                       action='store',
                       dest='runs',
                       default=1,
-                      help='number of runs',)
+                      help='number of runs')
 
     parser.add_option('-t', '--timer',
                       action='store_true',
                       dest='timer',
                       default=False,
                       help='True : report execution time, \
-                            False: do not collect timing info',)
+                            False: do not collect timing info')
 
     parser.add_option('--pool_alloc',
                       action='store_true',
                       dest='pool_alloc',
                       default=False,
                       help='True : Use a pool of memory allocations, \
-                            False: generate simple malloc function call',)
+                            False: generate simple malloc function call')
 
     parser.add_option('--cxx',
                       action='store',
