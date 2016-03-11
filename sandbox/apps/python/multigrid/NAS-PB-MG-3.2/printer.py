@@ -38,6 +38,11 @@ def print_config(app_data):
     print("[main]: Class \""+app_data['prob_class']+"\" " \
                  + "L2 norm =", verify_data['verify_value'])
 
+    print_line()
+
+    return
+
+def print_init_norm(app_data):
     print()
     print("# Initial Norms #")
     print("[main]: initial norm =", app_data['rnm2'])

@@ -46,7 +46,9 @@ def set_vars(app_data):
 
     return
 
-def set_cases(pipe_data, app_data):
+def set_cases(app_data):
+    pipe_data = app_data['pipe_data']
+
     z = pipe_data['z']
     y = pipe_data['y']
     x = pipe_data['x']

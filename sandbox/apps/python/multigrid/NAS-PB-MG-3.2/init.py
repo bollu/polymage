@@ -1,8 +1,10 @@
 import numpy as np
 
+from arg_parser import parse_args
 from verify  import set_verification
 from exec_mg import calc_norm
 from polymage_common import set_cases, set_vars
+from printer import print_init_norm
 
 def init_sizes(app_data):
     # init the problem size and other parameters and the respective solutions
@@ -174,14 +176,11 @@ def init_norm(app_data):
     grid_data = app_data['grid_data']
     V_ = grid_data['V_']
 
-    # load the norm computation library
-    lib_file = "./norm.so"
-    lib_func_name = "norm2u3"
-
-    load_lib(lib_file, lib_func_name, app_data)
-
-    # calculate norm on the initial grid
+    # calculate the initial residual norm and error
+    print("[init]: calculating the initial norm and error ...")
     calc_norm(V_, app_data)
+    print_init_norm(app_data)
+    print("[init]: ... DONE")
 
     return
 
@@ -221,9 +220,6 @@ def init_all(app_data):
 
     # initialize the grid contents
     init_grids(app_data)
-
-    # initialize the norms
-    init_norm(app_data)
 
     # initialize polymage specific parameters
     pipe_data = {}
