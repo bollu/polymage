@@ -1,54 +1,52 @@
 import sys
-from polymage_common import setZeroGhosts
+from polymage_common import set_zero_ghosts
 
-sys.path.insert(0, '../../../../optimizer')
-sys.path.insert(0, '../../../../frontend')
+sys.path.insert(0, '../../../../')
+sys.path.insert(0, '../../../../')
 
-from Compiler   import *
-from Constructs import *
+from compiler import *
+from constructs import *
 
-def restrict(r, l, impipeDict, name):
-    z = impipeDict['z']
-    y = impipeDict['y']
-    x = impipeDict['x']
+def restrict(R, l, pipe_data, name):
+    z = pipe_data['z']
+    y = pipe_data['y']
+    x = pipe_data['x']
 
-    extent = impipeDict['extent']
-    interior = impipeDict['interior']
-    ghosts = impipeDict['ghosts']
+    extent = pipe_data['extent']
+    interior = pipe_data['interior']
+    ghosts = pipe_data['ghosts']
 
-    innerBox = interior[l-1]['innerBox']
+    inner_box = interior[l-1]['inner_box']
 
-    s = Function(([z, y, x], \
-                   [extent[l-1], extent[l-1], extent[l-1]]), \
-                   Double, \
-                   str(name))
+    S = Function(([z, y, x], [extent[l-1], extent[l-1], extent[l-1]]),
+                 Double, str(name))
 
     zz = 2*z
     yy = 2*y
     xx = 2*x
 
     def x1(xx):
-        return (r(zz  , yy-1, xx) + r(zz  , yy+1, xx)
-              + r(zz-1, yy  , xx) + r(zz+1, yy  , xx))
+        return (R(zz  , yy-1, xx) + R(zz  , yy+1, xx)
+              + R(zz-1, yy  , xx) + R(zz+1, yy  , xx))
 
     def y1(xx):
-        return (r(zz-1, yy-1, xx) + r(zz-1, yy+1, xx)
-              + r(zz+1, yy-1, xx) + r(zz+1, yy+1, xx))
+        return (R(zz-1, yy-1, xx) + R(zz-1, yy+1, xx)
+              + R(zz+1, yy-1, xx) + R(zz+1, yy+1, xx))
 
-    s.defn = [ Case(innerBox,
-                   0.5000 * r(zz, yy, xx)
-                 + 0.2500 * (r(zz  , yy  , xx-1)
-                           + r(zz  , yy  , xx+1)
-                           + x1(xx  ))
-                 + 0.1250 * (x1(xx-1)
-                           + x1(xx+1)
-                           + y1(xx  ))
-                 + 0.0625 * (y1(xx-1)
-                           + y1(xx+1))
-                 )]
+    S.defn = [ Case(inner_box,
+                    0.5000 * R(zz, yy, xx)
+                  + 0.2500 * (R(zz  , yy  , xx-1)
+                            + R(zz  , yy  , xx+1)
+                            + x1(xx  ))
+                  + 0.1250 * (x1(xx-1)
+                            + x1(xx+1)
+                            + y1(xx  ))
+                  + 0.0625 * (y1(xx-1)
+                            + y1(xx+1))
+                  ) ]
 
-    setZeroGhosts(s, ghosts[l-1])
+    set_zero_ghosts(s, ghosts[l-1])
 
-    return s
+    return S
 
 

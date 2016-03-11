@@ -3,42 +3,40 @@ from __future__ import absolute_import, division, print_function
 import sys
 from fractions  import Fraction
 
-sys.path.insert(0, '../../../../optimizer')
-sys.path.insert(0, '../../../../frontend')
+sys.path.insert(0, '../../../../')
+sys.path.insert(0, '../../../../')
 
-from Compiler   import *
-from Constructs import *
+from compiler import *
+from constructs import *
 
-def interpolate(g, u, l, impipeDict, name):
-    z = impipeDict['z']
-    y = impipeDict['y']
-    x = impipeDict['x']
+def interpolate(G, U, l, pipe_data, name):
+    z = pipe_data['z']
+    y = pipe_data['y']
+    x = pipe_data['x']
 
-    extent = impipeDict['extent']
-    interior = impipeDict['interior']
-    ghosts = impipeDict['ghosts']
+    extent = pipe_data['extent']
+    interior = pipe_data['interior']
+    ghosts = pipe_data['ghosts']
 
-    innerBox = interior[l]['innerBox']
+    inner_box = interior[l]['inner_box']
 
-    uu = Function(([z, y, x], \
-                   [extent[l], extent[l], extent[l]]), \
-                   Double, \
-                   str(name))
+    UU = Function(([z, y, x], [extent[l], extent[l], extent[l]]),
+                   Double, str(name))
 
     zz = z/2
     yy = y/2
     xx = x/2
 
     def z1(xx):
-        return g(zz  , yy+1, xx) + g(zz  , yy  , xx)
+        return G(zz  , yy+1, xx) + G(zz  , yy  , xx)
     def z2(xx):
-        return g(zz+1, yy  , xx) + g(zz  , yy  , xx)
+        return G(zz+1, yy  , xx) + G(zz  , yy  , xx)
     def z3(xx):
-        return g(zz+1, yy+1, xx) + g(zz+1, yy, xx) \
-             + g(zz  , yy+1, xx) + g(zz  , yy, xx)
+        return G(zz+1, yy+1, xx) + G(zz+1, yy, xx) \
+             + G(zz  , yy+1, xx) + G(zz  , yy, xx)
 
-    expr_000 = g(zz, yy, xx)
-    expr_001 = 0.500 * (g(zz, yy, xx) + g(zz, yy, xx+1))
+    expr_000 = G(zz, yy, xx)
+    expr_001 = 0.500 * (G(zz, yy, xx) + G(zz, yy, xx+1))
     expr_010 = 0.500 * z1(xx)
     expr_011 = 0.250 * (z1(xx) + z1(xx+1))
     expr_100 = 0.500 * z2(xx)
@@ -50,16 +48,12 @@ def interpolate(g, u, l, impipeDict, name):
     even_y = Condition(y%2, '==', 0)
     even_z = Condition(z%2, '==', 0)
 
-    odd_x  = Condition(x%2, '==', 1)
-    odd_x  = Condition(y%2, '==', 1)
-    odd_x  = Condition(z%2, '==', 1)
-
-    if u == None:
+    if U == None:
         correct = 0.0
     else:
-        correct = u(z, y, x)
+        correct = U(z, y, x)
 
-    uu.defn = [ correct + \
+    UU.defn = [ correct + \
                 Select(even_z,
                   Select(even_y,
                     Select(even_x,
@@ -76,4 +70,4 @@ def interpolate(g, u, l, impipeDict, name):
                       expr_110,
                       expr_111))) ]
 
-    return uu
+    return UU

@@ -1,51 +1,51 @@
 import sys
-from polymage_common import setZeroGhosts
+from polymage_common import set_zero_ghosts
 
-sys.path.insert(0, '../../../../optimizer')
-sys.path.insert(0, '../../../../frontend')
+sys.path.insert(0, '../../../../')
+sys.path.insert(0, '../../../../')
 
-from Compiler   import *
-from Constructs import *
+from compiler import *
+from constructs import *
 
-def psinv(r, u_, l, impipeDict, dataDict, name):
-    z = impipeDict['z']
-    y = impipeDict['y']
-    x = impipeDict['x']
+def psinv(R, U, l, app_data, name):
+    pipe_data = app_data['pipe_data']
 
-    extent = impipeDict['extent']
-    interior = impipeDict['interior']
-    ghosts = impipeDict['ghosts']
+    z = pipe_data['z']
+    y = pipe_data['y']
+    x = pipe_data['x']
 
-    c = dataDict['c']
+    extent = pipe_data['extent']
+    interior = pipe_data['interior']
+    ghosts = pipe_data['ghosts']
 
-    innerBox = interior[l]['innerBox']
+    c = app_data['c']
 
-    w = Function(([z, y, x], \
-                   [extent[l], extent[l], extent[l]]), \
-                   Double, \
-                   str(name))
+    inner_box = interior[l]['inner_box']
+
+    W = Function(([z, y, x], [extent[l], extent[l], extent[l]]),
+                 Double, str(name))
 
     def r1(x):
-        return (r(z  , y-1, x) + r(z  , y+1, x)
-              + r(z-1, y  , x) + r(z+1, y  , x))
+        return (R(z  , y-1, x) + R(z  , y+1, x)
+              + R(z-1, y  , x) + R(z+1, y  , x))
 
     def r2(x):
-        return (r(z-1, y-1, x) + r(z-1, y+1, x)
-              + r(z+1, y-1, x) + r(z+1, y+1, x))
+        return (R(z-1, y-1, x) + R(z-1, y+1, x)
+              + R(z+1, y-1, x) + R(z+1, y+1, x))
 
-    if u_ == None:
+    if U == None:
         u = 0.0
     else:
-        u = u_(z, y, x)
+        u = U(z, y, x)
 
-    w.defn = [ Case(innerBox,
-                   u
-                 + c[0] * r(z, y, x)
-                 + c[1] * (r(z, y, x-1) + r(z, y, x+1) + r1(x))
+    W.defn = [ Case(inner_box,
+                   u \
+                 + c[0] * R(z, y, x)
+                 + c[1] * (R(z, y, x-1) + R(z, y, x+1) + r1(x))
                  + c[2] * (r2(x) + r1(x-1) + r1(x+1))
-#                + c[3] * (u2(x-1) + u2(x+1))
+#                + c[3] * (r2(x-1) + r2(x+1))
                  ) ]
 
-    setZeroGhosts(w, ghosts[l])
+    set_zero_ghosts(W, ghosts[l])
 
-    return w
+    return W

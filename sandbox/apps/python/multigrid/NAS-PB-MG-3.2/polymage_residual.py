@@ -1,58 +1,60 @@
 import sys
-from polymage_common import setZeroGhosts
+from polymage_common import set_zero_ghosts
 
-sys.path.insert(0, '../../../../optimizer')
-sys.path.insert(0, '../../../../frontend')
+sys.path.insert(0, '../../../../')
+sys.path.insert(0, '../../../../')
 
-from Compiler   import *
-from Constructs import *
+from compiler import *
+from constructs import *
 
-def residual(u, v, l, impipeDict, dataDict, name):
-    z = impipeDict['z']
-    y = impipeDict['y']
-    x = impipeDict['x']
+def residual(U, V, l, app_data, name):
+    pipe_data = app_data['pipe_data']
 
-    extent = impipeDict['extent']
-    interior = impipeDict['interior']
-    ghosts = impipeDict['ghosts']
+    z = pipe_data['z']
+    y = pipe_data['y']
+    x = pipe_data['x']
 
-    a = dataDict['a']
+    extent = pipe_data['extent']
+    interior = pipe_data['interior']
+    ghosts = pipe_data['ghosts']
 
-    innerBox = interior[l]['innerBox']
+    a = app_data['a']
 
-    r = Function(([z, y, x], \
-                   [extent[l], extent[l], extent[l]]), \
-                   Double, \
-                   str(name))
+    inner_box = interior[l]['inner_box']
+
+    R = Function(([z, y, x], [extent[l], extent[l], extent[l]]),
+                 Double, str(name))
 
     def u1(x):
-        return (u(z  , y-1, x) + u(z  , y+1, x)
-              + u(z-1, y  , x) + u(z+1, y  , x))
+        return (U(z  , y-1, x) + U(z  , y+1, x)
+              + U(z-1, y  , x) + U(z+1, y  , x))
 
     def u2(x):
-        return (u(z-1, y-1, x) + u(z-1, y+1, x)
-              + u(z+1, y-1, x) + u(z+1, y+1, x))
+        return (U(z-1, y-1, x) + U(z-1, y+1, x)
+              + U(z+1, y-1, x) + U(z+1, y+1, x))
 
-    r.defn = [ Case(innerBox,
-                   v(z, y, x)
-                 - a[0] * u(z, y, x)
-#                - a[1] * (u(z, y, x-1) + u(z, y, x+1) + u1(x))
+    R.defn = [ Case(inner_box,
+                   V(z, y, x) \
+                 - a[0] * U(z, y, x)
+#                - a[1] * (U(z, y, x-1) + U(z, y, x+1) + u1(x))
                  - a[2] * (u2(x) + u1(x-1) + u1(x+1))
                  - a[3] * (u2(x-1) + u2(x+1))
                  ) ]
 
-    setZeroGhosts(r, ghosts[l])
+    set_zero_ghosts(r, ghosts[l])
 
     return r
 
-def residPipe(impipeDict, dataDict):
-    n = impipeDict['n']
+def resid_pipe(app_data):
+    pipe_data = app_data['pipe_data']
+
+    n = pipe_data['n']
 
     u = Image(Double, "u", [n, n, n])
     v = Image(Double, "v", [n, n, n])
 
-    lt = dataDict['lt']
+    lt = app_data['lt']
 
-    r = residual(u, v, lt, impipeDict, dataDict, "resid")
+    r = residual(u, v, lt, pipe_data, app_data, "resid")
 
     return r
