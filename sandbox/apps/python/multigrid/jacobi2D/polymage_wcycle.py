@@ -6,7 +6,7 @@ from polymage_interpolate import interpolate
 
 sys.path.insert(0, '../../../../')
 
-from compiler   import *
+from compiler import *
 from constructs import *
 
 def w_cycle(app_data):
