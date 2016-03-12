@@ -41,9 +41,9 @@ def residual(U, V, l, app_data, name):
                  - a[3] * (u2(x-1) + u2(x+1))
                  ) ]
 
-    set_zero_ghosts(r, ghosts[l])
+    set_zero_ghosts(R, ghosts[l])
 
-    return r
+    return R
 
 def resid_pipe(app_data):
     pipe_data = app_data['pipe_data']
@@ -55,6 +55,6 @@ def resid_pipe(app_data):
 
     lt = app_data['lt']
 
-    r = residual(u, v, lt, pipe_data, app_data, "resid")
+    r = residual(u, v, lt, app_data, "resid")
 
     return r

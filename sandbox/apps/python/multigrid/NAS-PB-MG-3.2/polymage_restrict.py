@@ -45,7 +45,7 @@ def restrict(R, l, pipe_data, name):
                             + y1(xx+1))
                   ) ]
 
-    set_zero_ghosts(s, ghosts[l-1])
+    set_zero_ghosts(S, ghosts[l-1])
 
     return S
 
