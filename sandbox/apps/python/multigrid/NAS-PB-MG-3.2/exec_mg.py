@@ -31,8 +31,8 @@ def calc_norm(V_, app_data):
 
     return
 
-def calc_resid(U_, V_, R_):
-    N = r.shape[0]
+def calc_resid(U_, V_, R_, app_data):
+    N = R_.shape[0]
 
     # lib function name
     resid = app_data['pipeline_resid']
@@ -49,11 +49,12 @@ def calc_resid(U_, V_, R_):
 
     return
 
-def call_mg3P(U_IN_, R_IN_, V_, U_OUT_, R_OUT_):
-    N = r.shape[0]
+def call_mg3p(U_IN_, R_IN_, V_, U_OUT_, R_OUT_, app_data):
+    N = R_IN_.shape[0]
 
+    app_name = app_data['app']
     # lib function name
-    mg = app_data['pipeline_nas_mg']
+    mg = app_data['pipeline_'+app_name]
 
     # lib function args
     mg_args = []
@@ -81,7 +82,8 @@ def multigrid(app_data):
     UU = [U0_, U1_]
     RR = [R0_, R1_]
 
-    lib_mg = app_data['nas_mg.so']
+    app_name = app_data['app']
+    lib_mg = app_data[app_name+'.so']
 
     # compute the initial residual
     print("[exec]: computing the initial residual ...")
@@ -98,20 +100,18 @@ def multigrid(app_data):
     print("        err  =", app_data['rnmu'])
 
     app_args = app_data['app_args']
+    timer = app_data['timer']
     pool_alloc = bool(app_args.pool_alloc)
 
     if pool_alloc:
         lib_mg.pool_init()
 
-    # mg3p time
-    t_total = 0.0
+    if timer:
+        t_total = 0.0
 
     nit = app_data['nit']
-    nit = 10
     # call 'nit' v-cycles
     for it in range(1, nit+1):
-        print()
-        print("[exec]: iter", it)
         in_ = (it-1)%2
         out_ = it%2
 
@@ -120,7 +120,7 @@ def multigrid(app_data):
             t1 = time.time()
         
         # call the v-cycle
-        call_mg3P(UU[in_], RR[in_], V_, UU[out_], RR[out_])
+        call_mg3p(UU[in_], RR[in_], V_, UU[out_], RR[out_], app_data)
 
         # timer OFF
         if timer:
@@ -142,7 +142,8 @@ def multigrid(app_data):
     calc_norm(RR[nit%2], app_data)
     print("[exec]: ... DONE")
 
-    print()
-    print("[exec]: time taken by multigrid pipeline =", t_total, "s")
+    if timer:
+        print("")
+        print("[exec]: time taken to execute =", t_total*1000, "ms")
 
     return

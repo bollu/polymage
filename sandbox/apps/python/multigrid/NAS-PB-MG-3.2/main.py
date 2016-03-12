@@ -23,8 +23,7 @@ def main():
 
     app_name = "nas_mg_class_"+app_data['prob_class']
     app_data['app'] = app_name
-
-    if mode == 'tune':
+    if app_data['mode'] == 'tune':
         #app_tune(app_data)
         pass
     else:
@@ -32,7 +31,7 @@ def main():
         # setting up residual norm computation
         create_lib(None, "norm", app_data)
         # setting up multigrid v-cycle computation
-        create_lib(build_mg3p, pipe_name, app_data)
+        create_lib(build_mg3p, app_name, app_data)
         # setting up standalone version of residual computation
         create_lib(build_resid, "resid", app_data)
         #-------------------------------------------------------------------
