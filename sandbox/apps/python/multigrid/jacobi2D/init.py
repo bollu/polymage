@@ -176,7 +176,6 @@ def init_params(app_data):
     app_data['n'] = n
     app_data['N'] = N
     app_data['L'] = L
-    app_data['runs'] = int(app_args.runs)
 
     # pre-smoother, post-smoother and
     # coarse-grid relaxation steps
@@ -186,9 +185,6 @@ def init_params(app_data):
 
     # problem type
     app_data['problem'] = int(app_args.problem)
-
-    # pool allocate option
-    app_data['pool_alloc'] = bool(app_args.pool_alloc)
 
     assert not (app_data['nu1'] == 0 and \
                 app_data['nu2'] == 0 and
@@ -204,10 +200,15 @@ def get_input(app_data):
     app_data['cycle'] = app_args.cycle
     app_data['nit'] = int(app_args.nit)
 
+    app_data['runs'] = int(app_args.runs)
+    app_data['graph_gen'] = bool(app_args.graph_gen)
+
     cycle_name = app_data['cycle']+"cycle"
     app_data['cycle_name'] = cycle_name
+    # pool allocate option
+    app_data['pool_alloc'] = bool(app_args.pool_alloc)
     app_data['timer'] = app_args.timer
-  
+
     return
 
 def init_all(app_data):

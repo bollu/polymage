@@ -95,6 +95,13 @@ def parse_args():
                       default=['-O3'],
                       help='CXX Compiler flags')
 
+    parser.add_option('--graph-gen',
+                      action='store_true',
+                      dest='graph_gen',
+                      default=False,
+                      help='True : generate .dot & .png file of pipeline graph, \
+                            False: don\'t')
+
     (options, args) = parser.parse_args()
 
     return options

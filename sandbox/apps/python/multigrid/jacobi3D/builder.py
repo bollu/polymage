@@ -24,7 +24,7 @@ def code_gen(pipe, file_name, app_data):
 
     return
 
-def graph_gen(pipe, file_name, app_data):
+def generate_graph(pipe, file_name, app_data):
     graph_file = file_name+".dot"
     png_graph = file_name+".png"
 
@@ -84,6 +84,7 @@ def create_lib(build_func, pipe_name, app_data):
     app_args = app_data['app_args']
     pipe_src = pipe_name+".cpp"
     pipe_so = pipe_name+".so"
+    graph_gen = app_data['graph_gen']
 
     if build_func != None:
         if mode == 'new':
@@ -91,7 +92,8 @@ def create_lib(build_func, pipe_name, app_data):
             pipe = build_func(app_data)
 
             # draw the pipeline graph to a png file
-            graph_gen(pipe, pipe_name, app_data)
+            if graph_gen:
+                generate_graph(pipe, pipe_name, app_data)
 
             # generate pipeline cpp source
             code_gen(pipe, pipe_src, app_data)

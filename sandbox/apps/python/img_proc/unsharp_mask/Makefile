@@ -12,7 +12,7 @@ WEIGHT=4
 RUNS=1
 
 APP_ARGS=--img=$(IMG) --threshold=$(THRESH) --weight=$(WEIGHT)
-TOOL_ARGS=--graph-gen --display --runs=$(RUNS) -t
+TOOL_ARGS=--graph-gen --display --runs=$(RUNS) --timer
 CXX_ARGS=--cxx="$(CXX)" --cxx_flags="$(CXX_FLAGS)"
 
 all: new

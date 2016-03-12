@@ -2,12 +2,11 @@
 #CXX_FLAGS=-openmp -ipo -O3 -xhost -ansi-alias
 CXX=g++
 CXX_FLAGS=-fopenmp -O3 -march=native -ftree-vectorize
-
-PYTHON=python3.4
+PYTHON=python3
 
 RUNS=1
 
-# Multigrid specs :
+# app inputs
 CYCLE='V'  # MG Cycle : V / W
 L=3  # MG levels
 SIZE=31  # coarse-grid size along each dimension
@@ -16,21 +15,23 @@ NU1=10  # pre-smoothing steps
 NU2=0  # post-smoothing steps
 NUC=0  # corase-smoothing steps
 
-PROB_ARGS=--cycle=${CYCLE} --nit=${NIT} --runs=${RUNS} --n=${SIZE} --L=${L} --nu1=${NU1} --nuc=${NUC} --nu2=${NU2}
+APP_ARGS=--cycle=${CYCLE} --nit=${NIT} --runs=${RUNS} --n=${SIZE} --L=${L} --nu1=${NU1} --nuc=${NUC} --nu2=${NU2}
+TOOL_ARGS=--graph-gen --runs=$(RUNS) --timer
+CXX_ARGS=--cxx="$(CXX)" --cxx_flags="$(CXX_FLAGS)"
 
 all: new
 
 new:
-	${PYTHON} main.py  --mode='new' ${PROB_ARGS} --cxx="${CXX}" --cxx_flags="${CXX_FLAGS}" -t
+	$(PYTHON) main.py --mode='new' $(APP_ARGS) $(TOOL_ARGS) $(CXX_ARGS)
 
 tune:
-	${PYTHON} main.py  --mode='tune' ${PROB_ARGS} --cxx="${CXX}" --cxx_flags="${CXX_FLAGS}" -t
+	$(PYTHON) main.py --mode='tune' $(APP_ARGS) $(TOOL_ARGS) $(CXX_ARGS)
 
 existing:
-	${PYTHON} main.py  --mode='existing' ${PROB_ARGS} --cxx="${CXX}" --cxx_flags="${CXX_FLAGS}" -t
+	$(PYTHON) main.py --mode='existing' $(APP_ARGS) $(TOOL_ARGS) $(CXX_ARGS)
 
 ready:
-	${PYTHON} main.py  --mode='ready' ${PROB_ARGS} -t
+	$(PYTHON) main.py --mode='ready' $(APP_ARGS) $(TOOL_ARGS)
 
 clean:
 	rm -rf *.pyc *.so *.dot *.png __pycache__
