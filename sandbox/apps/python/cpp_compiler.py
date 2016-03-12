@@ -1,7 +1,7 @@
 import sys
 import subprocess
 
-from compiler   import *
+from compiler import *
 from constructs import *
 
 def c_compile(in_file, out_file, arg_data):
