@@ -5,7 +5,7 @@ def parse_args():
     parser = optparse.OptionParser()
 
     help_str = \
-        '"new" : from scratch | "existing" : compile and run |  "ready" : just run'
+    '"new" : from scratch | "existing" : compile and run |  "ready" : just run'
     parser.add_option('-m', '--mode',
                        type='choice',
                        action='store',
@@ -17,74 +17,87 @@ def parse_args():
     parser.add_option('-i', '--img',
                        action='store',
                        dest='img_file',
-                       help='input image file path',)
+                       help='input image file path')
+
+    parser.add_option('--threshold',
+                       action='store',
+                       dest='threshold',
+                       help='Threshold')
+
+    parser.add_option('--weight',
+                       action='store',
+                       dest='weight',
+                       help='Weight')
 
     parser.add_option('-x', '--rows',
                        action='store',
                        dest='rows',
                        default=0,
-                       help='number of rows of image ROI',)
+                       help='number of rows of image ROI')
 
     parser.add_option('-y', '--cols',
                        action='store',
                        dest='cols',
                        default=0,
-                       help='number of cols of image ROI',)
+                       help='number of cols of image ROI')
 
-    parser.add_option('--rowbase', '--rowbase',
+    parser.add_option('--rowbase',
                        action='store',
                        dest='rowbase',
                        default=0,
-                       help='',)
+                       help='x-coordinate of ROI origin')
 
-    parser.add_option('--colbase', '--colbase',
+    parser.add_option('--colbase',
                        action='store',
                        dest='colbase',
                        default=0,
-                       help='',)
+                       help='y-coordinate of ROI origin')
 
     parser.add_option('-n', '--runs',
                        action='store',
                        dest='runs',
                        default=1,
-                       help='number of runs',)
+                       help='number of runs')
 
     parser.add_option('-t', '--timer',
                        action='store_true',
                        dest='timer',
                        default=False,
                        help='True : report execution time, \
-                             False: do not collect timing info',)
+                             False: do not collect timing info')
 
     parser.add_option('-d', '--display',
                        action='store_true',
                        dest='display',
                        default=False,
-                       help='display output image',)
+                       help='display output image')
 
     parser.add_option('--pool_alloc',
                        action='store_true',
                        dest='pool_alloc',
                        default=False,
                        help='True : Use a pool of memory allocations, \
-                             False: generate simple malloc function call',)
+                             False: generate simple malloc function call')
 
     parser.add_option('--graph-gen',
                        action='store_true',
                        dest='graph_gen',
                        default=False,
                        help='True : generate .dot file of pipeline graph, \
-                             False: don\'t',)
+                             False: don\'t')
 
-    parser.add_option('--threshold', '--threshold',
+    parser.add_option('--cxx',
                        action='store',
-                       dest='threshold',
-                       help='Threshold',)
+                       dest='cxx',
+                       choices=['g++', 'icpc'],
+                       default=['g++'],
+                       help='CXX Compiler')
 
-    parser.add_option('--weight', '--weight',
+    parser.add_option('--cxx_flags',
                        action='store',
-                       dest='weight',
-                       help='Weight',)
+                       dest='cxx_flags',
+                       default=['-O3'],
+                       help='CXX Compiler flags')
 
     (options, args) = parser.parse_args()
 

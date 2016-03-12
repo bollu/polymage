@@ -101,7 +101,7 @@ def create_lib(build_func, pipe_name, impipe_data, app_data, mode):
 
     if mode != 'ready':
         # compile the cpp code
-        c_compile(pipe_src, pipe_so, c_compiler="gnu")
+        c_compile(pipe_src, pipe_so, app_args)
 
     # load the shared library
     pipe_func_name = "pipeline_"+pipe_name
