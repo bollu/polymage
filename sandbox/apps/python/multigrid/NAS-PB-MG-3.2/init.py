@@ -201,7 +201,10 @@ def get_input(app_data):
     app_data['prob_class'] = app_args.prob_class
 
     app_data['runs'] = int(app_args.runs)
+    app_data['graph_gen'] = bool(app_args.graph_gen)
+    # pool allocate option
     app_data['pool_alloc'] = bool(app_args.pool_alloc)
+    app_data['timer'] = app_args.timer
 
     return
 

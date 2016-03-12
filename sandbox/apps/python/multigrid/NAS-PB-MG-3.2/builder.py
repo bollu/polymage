@@ -6,7 +6,7 @@ sys.path.insert(0, '../../')
 from cpp_compiler import c_compile
 from loader import load_lib
 from polymage_residual import resid_pipe
-from polymage_mg3p import mg3p_pipe
+from polymage_mg3p import mg3p
 
 from compiler   import *
 from constructs import *
@@ -24,7 +24,7 @@ def code_gen(pipe, file_name, app_data):
 
     return
 
-def graph_gen(pipe, file_name, app_data):
+def generate_graph(pipe, file_name, app_data):
     graph_file = file_name+".dot"
     png_graph = file_name+".png"
 
@@ -81,7 +81,7 @@ def build_mg3p(app_data):
     pipe_data = app_data['pipe_data']
     
     # construct the multigrid v-cycle pipeline
-    mg_u, mg_r = mg3p_pipe(app_data)
+    mg_u, mg_r = mg3p(app_data)
 
     n = pipe_data['n']
     N = app_data['N']
@@ -89,11 +89,14 @@ def build_mg3p(app_data):
 
     live_outs = [mg_u, mg_r]
 
-    pipe_name = app_data['cycle_name']
+    pipe_name = app_data['app']
     p_estimates = [(n, N[lt])]
     p_constraints = [ Condition(n, "==", N[lt]) ]
     t_size = [16, 16, 16]
     g_size = 1
+    opts = []
+    if app_data['pool_alloc']:
+        opts += ['pool_alloc']
 
     mg_pipe = buildPipeline(live_outs,
                             param_estimates=p_estimates,
@@ -110,6 +113,7 @@ def create_lib(build_func, pipe_name, app_data):
     app_args = app_data['app_args']
     pipe_src = pipe_name+".cpp"
     pipe_so = pipe_name+".so"
+    graph_gen = app_data['graph_gen']
 
     if build_func != None:
         if mode == 'new':
@@ -117,7 +121,8 @@ def create_lib(build_func, pipe_name, app_data):
             pipe = build_func(app_data)
 
             # draw the pipeline graph to a png file
-            graph_gen(pipe, pipe_name, app_data)
+            if graph_gen:
+                generate_graph(pipe, pipe_name, app_data)
 
             # generate pipeline cpp source
             code_gen(pipe, pipe_src, app_data)
