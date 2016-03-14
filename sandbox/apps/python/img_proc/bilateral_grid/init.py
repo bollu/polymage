@@ -12,17 +12,20 @@ def init_images(app_data):
 
     app_args = app_data['app_args']
 
-    off_left = int(app_args.off_left)
-    total_pad = int(app_args.total_pad)
+    off_left = 24
+    total_pad = 56
 
     # input image: 
     img_path = app_args.img_file
     img1 = Image.open(img_path)  #.convert('1'))
     img = np.array(img1)
     rows, cols, c = img.shape
+  
+    rowdiff = 2832
+    coldiff = 4256
 
-    row_base = (rows-int(app_args.rowdiff))/2
-    col_base = (cols-int(app_args.coldiff))/2
+    row_base = (rows-rowdiff)/2
+    col_base = (cols-coldiff)/2
     image_region = img[row_base:row_base+rows, \
                      col_base:col_base+cols]
     
@@ -52,8 +55,8 @@ def init_images(app_data):
     app_data['rows'] = rows
     app_data['cols'] = cols
 
-    app_data['rowdiff'] = int(app_args.rowdiff)
-    app_data['coldiff'] = int(app_args.coldiff)
+    app_data['rowdiff'] = rowdiff
+    app_data['coldiff'] = coldiff
 
     return
 

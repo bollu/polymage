@@ -31,31 +31,6 @@ def parse_args():
                        default=0,
                        help='number of cols of image ROI',)
 
-    parser.add_option('--rowdiff', '--rowdiff',
-                       action='store',
-                       dest='rowdiff',
-                       default=0,
-                       help='',)
-
-    parser.add_option('--coldiff', '--coldiff',
-                       action='store',
-                       dest='coldiff',
-                       default=0,
-                       help='',)
-
-    parser.add_option('--off_left', '--off_left',
-                       action='store',
-                       dest='off_left',
-                       default=0,
-                       help='',)
-
-    parser.add_option('--total_pad', '--total_pad',
-                       action='store',
-                       dest='total_pad',
-                       default=0,
-                       help='',)
-
-
     parser.add_option('-n', '--runs',
                        action='store',
                        dest='runs',
@@ -74,6 +49,19 @@ def parse_args():
                        dest='display',
                        default=False,
                        help='display output image',)
+
+    parser.add_option('--cxx',
+                      action='store',
+                      dest='cxx',
+                      choices=['g++', 'icpc'],
+                      default=['g++'],
+                      help='CXX Compiler')
+
+    parser.add_option('--cxx_flags',
+                      action='store',
+                      dest='cxx_flags',
+                      default=['-O3'],
+                      help='CXX Compiler flags')
 
     parser.add_option('--pool_alloc',
                        action='store_true',
