@@ -55,9 +55,10 @@ def init_sizes(app_data):
 
     # grid sizes (with ghost) at each level
     N = {}
-    N[lt] = app_data['prob_size']+2
+    n = app_data['prob_size']
+    N[lt] = n+2
     for l in range(lt-1, 0, -1):
-        N[l] = (N[l+1]-2)/2+2
+        N[l] = n//(2**(lt-l))+2
 
     # register in the data dictionary
     app_data['N'] = N

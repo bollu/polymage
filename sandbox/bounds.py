@@ -68,10 +68,12 @@ def check_refs(child_group, parent_group):
                                  if ref.objectRef == parent_func and
                                     affine_ref(ref) ]
 
+            log_level = logging.DEBUG
             deps = []
             parent_dom = parent_group.polyRep.poly_doms[parent_comp]
             for ref in child_refs:
                 deps += extract_value_dependence(child_part, ref, parent_dom)
+                LOG(log_level, "ref : "+str(ref))
             for dep in deps:
                 diff = dep.rel.range().subtract(parent_dom.dom_set)
                 # ***

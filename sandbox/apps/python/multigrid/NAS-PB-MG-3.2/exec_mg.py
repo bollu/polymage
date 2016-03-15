@@ -7,7 +7,7 @@ import time
 from verify import verify_norm
 
 def calc_norm(V_, app_data):
-    N = V_.shape[0]
+    N = V_.shape[0]-2
 
     # lib function name
     norm2u3 = app_data['pipeline_norm']
@@ -32,7 +32,7 @@ def calc_norm(V_, app_data):
     return
 
 def calc_resid(U_, V_, R_, app_data):
-    N = R_.shape[0]
+    N = R_.shape[0]-2
 
     # lib function name
     resid = app_data['pipeline_resid']
@@ -50,7 +50,7 @@ def calc_resid(U_, V_, R_, app_data):
     return
 
 def call_mg3p(U_IN_, R_IN_, V_, U_OUT_, R_OUT_, app_data):
-    N = R_IN_.shape[0]
+    N = R_IN_.shape[0]-2
 
     app_name = app_data['app']
     # lib function name
@@ -112,6 +112,7 @@ def multigrid(app_data):
     nit = app_data['nit']
     # call 'nit' v-cycles
     for it in range(1, nit+1):
+        print("MG iter:", it, " ...")
         in_ = (it-1)%2
         out_ = it%2
 
@@ -129,6 +130,7 @@ def multigrid(app_data):
             t_total += (float(t2) - float(t1))
 
         # update the residual
+        print("Residual ...")
         calc_resid(UU[out_], V_, RR[out_], app_data)
 
     #endfor

@@ -22,9 +22,9 @@ def mg3p(app_data):
     lb = app_data['lb']
     n  = pipe_data['n']
 
-    U = Image(Double, "U", [n, n, n])
-    V = Image(Double, "V", [n, n, n])
-    R = Image(Double, "R", [n, n, n])
+    U = Image(Double, "U", [n+2, n+2, n+2])
+    V = Image(Double, "V", [n+2, n+2, n+2])
+    R = Image(Double, "R", [n+2, n+2, n+2])
 
     a = app_data['a']
     c = app_data['c']

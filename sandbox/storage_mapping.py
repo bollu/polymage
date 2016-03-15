@@ -620,6 +620,12 @@ def create_array_freelist(pipeline):
     # get a map-reverse
     liveness_map2 = map_reverse(liveness_map)
 
+    # ignore all arrays used by pipeline outputs
+    out_comps = [pipeline.func_map[func] for func in pipeline.outputs]
+    output_arrays = [comp.array for comp in out_comps]
+    for array in output_arrays:
+        array_writers.pop(array)
+
     # find the scheduled time (of group) at which arrays have thier last use
     last_use = {}
     for array in array_writers:
@@ -638,7 +644,6 @@ def create_array_freelist(pipeline):
 
     # create a direct mapping from groups to arrays that are not live after
     # the group's execution is complete
-    freed = []
     free_arrays = {}
     for group in g_schedule:
         free_arrays[group] = []
@@ -647,7 +652,6 @@ def create_array_freelist(pipeline):
         # find the group with schedule time = user_sched
         group = schedule_g[user_sched]
         free_arrays[group].append(array)
-        freed.append(array)
 
     # ***
     logs(liveness_map2, array_writers, last_use, free_arrays)

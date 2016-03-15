@@ -32,9 +32,9 @@ def set_vars(app_data):
     pipe_data['n'] = n
 
     N = {}
-    N[lt] = n
+    N[lt] = n+2
     for l in range(lt-1, 0, -1):
-        N[l] = (N[l+1]-2)/2 + 2
+        N[l] = n//(2**(lt-l)) + 2
     pipe_data['N'] = N
 
     # extent in each dimension

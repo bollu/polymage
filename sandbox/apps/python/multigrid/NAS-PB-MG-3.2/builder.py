@@ -53,13 +53,12 @@ def build_resid(app_data):
     r = resid_pipe(app_data)
 
     n = pipe_data['n']
-    N = app_data['N']
-    lt = app_data['lt']
+    prob_size = app_data['prob_size']
 
     live_outs = [r]
     pipe_name = "resid"
-    p_estimates = [(n, N[lt])]
-    p_constraints = [ Condition(n, "==", N[lt]) ]
+    p_estimates = [(n, prob_size)]
+    p_constraints = [ Condition(n, "==", prob_size) ]
     t_size = [16, 16, 16]
     g_size = 1
     opts = []
@@ -84,14 +83,13 @@ def build_mg3p(app_data):
     mg_u, mg_r = mg3p(app_data)
 
     n = pipe_data['n']
-    N = app_data['N']
-    lt = app_data['lt']
+    prob_size = app_data['prob_size']
 
     live_outs = [mg_u, mg_r]
 
     pipe_name = app_data['app']
-    p_estimates = [(n, N[lt])]
-    p_constraints = [ Condition(n, "==", N[lt]) ]
+    p_estimates = [(n, prob_size)]
+    p_constraints = [ Condition(n, "==", prob_size) ]
     t_size = [16, 16, 16]
     g_size = 1
     opts = []

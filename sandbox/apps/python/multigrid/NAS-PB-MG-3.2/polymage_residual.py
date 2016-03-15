@@ -50,8 +50,8 @@ def resid_pipe(app_data):
 
     n = pipe_data['n']
 
-    u = Image(Double, "u", [n, n, n])
-    v = Image(Double, "v", [n, n, n])
+    u = Image(Double, "u", [n+2, n+2, n+2])
+    v = Image(Double, "v", [n+2, n+2, n+2])
 
     lt = app_data['lt']
 
