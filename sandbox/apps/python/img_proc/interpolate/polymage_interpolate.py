@@ -36,7 +36,7 @@ def interpolate(pipe_data):
     row2 = Interval(Int, 0, R-1)
     col2 = Interval(Int, 0, C-1)
 
-    #####################################################################################
+    ###########################################################################
 
     # DOWNSAMPLE
     def pyrDown(f, l, name):
@@ -64,18 +64,16 @@ def interpolate(pipe_data):
         condxTop    = Condition(x, '<=', 0)
         condxBottom = Condition(x, '>=', (R/decFactor)+1)
 
-        downx = Function(([c, x, y], [rgba, decRowr, colr]), Float, "Dx_" + str(l) + "_" + name)
-        downx.defn = [Case(condx, (f(c, 2*x-2, y) + \
-                                               f(c, 2*x-1, y) * 2.0 + \
-                                               f(c, 2*x  , y) \
-                                              ) * 0.25),
-                     Case(condxLeft, 0),
-                     Case(condxRight, 0),
-                     Case(condxBottom, 0),
-                     Case(condxTop, 0)]
-    
-        # Please refer to 'local_laplacian' app to check how to set
-        # boundary conditions if necessary
+        downx = Function(([c, x, y], [rgba, decRowr, colr]),
+                         Float, "Dx_" + str(l) + "_" + name)
+        downx.defn = [ Case(condx, (f(c, 2*x-2, y) + \
+                                    f(c, 2*x-1, y) * 2.0 + \
+                                    f(c, 2*x  , y) \
+                                   ) * 0.25),
+                       Case(condxLeft, 0),
+                       Case(condxRight, 0),
+                       Case(condxBottom, 0),
+                       Case(condxTop, 0) ]
 
         # downsample in 'y' dimension (using [1 2 1] filter)
 
@@ -88,16 +86,16 @@ def interpolate(pipe_data):
         condyTop    = Condition(x, '<=', 0)
         condyBottom = Condition(x, '>=', (R/decFactor)+1)
 
-        downy = Function(([c, x, y], [rgba, decRowr, decColr]), Float, "D_" + str(l) + "_" + name)
-        downy.defn = [Case(condy, (downx(c, x, 2*y-2) + \
-                                               downx(c, x, 2*y-1) * 2.0 + \
-                                               downx(c, x, 2*y  )
-                                              ) * 0.25),
-                     Case(condyLeft, 0),
-                     Case(condyRight, 0),
-                     Case(condyBottom, 0),
-                     Case(condyTop, 0)]
-
+        downy = Function(([c, x, y], [rgba, decRowr, decColr]),
+                         Float, "D_" + str(l) + "_" + name)
+        downy.defn = [ Case(condy, (downx(c, x, 2*y-2) + \
+                                    downx(c, x, 2*y-1) * 2.0 + \
+                                    downx(c, x, 2*y  )
+                                   ) * 0.25),
+                       Case(condyLeft, 0),
+                       Case(condyRight, 0),
+                       Case(condyBottom, 0),
+                       Case(condyTop, 0) ]
 
         return downy
 
@@ -125,13 +123,13 @@ def interpolate(pipe_data):
         condxBottom = Condition(x, '>=', (R/orgFactor)+1)
 
         upx = Function(([c, x, y], [rgba, rowr, decColr]), Float, "Ux_" + name)
-        upx.defn = [Case(condx, (f(c, (x+1)/2, y) + \
-                                             f(c, (x+2)/2, y) \
-                                            ) / 2.0),
-                   Case(condxLeft, 0),
-                   Case(condxRight, 0),
-                   Case(condxBottom, 0),
-                   Case(condxTop, 0)]
+        upx.defn = [ Case(condx, (f(c, (x+1)/2, y) + \
+                                  f(c, (x+2)/2, y) \
+                                 ) / 2.0),
+                     Case(condxLeft, 0),
+                     Case(condxRight, 0),
+                     Case(condxBottom, 0),
+                     Case(condxTop, 0) ]
 
         # upsample in 'y' dimension and interpolate
         condy = Condition(x, '>=', 1) & \
@@ -147,28 +145,28 @@ def interpolate(pipe_data):
                upx(c, x, (y+2)/2)) / 2.0
 
         interpolate = Function(([c, x, y], [rgba, rowr, colr]), Float, name)
-        interpolate.defn = [Case( condy, d(c, x, y) + \
-                                                     (1.0 - d(3, x, y)) * upy ),
-                           Case(condyLeft, 0),
-                           Case(condyRight, 0),
-                           Case(condyBottom, 0),
-                           Case(condyTop, 0)]
+        interpolate.defn = [ Case( condy, d(c, x, y) + \
+                                          (1.0 - d(3, x, y)) * upy ),
+                             Case(condyLeft, 0),
+                             Case(condyRight, 0),
+                             Case(condyBottom, 0),
+                             Case(condyTop, 0) ]
 
         return interpolate
 
 
-    #####################################################################################
+    ###########################################################################
     # MULTISCALE INTERPOLATION
 
     # 1.
     downsampled = {}
     # level : 0
-    downsampled[0] = Function(([c, x, y], [rgba, row, col]), Float, "downsampled_L0")
+    downsampled[0] = Function(([c, x, y], [rgba, row, col]),
+                              Float, "downsampled_L0")
     downsampled[0].defn = [img(c, x, y) * img(3, x, y)]
     # level : everything else
     for l in range(1, L):
         downsampled[l] = pyrDown(downsampled[l-1], l, "downsampled")
-
 
     # 2.
     interpolated = {}
@@ -176,14 +174,16 @@ def interpolate(pipe_data):
     interpolated[L-1] = downsampled[L-1]
     # level : everything else
     for l in range(L-2, -1, -1):
-        interpolated[l] = pyrUp_Xpolate(interpolated[l+1], downsampled[l], l, "interpolated_L" + str(l))
+        interpolated[l] = pyrUp_Xpolate(interpolated[l+1], downsampled[l],
+                                        l, "interpolated_L" + str(l))
 
 
     # 3. Normalize
     normalized = Function(([c, x, y], [rgb, row2, col2]), Float, "interpolate")
-    normalized.defn = [interpolated[0](c, x+1, y+1) / interpolated[0](3, x+1, y+1)]
+    normalized.defn = \
+        [ interpolated[0](c, x+1, y+1) / interpolated[0](3, x+1, y+1) ]
 
     return normalized
 
-    #####################################################################################
+    ###########################################################################
 # END

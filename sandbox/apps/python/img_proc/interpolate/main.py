@@ -23,14 +23,15 @@ def main():
 
     app_data['app'] = app
     app_data['app_name'] = app
+    app_data['pipe_data'] = pipe_data
 
-    init_all(sys.argv, pipe_data, app_data)
+    init_all(sys.argv, app_data)
     print_config(app_data)
     if app_data['mode'] == 'tune':
         print("Tuning")
         #auto_tune(pipe_data,app_data)
     else:
-        create_lib(build_interpolate, app, pipe_data, app_data, app_data['mode'])
+        create_lib(build_interpolate, app, app_data)
         interpolate(app_data)
 
     return

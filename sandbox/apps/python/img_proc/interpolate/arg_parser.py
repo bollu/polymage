@@ -5,7 +5,7 @@ def parse_args():
     parser = optparse.OptionParser()
 
     help_str = \
-        '"new" : from scratch | "existing" : compile and run |  "ready" : just run'
+    '"new" : from scratch | "existing" : compile and run |  "ready" : just run'
     parser.add_option('-m', '--mode',
                        type='choice',
                        action='store',
@@ -17,7 +17,7 @@ def parse_args():
     parser.add_option('--img', '--img',
                        action='store',
                        dest='img_file',
-                       help='input image file path for image1',)
+                       help='input image file path for image',)
 
     parser.add_option('--alpha', '--alpha',
                        action='store',

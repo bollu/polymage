@@ -17,8 +17,8 @@ def print_usage():
 
 def print_config(app_data):
     app_args = app_data['app_args']
-    rows = app_data['rows']
-    cols = app_data['cols']
+    rows = app_data['R']
+    cols = app_data['C']
     print_line()
     print("# Problem Settings #")
     print("")

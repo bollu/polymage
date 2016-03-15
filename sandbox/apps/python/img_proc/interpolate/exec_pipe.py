@@ -11,8 +11,8 @@ from constructs import *
 from utils import *
 
 def call_pipe(app_data):
-    rows = app_data['rows']-2
-    cols = app_data['cols']-2
+    rows = app_data['R']-2
+    cols = app_data['C']-2
 
     img_data = app_data['img_data']
     IN = img_data['IN']
@@ -53,7 +53,8 @@ def interpolate(app_data):
 
         time_taken = float(t2) - float(t1)
         print("")
-        print("[exec_pipe] : time taken to execute = ", (time_taken * 1000) / runs, " ms")
+        print("[exec_pipe] : time taken to execute = ",
+              (time_taken * 1000) / runs, " ms")
 
     return
 

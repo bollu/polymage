@@ -32,7 +32,6 @@ def generate_graph(pipe, file_name, app_data):
     print("[builder]: writing the graph dot file to", graph_file, "...")
 
     graph = pipe.pipeline_graph
-    graph = pipe.original_graph
     graph.write(graph_file)
     print("[builder]: ... DONE")
 
@@ -56,8 +55,8 @@ def build_interpolate(pipe_data, app_data):
     live_outs = [out_interpolate]
     pipe_name = app_data['app']
 
-    rows = app_data['rows']-2
-    cols = app_data['cols']-2
+    rows = app_data['R']-2
+    cols = app_data['C']-2
 
     p_estimates = [(R, rows), (C, cols)]
     p_constraints = [ Condition(R, "==", rows), \
@@ -71,7 +70,7 @@ def build_interpolate(pipe_data, app_data):
     pipe = buildPipeline(live_outs,
                          param_estimates=p_estimates,
                          param_constraints=p_constraints,
-                         #tile_sizes = t_size,
+                         tile_sizes = t_size,
                          group_size = g_size,
                          options = opts,
                          pipe_name = pipe_name)
@@ -80,7 +79,9 @@ def build_interpolate(pipe_data, app_data):
 
 
 
-def create_lib(build_func, pipe_name, impipe_data, app_data, mode):
+def create_lib(build_func, pipe_name, app_data):
+    pipe_data = app_data['pipe_data']
+    mode = app_data['mode']
     pipe_src  = pipe_name+".cpp"
     pipe_so   = pipe_name+".so"
     app_args = app_data['app_args']
@@ -89,11 +90,11 @@ def create_lib(build_func, pipe_name, impipe_data, app_data, mode):
     if build_func != None:
         if mode == 'new':
             # build the polymage pipeline
-            pipe = build_func(impipe_data, app_data)
+            pipe = build_func(pipe_data, app_data)
 
             # draw the pipeline graph to a png file
-            #if graph_gen:
-                #generate_graph(pipe, pipe_name, app_data)
+            if graph_gen:
+                generate_graph(pipe, pipe_name, app_data)
 
             # generate pipeline cpp source
             codegen(pipe, pipe_src, app_data)
