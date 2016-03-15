@@ -25,7 +25,7 @@ def print_config(app_data):
     print("# Problem Settings #")
     print("")
     print("[main]: multigrid levels =", app_data['L'])
-    print("[main]: grid size        =", nx, "x", ny)
+    print("[main]: grid size        =", nx, "x", ny, "x", nz)
     print("[main]: n-iterations     =", app_data['nit'])
 
     print("[main]: nu1              =", app_data['nu1'])
