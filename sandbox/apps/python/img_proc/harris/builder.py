@@ -81,7 +81,9 @@ def build_harris(pipe_data, app_data):
 
 
 
-def create_lib(build_func, pipe_name, impipe_data, app_data, mode):
+def create_lib(build_func, pipe_name, app_data):
+    pipe_data = app_data['pipe_data']
+    mode = app_data['mode']
     pipe_src  = pipe_name+".cpp"
     pipe_so   = pipe_name+".so"
     app_args = app_data['app_args']

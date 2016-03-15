@@ -30,7 +30,7 @@ def main():
         print("Tuning")
         auto_tune(pipe_data,app_data)
     else:
-        create_lib(build_harris, app, pipe_data, app_data, app_data['mode'])
+        create_lib(build_harris, app, app_data)
         harrispipe(app_data)
 
     return
