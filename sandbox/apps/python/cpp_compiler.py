@@ -4,7 +4,7 @@ import subprocess
 from compiler import *
 from constructs import *
 
-def c_compile(in_file, out_file, app_data):
+def gen_compile_string(app_data):
     ROOT = app_data['ROOT']
     arg_data = app_data['app_args']
     # CXX compiler and flags :
@@ -21,14 +21,21 @@ def c_compile(in_file, out_file, app_data):
 
     # Shared library Flags
     shared = "-fPIC -shared"
-    out = "-o "+out_file
 
     compile_str = cxx + " " \
                 + cxx_flags + " " \
                 + include + " " \
                 + shared + " " \
-                + in_file + " " \
-                + out
+
+    app_data['cxx_string'] = compile_str
+
+    return
+
+def c_compile(in_file, out_file, app_data):
+    gen_compile_string(app_data)
+
+    compile_str = app_data['cxx_string']
+    compile_str += " " + in_file + " -o " + out_file
 
     print("")
     print("[cpp_compiler]: compiling", in_file, "to", out_file, "...")

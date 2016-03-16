@@ -1,7 +1,9 @@
 from __init__ import *
 
 import sys
+sys.path.insert(0, ROOT+"/apps/python/")
 
+from cpp_compiler import *
 from polymage_vcycle import v_cycle
 from polymage_wcycle import w_cycle
 from exec_mg import minimal_exec_mg
@@ -31,6 +33,7 @@ def auto_tune(app_data):
 
     tile_size_configs = []
     tile_size_configs.append([8, 32])
+    '''
     tile_size_configs.append([8, 64])
     tile_size_configs.append([8, 128])
     tile_size_configs.append([8, 256])
@@ -48,10 +51,20 @@ def auto_tune(app_data):
 
     tile_size_configs.append([64, 128])
     tile_size_configs.append([64, 256])
+    '''
 
-    #opts = ['pool_alloc']
+    # relative path to root directory from app dir
+    ROOT = app_data['ROOT']
     opts = []
+    if app_data['early_free']:
+        opts += ['early_free']
+    if app_data['optimize_storage']:
+        opts += ['optimize_storage']
+    if app_data['pool_alloc']:
+        opts += ['pool_alloc']
 
+    gen_compile_string(app_data)
+    cxx_string = app_data['cxx_string']
 
     # Generate Variants for Tuning
     # ============================
@@ -64,6 +77,8 @@ def auto_tune(app_data):
                   "_tuner_group_size_configs": group_size_configs, #optional
                   "_tuner_opts": opts, #optional
                   "_tuner_dst_path" : dst_path, # optional
+                  "_tuner_cxx_string" : cxx_string, # optional
+                  "_tuner_root_path" : ROOT, # needed if pool_alloc is set
                   "_tuner_debug_flag": True, # optional
                   "_tuner_opt_datadict": app_data
                  }
