@@ -1,9 +1,6 @@
 import sys
 import subprocess
 
-from compiler import *
-from constructs import *
-
 def gen_compile_string(app_data):
     ROOT = app_data['ROOT']
     arg_data = app_data['app_args']
