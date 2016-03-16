@@ -1,14 +1,17 @@
-import sys
+from __init__ import *
 
-import ctypes
+import sys
+sys.path.insert(0, ROOT+"/apps/python/")
+
+from cpp_compiler import *
 from constructs import *
 from builder import create_lib,build_unsharp
 from compiler import *
 import tuner
 from polymage_unsharp_mask import unsharp_mask
-from loader import load_lib
 
-def auto_tune(pipe_data, app_data):
+def auto_tune(app_data):
+    pipe_data = app_data['pipe_data']
 
     app_name = app_data['app_name']
     pipe_name = app_data['app']
@@ -55,8 +58,19 @@ def auto_tune(pipe_data, app_data):
     tile_size_configs.append([8, 128])
     tile_size_configs.append([8, 64])
     tile_size_configs.append([8, 32])
-    
+   
+    # relative path to root directory from app dir
+    ROOT = app_data['ROOT']
     opts = []
+    if app_data['early_free']:
+        opts += ['early_free']
+    if app_data['optimize_storage']:
+        opts += ['optimize_storage']
+    if app_data['pool_alloc']:
+        opts += ['pool_alloc']
+
+    gen_compile_string(app_data)
+    cxx_string = app_data['cxx_string']
 
     # Generate Variants for Tuning
     # ============================
@@ -69,6 +83,8 @@ def auto_tune(pipe_data, app_data):
                   "_tuner_group_size_configs": group_size_configs, #optional
                   "_tuner_opts": opts, #optional
                   "_tuner_dst_path" : dst_path, # optional
+                  "_tuner_cxx_string" : cxx_string, # optional
+                  "_tuner_root_path" : ROOT, # needed if pool_alloc is set
                   "_tuner_debug_flag": True, # optional
                   "_tuner_opt_datadict": app_data
                  }
