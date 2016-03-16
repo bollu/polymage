@@ -1,9 +1,9 @@
+from __init__ import *
+
 import sys
+sys.path.insert(0, ROOT)
+
 from polymage_common import set_zero_ghosts
-
-sys.path.insert(0, '../../../../')
-sys.path.insert(0, '../../../../')
-
 from compiler import *
 from constructs import *
 

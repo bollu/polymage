@@ -2,6 +2,8 @@ import numpy as np
 import time
 import sys
 
+from __init__ import *
+
 from init import init_all, init_norm
 from verify import verify_norm
 from builder import create_lib, build_resid, build_mg3p
@@ -9,12 +11,12 @@ from exec_mg import multigrid
 from printer import print_line, print_header, print_config
 
 app = 'nas-pb-mg-3.2'
-prob_classes = ['S', 'W', 'A', 'B', 'C', 'D']
 
 def main():
     print_header()
 
     app_data = {}
+    app_data['ROOT'] = ROOT
 
     # init all the required data
     init_all(app_data)

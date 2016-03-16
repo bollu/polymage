@@ -1,11 +1,13 @@
+from __init__ import *
+
 import optparse
 import sys
-sys.path.insert(0, "../../")
+
+sys.path.insert(0, ROOT+'apps/python/')
 
 from pipe_options import *
 
 def parse_args():
-    #parser = optparse.OptionParser()
 
     help_str = \
     '"new" : from scratch | "existing" : compile and run |  "ready" : just run'
