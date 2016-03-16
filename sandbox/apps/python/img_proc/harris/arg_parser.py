@@ -1,8 +1,13 @@
+from __init__ import *
+
 import optparse
 import sys
 
+sys.path.insert(0, ROOT+'apps/python/')
+
+from pipe_options import *
+
 def parse_args():
-    parser = optparse.OptionParser()
 
     help_str = \
     '"new" : from scratch | "existing" : compile and run |  "ready" : just run'
@@ -50,13 +55,6 @@ def parse_args():
                       dest='display',
                       default=False,
                       help='display output image')
-
-    parser.add_option('--pool_alloc',
-                      action='store_true',
-                      dest='pool_alloc',
-                      default=False,
-                      help='True : Use a pool of memory allocations, \
-                            False: generate simple malloc function call')
 
     parser.add_option('--cxx',
                       action='store',

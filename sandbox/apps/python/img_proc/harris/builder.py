@@ -15,7 +15,6 @@ def codegen(pipe, file_name, app_data):
     print("[builder]: writing the code to", file_name, "...")
 
     code = pipe.generate_code(is_extern_c_func=True,
-                              outputs_no_alloc=True,
                               are_io_void_ptrs=True)
 
     f = open(file_name, 'w')
@@ -46,7 +45,8 @@ def generate_graph(pipe, file_name, app_data):
 
     return
 
-def build_harris(pipe_data, app_data):
+def build_harris(app_data):
+    pipe_data = app_data['pipe_data']
     print("Inside build_harris function")
     
     out_harrispipe = harris_pipe(pipe_data)
@@ -92,7 +92,7 @@ def create_lib(build_func, pipe_name, app_data):
     if build_func != None:
         if mode == 'new':
             # build the polymage pipeline
-            pipe = build_func(impipe_data, app_data)
+            pipe = build_func(app_data)
 
             # draw the pipeline graph to a png file
             if graph_gen:
@@ -103,7 +103,7 @@ def create_lib(build_func, pipe_name, app_data):
 
     if mode != 'ready':
         # compile the cpp code
-        c_compile(pipe_src, pipe_so, app_args)
+        c_compile(pipe_src, pipe_so, app_data)
 
     # load the shared library
     pipe_func_name = "pipeline_"+pipe_name
