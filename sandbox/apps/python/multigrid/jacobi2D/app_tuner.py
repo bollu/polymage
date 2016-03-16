@@ -1,3 +1,5 @@
+from __init__ import *
+
 import sys
 
 from polymage_vcycle import v_cycle
@@ -24,31 +26,29 @@ def auto_tune(app_data):
     param_constraints = [ Condition(n, '==', app_data['n']) ]
     dst_path = "/tmp"
 
-    group_size_configs = [3, 5, 7, 9, 11, 13, 15]
-    #group_size_configs = [15]
+    #group_size_configs = [3, 5, 7, 9, 11, 13, 15]
+    group_size_configs = [3]
 
     tile_size_configs = []
-    tile_size_configs.append([64, 256])
-    tile_size_configs.append([64, 128])    
-    
-    tile_size_configs.append([32, 256])
-    tile_size_configs.append([32, 128])
-    tile_size_configs.append([32, 64])
-
-    tile_size_configs.append([16, 512])
-    tile_size_configs.append([16, 256])
-    tile_size_configs.append([16, 128])
-    tile_size_configs.append([16, 64])
-
-    tile_size_configs.append([8, 512])
-    tile_size_configs.append([8, 256])
-    tile_size_configs.append([8, 128])
-    
-    tile_size_configs.append([8, 64])
     tile_size_configs.append([8, 32])
+    tile_size_configs.append([8, 64])
+    tile_size_configs.append([8, 128])
+    tile_size_configs.append([8, 256])
+    tile_size_configs.append([8, 512])
 
+    tile_size_configs.append([16, 64])
+    tile_size_configs.append([16, 128])
+    tile_size_configs.append([16, 256])
+    tile_size_configs.append([16, 512])
+
+    tile_size_configs.append([32, 64])
+    tile_size_configs.append([32, 128])
+    tile_size_configs.append([32, 256])
     tile_size_configs.append([32, 512])
-    
+
+    tile_size_configs.append([64, 128])
+    tile_size_configs.append([64, 256])
+
     #opts = ['pool_alloc']
     opts = []
 
