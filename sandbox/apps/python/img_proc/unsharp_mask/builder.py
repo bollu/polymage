@@ -66,7 +66,11 @@ def build_unsharp(app_data):
     t_size = [16, 16]
     g_size = 11
     opts = []
-    if app_data['pool_alloc'] == True:
+    if app_data['early_free']:
+        opts += ['early_free']
+    if app_data['optimize_storage']:
+        opts += ['optimize_storage']
+    if app_data['pool_alloc']:
         opts += ['pool_alloc']
 
     pipe = buildPipeline(live_outs,
@@ -106,7 +110,7 @@ def create_lib(build_func, pipe_name, app_data):
         c_compile(pipe_src, pipe_so, app_data)
 
     # load the shared library
-    pipe_func_name = "pipeline_"+pipe_name
-    load_lib(pipe_so, pipe_func_name, app_data)
+    lib_func_name = "pipeline_"+pipe_name
+    load_lib(pipe_so, lib_func_name, app_data)
 
     return
