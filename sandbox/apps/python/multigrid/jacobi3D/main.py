@@ -2,6 +2,8 @@ import numpy as np
 import time
 import sys
 
+from __init__ import *
+
 from init import init_all, init_norm
 from printer import print_header, print_config, print_line
 from builder import create_lib, build_mg_cycle
@@ -15,6 +17,7 @@ def main():
 
     app_data = {}
     app_data['app'] = app
+    app_data['ROOT'] = ROOT
 
     # init all the required data
     init_all(app_data)
