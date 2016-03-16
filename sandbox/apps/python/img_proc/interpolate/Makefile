@@ -3,23 +3,25 @@
 CXX=g++
 CXX_FLAGS=-fopenmp -O3 -march=native -ftree-vectorize
 PYTHON=python3
+ROOT="../../../../"
 
 # app inputs
-IMG="../../../../../images/rgb.png"
-ALPHA="../../../../../images/alpha.png"
+IMG=$(ROOT)"/../images/rgb.png"
+ALPHA=$(ROOT)"/../images/alpha.png"
 RUNS=1
 
-CXX_ARGS=--cxx="${CXX}" --cxx_flags="${CXX_FLAGS}"
 APP_ARGS=--img=${IMG} --alpha=${ALPHA}
+OPT_ARGS=--pool_alloc --optimize_storage --early_free
 TOOL_ARGS=--graph-gen --runs=${RUNS} --display --timer
+CXX_ARGS=--cxx="${CXX}" --cxx_flags="${CXX_FLAGS}"
 
 all: new
 
 new:
-	$(PYTHON) main.py --mode='new' ${CXX_ARGS} ${APP_ARGS} ${TOOL_ARGS}
+	$(PYTHON) main.py --mode='new' ${CXX_ARGS} $(OPT_ARGS) ${APP_ARGS} ${TOOL_ARGS}
 
 tune:
-	$(PYTHON) main.py --mode='tune' ${CXX_ARGS} ${APP_ARGS} ${TOOL_ARGS}
+	$(PYTHON) main.py --mode='tune' ${CXX_ARGS} $(OPT_ARGS) ${APP_ARGS} ${TOOL_ARGS}
 
 existing:
 	$(PYTHON) main.py --mode='existing' ${CXX_ARGS} ${APP_ARGS} ${TOOL_ARGS}

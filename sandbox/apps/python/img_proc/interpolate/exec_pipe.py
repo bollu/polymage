@@ -19,7 +19,7 @@ def call_pipe(app_data):
     OUT = img_data['OUT']
 
     # lib function name
-    func_name = 'pipeline_'+app_data['app_name']
+    func_name = 'pipeline_'+app_data['app']
     pipe_func = app_data[func_name]
 
     # lib function args
