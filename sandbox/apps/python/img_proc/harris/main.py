@@ -21,6 +21,7 @@ def main():
 
     init_all(app_data)
     print_config(app_data)
+
     if app_data['mode'] == 'tune':
         auto_tune(app_data)
     else:

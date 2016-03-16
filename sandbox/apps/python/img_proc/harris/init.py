@@ -6,7 +6,6 @@ from arg_parser import parse_args
 
 from printer import print_header, print_usage, print_line
 
-
 def init_images(app_data):
     print("[init.py] : initializing images...")
 

@@ -1,7 +1,9 @@
+from __init__ import *
+
 import sys
 import subprocess
 
-sys.path.insert(0, '../../')
+sys.path.insert(0, ROOT+'/apps/python/')
 
 from cpp_compiler import c_compile
 from loader import load_lib
@@ -47,8 +49,7 @@ def generate_graph(pipe, file_name, app_data):
 
 def build_harris(app_data):
     pipe_data = app_data['pipe_data']
-    print("Inside build_harris function")
-    
+
     out_harrispipe = harris_pipe(pipe_data)
     
     R = pipe_data['R']
@@ -66,13 +67,17 @@ def build_harris(app_data):
     t_size = [16, 16]
     g_size = 11
     opts = []
-    if app_data['pool_alloc'] == True:
+    if app_data['early_free']:
+        opts += ['early_free']
+    if app_data['optimize_storage']:
+        opts += ['optimize_storage']
+    if app_data['pool_alloc']:
         opts += ['pool_alloc']
 
     pipe = buildPipeline(live_outs,
                          param_estimates=p_estimates,
                          param_constraints=p_constraints,
-                         #tile_sizes = t_size,
+                         tile_sizes = t_size,
                          group_size = g_size,
                          options = opts,
                          pipe_name = pipe_name)
@@ -106,7 +111,7 @@ def create_lib(build_func, pipe_name, app_data):
         c_compile(pipe_src, pipe_so, app_data)
 
     # load the shared library
-    pipe_func_name = "pipeline_"+pipe_name
-    load_lib(pipe_so, pipe_func_name, app_data)
+    lib_func_name = "pipeline_"+pipe_name
+    load_lib(pipe_so, lib_func_name, app_data)
 
     return

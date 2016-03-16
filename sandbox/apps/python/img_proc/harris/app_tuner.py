@@ -4,10 +4,8 @@ import sys
 sys.path.insert(0, ROOT+'apps/python/')
 
 from cpp_compiler import *
-import ctypes
-from constructs import *
-from builder import create_lib, build_harris
-from compiler import *
+from constructs import * #
+from compiler import * #
 import tuner
 from polymage_harris import harris_pipe
 
@@ -16,7 +14,6 @@ def auto_tune(app_data):
 
     app_name = app_data['app']
     pipe_name = app_data['app']
-    pipe_func_name = "pipeline_"+pipe_name
 
     out_harrispipe = harris_pipe(pipe_data)
     live_outs = [out_harrispipe]
