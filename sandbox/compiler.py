@@ -30,9 +30,15 @@ def buildPipeline(outputs,
     if size_threshold == None:
         size_threshold = 200*200
 
-    options.append('flatten_scratchpad')
-    options.append('optimize_storage')
-    options.append('early_free')
+    #options.append('flatten_scratchpad')
+    #options.append('optimize_storage')
+    #options.append('early_free')
+    #options.append('pool_alloc')
+
+    if 'optimize_storage' in options:
+        options.append('flatten_scratchpad')
+
+    options = list(set(options))
 
     return pipe.Pipeline(_ctx = ctx,
                          _outputs = outputs,

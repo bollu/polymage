@@ -4,16 +4,20 @@ import subprocess
 from compiler import *
 from constructs import *
 
-def c_compile(in_file, out_file, arg_data):
+def c_compile(in_file, out_file, app_data):
+    ROOT = app_data['ROOT']
+    arg_data = app_data['app_args']
     # CXX compiler and flags :
     cxx = arg_data.cxx
     cxx_flags = arg_data.cxx_flags
     #fi
 
     # Include Flags :
-    #include = "-I../../../../memory_allocation/ "+\
-    #          "../../../../memory_allocation/simple_pool_allocator.cpp"
-    include = ""
+    if bool(arg_data.pool_alloc):
+        include = "-I"+ROOT+"/memory_allocation/ "+\
+                  ROOT+"/memory_allocation/simple_pool_allocator.cpp"
+    else:
+        include = ""
 
     # Shared library Flags
     shared = "-fPIC -shared"
