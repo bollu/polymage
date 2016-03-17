@@ -3,7 +3,7 @@
 CXX=g++
 CXX_FLAGS=-fopenmp -O3 -march=native -ftree-vectorize
 PYTHON=python3
-ROOT="../../../../"
+ROOT="../../../.."
 
 # app inputs
 IMG=$(ROOT)"/../images/rgb.png"
