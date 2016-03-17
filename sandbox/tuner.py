@@ -265,12 +265,12 @@ def generate(_tuner_arg_data):
                       dump_files)
 
             # compilation :
-            _tuner_cxx_string += " "+c_file_name+" -o "+so_file_name
+            cxx_string = _tuner_cxx_string+" "+c_file_name+" -o "+so_file_name
             _tuner_compile_error = False
 
             t1 = time.time()
             try:
-                subprocess.check_output(_tuner_cxx_string, shell=True)
+                subprocess.check_output(cxx_string, shell=True)
                 pass
             except:
                 _tuner_compile_error = True
