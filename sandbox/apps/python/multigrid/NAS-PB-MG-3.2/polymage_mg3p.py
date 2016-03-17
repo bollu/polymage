@@ -1,12 +1,13 @@
-import sys
+from __init__ import *
+
 from polymage_common import set_zero_ghosts
 from polymage_residual import residual
 from polymage_restrict import restrict
 from polymage_solver import psinv
 from polymage_interp import interpolate
 
-sys.path.insert(0, '../../../../')
-sys.path.insert(0, '../../../../')
+import sys
+sys.path.insert(0, ROOT)
 
 from compiler import *
 from constructs import *

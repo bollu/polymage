@@ -85,6 +85,20 @@ def generate(_tuner_arg_data):
         _tuner_dst_path = '/tmp'
 
     try:
+        _tuner_cxx_string = _tuner_arg_data['_tuner_cxx_string']
+    except KeyError:
+        _tuner_cxx_string = None
+
+    try:
+        _tuner_root_path = _tuner_arg_data['_tuner_root_path']
+    except KeyError:
+        if 'pool_alloc' in _tuner_opts and not _tuner_cxx_string:
+            print('tuner : generator : \'_tuner_root_path\' - \
+                    not set, but is required for \'pool_alloc\'')
+        else:
+            _tuner_root_path = None
+
+    try:
         _tuner_debug_flag = _tuner_arg_data['_tuner_debug_flag']
     except KeyError:
         _tuner_debug_flag = False
@@ -150,15 +164,23 @@ def generate(_tuner_arg_data):
     dump_files.append(config_file)
 
     # Compile String parts
-    #cxx='icpc'
-    #opt_flags='-openmp -xhost -O3 -ansi-alias'
-    cxx='g++'
-    opt_flags='-fopenmp -march=native -O3 -ftree-vectorize'
-    shared_lib_flags='-fPIC -shared'
-    #include_flags='-I ../../memory_allocation/'
-    include_flags=''
-    #other_CXX='../../memory_allocation/simple_pool_allocator.cpp'
-    other_CXX=''
+    if not _tuner_cxx_string:
+        #cxx='icpc'
+        #opt_flags='-openmp -xhost -O3 -ansi-alias'
+        cxx='g++'
+        opt_flags='-fopenmp -march=native -O3 -ftree-vectorize'
+        shared_lib_flags='-fPIC -shared'
+        if 'pool_alloc' in _tuner_opts:
+            include_flags='-I'+_tuner_root_path+'/memory_allocation/'+ \
+                _tuner_root_path+'/memory_allocation/simple_pool_allocator.cpp'
+        else:
+            include_flags=''
+        other_CXX=''
+        _tuner_cxx_string = cxx+' '+ \
+                            opt_flags+' '+ \
+                            shared_lib_flags+' '+ \
+                            include_flags+' '+ \
+                            other_CXX+' '
 
     # Generate group sizes automatically, if none is specified by the user.
     # TODO:
@@ -226,8 +248,7 @@ def generate(_tuner_arg_data):
                 print_to("[ERROR] Build fail ...", dump_files)
             else:
                 c_file = open(c_file_name, 'a')
-                c_file.write(_tuner_pipe.generate_code(outputs_no_alloc=True, \
-                                                       is_extern_c_func=True, \
+                c_file.write(_tuner_pipe.generate_code(is_extern_c_func=True, \
                                                        are_io_void_ptrs=True).__str__())
                 c_file.close()
 
@@ -243,30 +264,18 @@ def generate(_tuner_arg_data):
             print_to("Code Generation Time   : "+str(codegen_time*1000)+"ms",
                       dump_files)
 
-            # TODO:
-            # 1. Handle other CXX flags                                 ( )
-            # 2. Include g++ support                                    (X)
-            #
-            compile_string = cxx+' '+ \
-                            opt_flags+' '+ \
-                            shared_lib_flags+' '+ \
-                            include_flags+' '+ \
-                            other_CXX+' '+ \
-                            c_file_name+' -o'+ \
-                            so_file_name
+            # compilation :
+            _tuner_cxx_string += " "+c_file_name+" -o "+so_file_name
+            _tuner_compile_error = False
 
             t1 = time.time()
-
-            # compilation :
-            _tuner_compile_error = False
             try:
-                subprocess.check_output(compile_string, shell=True)
+                subprocess.check_output(_tuner_cxx_string, shell=True)
                 pass
             except:
                 _tuner_compile_error = True
             finally:
                 pass
-
             t2 = time.time()
 
             if _tuner_compile_error is True:

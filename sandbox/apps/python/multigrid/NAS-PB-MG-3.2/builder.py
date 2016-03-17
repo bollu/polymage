@@ -1,7 +1,9 @@
+from __init__ import *
+
 import sys
 import subprocess
 
-sys.path.insert(0, '../../')
+sys.path.insert(0, ROOT+'apps/python/')
 
 from cpp_compiler import c_compile
 from loader import load_lib
@@ -62,6 +64,10 @@ def build_resid(app_data):
     t_size = [16, 16, 16]
     g_size = 1
     opts = []
+    if app_data['early_free']:
+        opts += ['early_free']
+    if app_data['optimize_storage']:
+        opts += ['optimize_storage']
     if app_data['pool_alloc']:
         opts += ['pool_alloc']
 
@@ -93,6 +99,10 @@ def build_mg3p(app_data):
     t_size = [16, 16, 16]
     g_size = 1
     opts = []
+    if app_data['early_free']:
+        opts += ['early_free']
+    if app_data['optimize_storage']:
+        opts += ['optimize_storage']
     if app_data['pool_alloc']:
         opts += ['pool_alloc']
 
@@ -129,7 +139,7 @@ def create_lib(build_func, pipe_name, app_data):
 
     if mode != 'ready':
         # compile the cpp code
-        c_compile(pipe_src, pipe_so, app_args)
+        c_compile(pipe_src, pipe_so, app_data)
     #fi
 
     # load the shared library

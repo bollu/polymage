@@ -895,8 +895,7 @@ class Pipeline:
         gr.layout(prog='dot')
         return gr
 
-    def generate_code(self, outputs_no_alloc=False,
-                            is_extern_c_func=False,
+    def generate_code(self, is_extern_c_func=False,
                             are_io_void_ptrs=False):
 
         """

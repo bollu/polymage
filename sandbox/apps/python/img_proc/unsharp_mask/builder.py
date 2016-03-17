@@ -1,7 +1,9 @@
+from __init__ import *
+
 import sys
 import subprocess
 
-sys.path.insert(0, '../../')
+sys.path.insert(0, ROOT+'apps/python/')
 
 from cpp_compiler import c_compile
 from loader import load_lib
@@ -15,7 +17,6 @@ def codegen(pipe, file_name, app_data):
     print("[builder]: writing the code to", file_name, "...")
 
     code = pipe.generate_code(is_extern_c_func=True,
-                              outputs_no_alloc=True,
                               are_io_void_ptrs=True)
 
     f = open(file_name, 'w')
@@ -45,10 +46,9 @@ def generate_graph(pipe, file_name, app_data):
 
     return
 
-def build_unsharp(pipe_data, app_data):
-    
+def build_unsharp(app_data):
+    pipe_data = app_data['pipe_data']
     out_unsharp = unsharp_mask(pipe_data)
-    print(pipe_data) 
     R = pipe_data['R']
     C = pipe_data['C']
     threshold = pipe_data['threshold']
@@ -66,7 +66,11 @@ def build_unsharp(pipe_data, app_data):
     t_size = [16, 16]
     g_size = 11
     opts = []
-    if app_data['pool_alloc'] == True:
+    if app_data['early_free']:
+        opts += ['early_free']
+    if app_data['optimize_storage']:
+        opts += ['optimize_storage']
+    if app_data['pool_alloc']:
         opts += ['pool_alloc']
 
     pipe = buildPipeline(live_outs,
@@ -81,7 +85,9 @@ def build_unsharp(pipe_data, app_data):
 
 
 
-def create_lib(build_func, pipe_name, impipe_data, app_data, mode):
+def create_lib(build_func, pipe_name, app_data):
+    pipe_data = app_data['pipe_data']
+    mode = app_data['mode']
     pipe_src  = pipe_name+".cpp"
     pipe_so   = pipe_name+".so"
     app_args = app_data['app_args']
@@ -90,7 +96,7 @@ def create_lib(build_func, pipe_name, impipe_data, app_data, mode):
     if build_func != None:
         if mode == 'new':
             # build the polymage pipeline
-            pipe = build_func(impipe_data, app_data)
+            pipe = build_func(app_data)
 
             # draw the pipeline graph to a png file
             if graph_gen:
@@ -101,10 +107,10 @@ def create_lib(build_func, pipe_name, impipe_data, app_data, mode):
 
     if mode != 'ready':
         # compile the cpp code
-        c_compile(pipe_src, pipe_so, app_args)
+        c_compile(pipe_src, pipe_so, app_data)
 
     # load the shared library
-    pipe_func_name = "pipeline_"+pipe_name
-    load_lib(pipe_so, pipe_func_name, app_data)
+    lib_func_name = "pipeline_"+pipe_name
+    load_lib(pipe_so, lib_func_name, app_data)
 
     return

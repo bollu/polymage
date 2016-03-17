@@ -1,7 +1,9 @@
+from __init__ import *
+
 import sys
 import subprocess
 
-sys.path.insert(0, '../../')
+sys.path.insert(0, ROOT+'apps/python/')
 
 from cpp_compiler import c_compile
 from loader import load_lib
@@ -63,9 +65,13 @@ def build_mg_cycle(app_data):
     pipe_name = app_data['cycle_name']
     p_estimates = [(n, app_data['n'])]
     p_constraints = [ Condition(n, "==", app_data['n']) ]
-    t_size = [16, 16]
-    g_size = 100
+    t_size = [32, 512]
+    g_size = 15
     opts = []
+    if app_data['early_free']:
+        opts += ['early_free']
+    if app_data['optimize_storage']:
+        opts += ['optimize_storage']
     if app_data['pool_alloc']:
         opts += ['pool_alloc']
 
@@ -76,6 +82,8 @@ def build_mg_cycle(app_data):
                             group_size = g_size,
                             options = opts,
                             pipe_name = pipe_name)
+
+    #app_data['mg_pipe'] = mg_pipe
 
     return mg_pipe
 
@@ -102,7 +110,7 @@ def create_lib(build_func, pipe_name, app_data):
 
     if mode != 'ready':
         # compile the cpp code
-        c_compile(pipe_src, pipe_so, app_args)
+        c_compile(pipe_src, pipe_so, app_data)
     #fi
 
     # load the shared library

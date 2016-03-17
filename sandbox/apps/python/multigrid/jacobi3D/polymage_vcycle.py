@@ -1,10 +1,12 @@
+from __init__ import *
+
 import sys
 from polymage_smoother import w_jacobi
 from polymage_defect import defect
 from polymage_restrict import restrict
 from polymage_interpolate import interpolate
 
-sys.path.insert(0, '../../../../')
+sys.path.insert(0, ROOT)
 
 from compiler import *
 from constructs import *

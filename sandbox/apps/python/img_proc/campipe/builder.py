@@ -1,7 +1,9 @@
+from __init__ import *
+
 import sys
 import subprocess
 
-sys.path.insert(0, '../../')
+sys.path.insert(0, ROOT+'/apps/python/')
 
 from cpp_compiler import c_compile
 from loader import load_lib
@@ -45,7 +47,9 @@ def generate_graph(pipe, file_name, app_data):
 
     return
 
-def build_campipe(pipe_data, app_data):
+def build_campipe(app_data):
+    pipe_data = app_data['pipe_data']
+
     # construct the camera pipeline
     out_campipe = camera_pipe(pipe_data)
 
@@ -59,8 +63,13 @@ def build_campipe(pipe_data, app_data):
                       Condition(C, "==", app_data['cols']) ]
     t_size = [64, 256]
     g_size = 5
+
     opts = []
-    if app_data['pool_alloc'] == True:
+    if app_data['early_free']:
+        opts += ['early_free']
+    if app_data['optimize_storage']:
+        opts += ['optimize_storage']
+    if app_data['pool_alloc']:
         opts += ['pool_alloc']
 
     pipe = buildPipeline(live_outs,
@@ -73,7 +82,9 @@ def build_campipe(pipe_data, app_data):
 
     return pipe
 
-def create_lib(build_func, pipe_name, impipe_data, app_data, mode):
+def create_lib(build_func, pipe_name, app_data):
+    pipe_data = app_data['pipe_data']
+    mode = app_data['mode']
     pipe_src  = pipe_name+".cpp"
     pipe_so   = pipe_name+".so"
     app_args = app_data['app_args']
@@ -82,7 +93,7 @@ def create_lib(build_func, pipe_name, impipe_data, app_data, mode):
     if build_func != None:
         if mode == 'new':
             # build the polymage pipeline
-            pipe = build_func(impipe_data, app_data)
+            pipe = build_func(app_data)
 
             # draw the pipeline graph to a png file
             if graph_gen:
@@ -93,10 +104,10 @@ def create_lib(build_func, pipe_name, impipe_data, app_data, mode):
 
     if mode != 'ready':
         # compile the cpp code
-        c_compile(pipe_src, pipe_so, app_args)
+        c_compile(pipe_src, pipe_so, app_data)
 
     # load the shared library
-    pipe_func_name = "pipeline_"+pipe_name
-    load_lib(pipe_so, pipe_func_name, app_data)
+    lib_func_name = "pipeline_"+pipe_name
+    load_lib(pipe_so, lib_func_name, app_data)
 
     return

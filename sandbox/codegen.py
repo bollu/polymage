@@ -833,10 +833,11 @@ def generate_code_for_pipeline(pipeline,
         inc_block.add(genc.CInclude('malloc.h'))
         inc_block.add(genc.CInclude('cmath'))
         inc_block.add(genc.CInclude('string.h'))
+        if 'pool_alloc' in pipeline.options:
+            inc_block.add(genc.CInclude('simple_pool_allocator.h'))
         inc_block.add(genc.CMacroDecl(genc.c_macro_min))
         inc_block.add(genc.CMacroDecl(genc.c_macro_max))
         inc_block.add(genc.CMacroDecl(genc.c_macro_floord))
-        # TODO add the pool allocation header and option
 
     # 2. Add function blocks
     with m.funcs as func_block:

@@ -3,22 +3,24 @@
 CXX=g++
 CXX_FLAGS=-fopenmp -O3 -march=native -ftree-vectorize
 PYTHON=python3
+ROOT="../../../../"
 
 # app inputs
-IMG="../../../../../images/venice_wikimedia.jpg"
+IMG=$(ROOT)"/../images/venice_wikimedia.jpg"
 RUNS=1
 
-CXX_ARGS=--cxx="${CXX}" --cxx_flags="${CXX_FLAGS}"
 APP_ARGS=--img=${IMG}
+OPT_ARGS=--pool_alloc --optimize_storage --early_free
 TOOL_ARGS=--graph-gen --runs=${RUNS} --display --timer
+CXX_ARGS=--cxx="${CXX}" --cxx_flags="${CXX_FLAGS}"
 
 all: new
 
 new:
-	$(PYTHON) main.py --mode='new' ${CXX_ARGS} ${APP_ARGS} ${TOOL_ARGS}
+	$(PYTHON) main.py --mode='new' ${CXX_ARGS} $(OPT_ARGS) ${APP_ARGS} ${TOOL_ARGS}
 
 tune:
-	$(PYTHON) main.py --mode='tune' ${CXX_ARGS} ${APP_ARGS} ${TOOL_ARGS}
+	$(PYTHON) main.py --mode='tune' ${CXX_ARGS} $(OPT_ARGS) ${APP_ARGS} ${TOOL_ARGS}
 
 existing:
 	$(PYTHON) main.py --mode='existing' ${CXX_ARGS} ${APP_ARGS} ${TOOL_ARGS}

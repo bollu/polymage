@@ -1,10 +1,10 @@
-from __future__ import absolute_import, division, print_function
+from __init__ import *
 
 import sys
 from fractions  import Fraction
 from polymage_common import set_ghosts
 
-sys.path.insert(0, '../../../../')
+sys.path.insert(0, ROOT)
 
 from compiler import *
 from constructs import *

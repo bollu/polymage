@@ -2,7 +2,7 @@ import numpy as np
 import time
 import sys
 
-sys.path.insert(0, '../../../../')
+from __init__ import *
 
 from init import init_all
 from printer import print_header, print_config, print_line
@@ -19,18 +19,18 @@ def main():
     print("")
 
     app_data = {}
-    pipe_data = {}
 
     app_data['app'] = app
     app_data['app_name'] = app
+    app_data['ROOT'] = ROOT
 
-    init_all(sys.argv, pipe_data, app_data)
+    init_all(app_data)
     print_config(app_data)
     if app_data['mode'] == 'tune':
         print("Tuning")
-        auto_tune(pipe_data,app_data)
+        auto_tune(app_data)
     else:
-        create_lib(build_unsharp, app, pipe_data, app_data, app_data['mode'])
+        create_lib(build_unsharp, app, app_data)
         unsharp_mask(app_data)
 
     return
