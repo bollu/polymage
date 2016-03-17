@@ -33,7 +33,6 @@ def generate_graph(pipe, file_name, app_data):
     print("[builder]: writing the graph dot file to", graph_file, "...")
 
     graph = pipe.pipeline_graph
-    graph = pipe.original_graph
     graph.write(graph_file)
     print("[builder]: ... DONE")
 
@@ -47,7 +46,8 @@ def generate_graph(pipe, file_name, app_data):
 
     return
 
-def build_pyramid(pipe_data, app_data):
+def build_pyramid(app_data):
+    pipe_data = app_data['pipe_data']
     
     out_pyramid = pyramid_blending(pipe_data)
     
@@ -57,31 +57,34 @@ def build_pyramid(pipe_data, app_data):
     live_outs = [out_pyramid]
     pipe_name = app_data['app']
 
-    rows = app_data['R']-4
-    cols = app_data['C']-4
+    rows = app_data['rows']+app_data['total_pad']
+    cols = app_data['cols']+app_data['total_pad']
 
     p_estimates = [(R, rows), (C, cols)]
     p_constraints = [ Condition(R, "==", rows), \
                       Condition(C, "==", cols) ]
-    t_size = [16, 16]
-    g_size = 11
+    t_size = [16, 256]
+    g_size = 10
     opts = []
-    if app_data['pool_alloc'] == True:
+    if app_data['early_free']:
+        opts += ['early_free']
+    if app_data['optimize_storage']:
+        opts += ['optimize_storage']
+    if app_data['pool_alloc']:
         opts += ['pool_alloc']
 
     pipe = buildPipeline(live_outs,
                          param_estimates=p_estimates,
                          param_constraints=p_constraints,
-                         #tile_sizes = t_size,
+                         tile_sizes = t_size,
                          group_size = g_size,
                          options = opts,
                          pipe_name = pipe_name)
 
     return pipe
 
-
-
-def create_lib(build_func, pipe_name, impipe_data, app_data, mode):
+def create_lib(build_func, pipe_name, app_data):
+    mode = app_data['mode']
     pipe_src  = pipe_name+".cpp"
     pipe_so   = pipe_name+".so"
     app_args = app_data['app_args']
@@ -90,11 +93,11 @@ def create_lib(build_func, pipe_name, impipe_data, app_data, mode):
     if build_func != None:
         if mode == 'new':
             # build the polymage pipeline
-            pipe = build_func(impipe_data, app_data)
+            pipe = build_func(app_data)
 
             # draw the pipeline graph to a png file
-            #if graph_gen:
-                #generate_graph(pipe, pipe_name, app_data)
+            if graph_gen:
+                generate_graph(pipe, pipe_name, app_data)
 
             # generate pipeline cpp source
             codegen(pipe, pipe_src, app_data)
@@ -104,7 +107,7 @@ def create_lib(build_func, pipe_name, impipe_data, app_data, mode):
         c_compile(pipe_src, pipe_so, app_data)
 
     # load the shared library
-    pipe_func_name = "pipeline_"+pipe_name
-    load_lib(pipe_so, pipe_func_name, app_data)
+    lib_func_name = "pipeline_"+pipe_name
+    load_lib(pipe_so, lib_func_name, app_data)
 
     return

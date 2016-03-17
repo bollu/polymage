@@ -22,7 +22,7 @@ def call_pipe(app_data):
     mask_ghost = img_data['mask_ghost']
 
     # lib function name
-    func_name = 'pipeline_'+app_data['app_name']
+    func_name = 'pipeline_'+app_data['app']
     pipe_func = app_data[func_name]
 
     # lib function args
@@ -46,6 +46,13 @@ def pyramid_blending(app_data):
    
     runs = int(app_args.runs)
     timer = app_args.timer
+
+    app = app_data['app']
+    lib = app_data[app+'.so']
+    pool_alloc = app_data['pool_alloc']
+    if pool_alloc:
+        lib.pool_init()
+
     if timer == True:
         t1 = time.time()
 
@@ -59,6 +66,9 @@ def pyramid_blending(app_data):
         time_taken = float(t2) - float(t1)
         print("")
         print("[exec_pipe] : time taken to execute = ", (time_taken * 1000) / runs, " ms")
+
+    if pool_alloc:
+        lib.pool_destroy()
 
     return
 

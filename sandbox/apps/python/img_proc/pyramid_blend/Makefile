@@ -10,17 +10,18 @@ IMG1=$(ROOT)"/../images/grand_canyon1.jpg"
 IMG2=$(ROOT)"/../images/grand_canyon2.jpg"
 RUNS=1
 
-CXX_ARGS=--cxx="${CXX}" --cxx_flags="${CXX_FLAGS}"
 APP_ARGS=--img1=${IMG1} --img2=${IMG2}
+OPT_ARGS=--pool_alloc --optimize_storage --early_free
 TOOL_ARGS=--graph-gen --runs=${RUNS} --display --timer
+CXX_ARGS=--cxx="${CXX}" --cxx_flags="${CXX_FLAGS}"
 
 all: new
 
 new:
-	$(PYTHON) main.py --mode='new' ${CXX_ARGS} ${APP_ARGS} ${TOOL_ARGS}
+	$(PYTHON) main.py --mode='new' ${CXX_ARGS} $(OPT_ARGS) ${APP_ARGS} ${TOOL_ARGS}
 
 tune:
-	$(PYTHON) main.py --mode='tune' ${CXX_ARGS} ${APP_ARGS} ${TOOL_ARGS}
+	$(PYTHON) main.py --mode='tune' ${CXX_ARGS} $(OPT_ARGS) ${APP_ARGS} ${TOOL_ARGS}
 
 tune_execute:
 	$(PYTHON) main.py --mode='tune_execute' ${CXX_ARGS} ${APP_ARGS} ${TOOL_ARGS}
