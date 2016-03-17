@@ -3,10 +3,11 @@
 CXX=g++
 CXX_FLAGS=-fopenmp -O3 -march=native -ftree-vectorize
 PYTHON=python3
+ROOT="../../../../"
 
 # app inputs
-IMG1="../../../../../images/grand_canyon1.jpg"
-IMG2="../../../../../images/grand_canyon2.jpg"
+IMG1=$(ROOT)"/../images/grand_canyon1.jpg"
+IMG2=$(ROOT)"/../images/grand_canyon2.jpg"
 RUNS=1
 
 CXX_ARGS=--cxx="${CXX}" --cxx_flags="${CXX_FLAGS}"

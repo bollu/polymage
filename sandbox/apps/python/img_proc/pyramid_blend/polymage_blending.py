@@ -5,7 +5,7 @@ import subprocess
 import numpy as np
 from fractions import Fraction
 
-sys.path.insert(0, '../../../../')
+sys.path.insert(0, ROOT)
 
 from compiler import *
 from constructs import *

@@ -1,7 +1,7 @@
 import sys
 import subprocess
 
-sys.path.insert(0, '../../')
+sys.path.insert(0, ROOT+'/apps/python/')
 
 from cpp_compiler import c_compile
 from loader import load_lib
@@ -15,7 +15,6 @@ def codegen(pipe, file_name, app_data):
     print("[builder]: writing the code to", file_name, "...")
 
     code = pipe.generate_code(is_extern_c_func=True,
-                              outputs_no_alloc=True,
                               are_io_void_ptrs=True)
 
     f = open(file_name, 'w')
@@ -92,15 +91,15 @@ def create_lib(build_func, pipe_name, impipe_data, app_data, mode):
             pipe = build_func(impipe_data, app_data)
 
             # draw the pipeline graph to a png file
-            if graph_gen:
-                generate_graph(pipe, pipe_name, app_data)
+            #if graph_gen:
+                #generate_graph(pipe, pipe_name, app_data)
 
             # generate pipeline cpp source
             codegen(pipe, pipe_src, app_data)
 
     if mode != 'ready':
         # compile the cpp code
-        c_compile(pipe_src, pipe_so, app_args)
+        c_compile(pipe_src, pipe_so, app_data)
 
     # load the shared library
     pipe_func_name = "pipeline_"+pipe_name

@@ -1,6 +1,10 @@
 import optparse
 import sys
 
+sys.path.insert(0, ROOT+'apps/python/')
+
+from pipe_options import *
+
 def parse_args():
     parser = optparse.OptionParser()
 

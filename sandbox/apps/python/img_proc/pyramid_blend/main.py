@@ -2,6 +2,8 @@ import numpy as np
 import time
 import sys
 
+from __init__ import *
+
 sys.path.insert(0, '../../../../')
 
 from init import init_all
@@ -23,6 +25,7 @@ def main():
 
     app_data['app'] = app
     app_data['app_name'] = app
+    app_data['ROOT'] = ROOT
 
     init_all(sys.argv, pipe_data, app_data)
     print_config(app_data)
