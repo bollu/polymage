@@ -5,7 +5,7 @@ from polymage_common import set_ghosts
 
 sys.path.insert(0, ROOT)
 
-from compiler   import *
+from compiler import *
 from constructs import *
 
 def defect(U_, F_, l, name, pipe_data):

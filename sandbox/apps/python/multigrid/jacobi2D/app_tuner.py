@@ -33,7 +33,6 @@ def auto_tune(app_data):
 
     tile_size_configs = []
     tile_size_configs.append([8, 32])
-    '''
     tile_size_configs.append([8, 64])
     tile_size_configs.append([8, 128])
     tile_size_configs.append([8, 256])
@@ -51,7 +50,6 @@ def auto_tune(app_data):
 
     tile_size_configs.append([64, 128])
     tile_size_configs.append([64, 256])
-    '''
 
     # relative path to root directory from app dir
     ROOT = app_data['ROOT']

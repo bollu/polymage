@@ -10,7 +10,7 @@ from loader import load_lib
 from polymage_vcycle import v_cycle
 from polymage_wcycle import w_cycle
 
-from compiler   import *
+from compiler import *
 from constructs import *
 
 def code_gen(pipe, file_name, app_data):
@@ -34,7 +34,6 @@ def generate_graph(pipe, file_name, app_data):
     print("[builder]: writing the graph dot file to", graph_file, "...")
 
     graph = pipe.pipeline_graph
-    #graph = pipe.original_graph
     graph.write(graph_file)
     print("[builder]: ... DONE")
 
@@ -66,7 +65,7 @@ def build_mg_cycle(app_data):
     p_estimates = [(n, app_data['n'])]
     p_constraints = [ Condition(n, "==", app_data['n']) ]
     t_size = [32, 512]
-    g_size = 15
+    g_size = 10
     opts = []
     if app_data['early_free']:
         opts += ['early_free']
