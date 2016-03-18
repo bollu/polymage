@@ -387,10 +387,10 @@ def execute(_tuner_arg_data):
 
     # set other variables
     app_name = _tuner_app_name+'_polymage_'
-    prog_prefix = str(_tuner_src_path)+str(app_name)
+    prog_prefix = str(_tuner_src_path)+'/'+str(app_name)+'/'
 
     date_time_now = time.strftime("%d-%m-%Y_%H.%M.%S")
-    tuning_report_file_name = str(_tuner_src_path)+'tuning_report'+'_'+str(date_time_now)+'.txt'
+    tuning_report_file_name = str(_tuner_src_path)+'/tuning_report'+'_'+str(date_time_now)+'.txt'
 
     tuning_report_file = open(tuning_report_file_name, 'a')
     dump_files.append(tuning_report_file)
@@ -492,8 +492,8 @@ def execute(_tuner_arg_data):
                     global_min_time = local_min_time
                     global_min_config = _tuner_config
 
-                print_to(str(local_min_time*1000)+"ms "+\
-                         "("+str(global_min_time*1000)+"ms)",
+                print_to(str(local_min_time*1000)+" ms "+\
+                         "("+str(global_min_time*1000)+" ms)",
                          dump_files)
 
         dump_files.remove(tuning_report_file)
