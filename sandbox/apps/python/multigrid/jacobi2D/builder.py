@@ -82,8 +82,6 @@ def build_mg_cycle(app_data):
                             options = opts,
                             pipe_name = pipe_name)
 
-    #app_data['mg_pipe'] = mg_pipe
-
     return mg_pipe
 
 def create_lib(build_func, pipe_name, app_data):

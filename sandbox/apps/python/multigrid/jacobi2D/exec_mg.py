@@ -1,8 +1,12 @@
+from __init__ import *
+
 import sys
 import os
 import ctypes
 import numpy as np
 import time
+
+from utils import *
 
 from printer import print_line, print_layout, print_errors
 

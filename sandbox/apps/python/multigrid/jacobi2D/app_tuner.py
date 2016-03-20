@@ -28,12 +28,12 @@ def auto_tune(app_data):
     param_constraints = [ Condition(n, '==', app_data['n']) ]
     dst_path = "/tmp"
 
-    #group_size_configs = [3, 5, 7, 9, 11, 13, 15]
-    group_size_configs = [3]
+    group_size_configs = [2, 4, 6, 8]
 
     tile_size_configs = []
     tile_size_configs.append([8, 32])
     tile_size_configs.append([8, 64])
+
     tile_size_configs.append([8, 128])
     tile_size_configs.append([8, 256])
     tile_size_configs.append([8, 512])
@@ -92,7 +92,7 @@ def auto_tune(app_data):
                    "_tuner_pipe": _tuner_pipe,
                    "_tuner_src_path": _tuner_src_path, # optional
                    "_tuner_configs_count": _tuner_configs_count, # optional
-                   "_tuner_omp_threads": 4, # optional
+                   "_tuner_omp_threads": 48, # optional
                    "_tuner_nruns": 1, # optional
                    "_tuner_debug_flag": True, # optional
                    "_tuner_custom_executor": minimal_exec_mg,
