@@ -9,8 +9,8 @@ RUNS=1
 # app inputs
 CYCLE='V'  # MG Cycle : V / W
 L=3  # MG levels
-SIZE=1023  # coarse-grid size along each dimension
-NIT=100  # V / W Cycle iterations
+SIZE=31  # coarse-grid size along each dimension
+NIT=10  # V / W Cycle iterations
 NU1=10  # pre-smoothing steps
 NU2=0  # post-smoothing steps
 NUC=0  # corase-smoothing steps

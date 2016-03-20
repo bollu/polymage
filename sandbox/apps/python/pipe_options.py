@@ -10,7 +10,7 @@ help_str = 'True : Optimize for storage, by reusing arrays if possible, \
 parser.add_option('--optimize_storage',
                   action='store_true',
                   dest='optimize_storage',
-                  default=True,
+                  default=False,
                   help=help_str)
 
 # Flattening of scratchpads to a single dimension
@@ -22,7 +22,7 @@ help_str = 'True : Linearize / flatten const scratchpads to one dimension, \
 parser.add_option('--flatten_scratchpad',
                   action='store_true',
                   dest='flatten_scratchpad',
-                  default=True,
+                  default=False,
                   help=help_str)
 
 # Early freeing of the arrays results in lesser memory footprint, by throwing
@@ -32,7 +32,7 @@ help_str =  'True : Free the arrays not in use as soon as possible, \
 parser.add_option('--early_free',
                   action='store_true',
                   dest='early_free',
-                  default=True,
+                  default=False,
                   help=help_str)
 
 # Use a pool of memory, so that allocation from pool can return the pointer to
@@ -41,6 +41,6 @@ parser.add_option('--early_free',
 parser.add_option('--pool_alloc',
                   action='store_true',
                   dest='pool_alloc',
-                  default=True,
+                  default=False,
                   help='True : Use a pool of memory allocations, \
                         False: generate simple malloc function call')

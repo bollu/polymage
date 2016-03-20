@@ -21,6 +21,54 @@ def print_to(s, to_file, _end="\n"):
 def print_line(to_file):
     print_to("--------------------------------------------------", to_file)
 
+def dynamic_display(plot_data):
+    '''
+    DEFUNCT - something wrong with forking the processes, can't use when
+    configs are too many
+    '''
+    plot_gnu(plot_data)
+
+    out_file = plot_data['out_file']
+    subprocess.check_output("sleep 0.5", shell=True)
+    new_proc = subprocess.Popen(["eog", str(out_file)])
+
+    if 'old_proc' in plot_data:
+        old_proc = plot_data['old_proc']
+        old_proc.kill()
+
+    plot_data['old_proc'] = new_proc
+
+    return
+
+def plot_gnu(plot_data):
+    xmin = 0
+    xmax = plot_data['configs']+1
+    tmin = plot_data['min_time']
+    tmax = plot_data['max_time']
+    diff = tmax - tmin
+    if diff == 0:
+        diff = 10
+    ymin = tmin - (diff / 10)
+    ymax = tmax + (diff / 10)
+    out_file = plot_data['out_dir']+"/"+"out.png"
+    in_file = plot_data['in_file']
+
+    cmd = "set terminal png; "
+    cmd += "set output '"+out_file+"'; "
+    cmd += "set xrange ["+str(xmin)+":"+str(xmax)+"]; "
+    cmd += "set yrange ["+str(ymin)+":"+str(ymax)+"]; "
+    cmd += "set arrow 1 from " + \
+           str(xmin)+","+str(tmin) + " to " +\
+           str(xmax)+","+str(tmin) + " nohead; "
+    cmd += "plot '"+in_file+"' with lines; "
+
+    gnuplot_str = "gnuplot -e \""+cmd+"\""
+    subprocess.check_output(gnuplot_str, shell=True)
+
+    plot_data['out_file'] = out_file
+
+    return
+
 # TODO:
 # 1. Introduce parallelism in code generation and compilation           ( )
 # 2. Make the search configurations in each space a Set before
@@ -387,16 +435,18 @@ def execute(_tuner_arg_data):
 
     # set other variables
     app_name = _tuner_app_name+'_polymage_'
-    prog_prefix = str(_tuner_src_path)+str(app_name)
+    prog_prefix = str(_tuner_src_path)+"/"+str(app_name)
 
     date_time_now = time.strftime("%d-%m-%Y_%H.%M.%S")
-    tuning_report_file_name = str(_tuner_src_path)+'tuning_report'+'_'+str(date_time_now)+'.txt'
+    tuning_report_file_name = str(_tuner_src_path)+"/"+'tuning_report'+'_'+str(date_time_now)+'.txt'
 
     tuning_report_file = open(tuning_report_file_name, 'a')
     dump_files.append(tuning_report_file)
     print_params(dump_files)
     dump_files.remove(tuning_report_file)
     tuning_report_file.close()
+
+    tuning_plot_file_name = str(_tuner_src_path)+"/"+'plot'+'_'+str(date_time_now)+'.dat'
 
     _tuner_max_time = 1000000
 
@@ -421,10 +471,14 @@ def execute(_tuner_arg_data):
         pipe_func_args = map_cfunc_args(pipe_func_params,
                                         _tuner_pipe_arg_data)
 
+    plot_data = {}
+    real_time_graph = False
+
     tuning_time_t1 = time.time()
 
     global_min_config = 0
     global_min_time = _tuner_max_time
+    global_max_time = 0
     for _tuner_config in range(1, _tuner_configs_count+1):
         # log to file
         tuning_report_file = open(tuning_report_file_name, 'a')
@@ -491,13 +545,37 @@ def execute(_tuner_arg_data):
                 if float(local_min_time) < float(global_min_time):
                     global_min_time = local_min_time
                     global_min_config = _tuner_config
+                # global maxima
+                if float(local_min_time) > float(global_max_time):
+                    global_max_time = local_min_time
 
                 print_to(str(local_min_time*1000)+"ms "+\
                          "("+str(global_min_time*1000)+"ms)",
                          dump_files)
 
+        s = str(_tuner_config)+" "+str(local_min_time)
+        tuning_plot_file = open(tuning_plot_file_name, 'a')
+        print_to(s, [tuning_plot_file])
+        tuning_plot_file.close()
+
+        if real_time_graph:
+            plot_data['configs'] = _tuner_configs_count
+            plot_data['min_time'] = global_min_time
+            plot_data['max_time'] = global_max_time
+            plot_data['out_dir'] = str(_tuner_src_path)
+            plot_data['in_file'] = tuning_plot_file_name
+            # dynamic_display(plot_data)
+
         dump_files.remove(tuning_report_file)
         tuning_report_file.close()
+
+    if not real_time_graph:
+        plot_data['configs'] = _tuner_configs_count
+        plot_data['min_time'] = global_min_time
+        plot_data['max_time'] = global_max_time
+        plot_data['out_dir'] = str(_tuner_src_path)
+        plot_data['in_file'] = tuning_plot_file_name
+        # plot_gnu(plot_data)
 
     tuning_report_file = open(tuning_report_file_name, 'a')
     dump_files.append(tuning_report_file)

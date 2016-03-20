@@ -21,6 +21,8 @@ def buildPipeline(outputs,
     # operations during compilation.
     ctx = poly.isl.Context()
 
+    outputs = list(set(outputs))
+
     if group_size == None:
         group_size = 5
 

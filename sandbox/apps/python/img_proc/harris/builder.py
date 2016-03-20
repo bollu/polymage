@@ -33,7 +33,6 @@ def generate_graph(pipe, file_name, app_data):
     print("[builder]: writing the graph dot file to", graph_file, "...")
 
     graph = pipe.pipeline_graph
-    #graph = pipe.original_graph
     graph.write(graph_file)
     print("[builder]: ... DONE")
 
@@ -84,10 +83,7 @@ def build_harris(app_data):
 
     return pipe
 
-
-
 def create_lib(build_func, pipe_name, app_data):
-    pipe_data = app_data['pipe_data']
     mode = app_data['mode']
     pipe_src  = pipe_name+".cpp"
     pipe_so   = pipe_name+".so"

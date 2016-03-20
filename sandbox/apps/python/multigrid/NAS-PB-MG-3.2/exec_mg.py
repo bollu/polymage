@@ -9,7 +9,7 @@ import time
 from verify import verify_norm
 
 def calc_norm(V_, app_data):
-    N = V_.shape[0]-2
+    N = V_.shape[0]
 
     # lib function name
     norm2u3 = app_data['pipeline_norm']
