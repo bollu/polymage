@@ -424,18 +424,22 @@ def execute(_tuner_arg_data):
     if _tuner_debug_flag:
         dump_files.append(sys.stdout)
 
+    OMP_NUM_THREADS = str(_tuner_omp_threads)
+    KMP_PLACE_THREADS = str(_tuner_omp_threads)+"c,1t"
+
     def print_params(to_file=[]):
         if len(to_file) == 0:
             return
         print_line(to_file)
         print_to("App Name              : \""+_tuner_app_name+"\"", to_file)
         print_to("Total Configurations  :"+str(_tuner_configs_count), to_file)
-        print_to("OMP_NUM_THREADS       :"+str(_tuner_omp_threads), to_file)
+        print_to("OMP_NUM_THREADS       :"+OMP_NUM_THREADS, to_file)
+        print_to("KMP_PLACE_THREADS     :"+KMP_PLACE_THREADS, to_file)
         print_to("Number of Tuning Runs :"+str(_tuner_nruns), to_file)
 
     # set other variables
     app_name = _tuner_app_name+'_polymage_'
-    prog_prefix = str(_tuner_src_path)+'/'+str(app_name)+'/'
+    prog_prefix = str(_tuner_src_path)+'/'+str(app_name)
 
     date_time_now = time.strftime("%d-%m-%Y_%H.%M.%S")
     tuning_report_file_name = str(_tuner_src_path)+'/tuning_report'+'_'+str(date_time_now)+'.txt'
@@ -453,7 +457,8 @@ def execute(_tuner_arg_data):
     # TODO: iterate over thread count for tuning                ( )
 
     # set the thread-count
-    os.environ["OMP_NUM_THREADS"] = str(_tuner_omp_threads)
+    os.environ["OMP_NUM_THREADS"] = OMP_NUM_THREADS
+    os.environ["KMP_PLACE_THREADS"] = KMP_PLACE_THREADS
 
     # shared library function name
     lib_function_name = 'pipeline_'+_tuner_pipe.name
@@ -553,18 +558,18 @@ def execute(_tuner_arg_data):
                          "("+str(global_min_time*1000)+" ms)",
                          dump_files)
 
-        s = str(_tuner_config)+" "+str(local_min_time)
-        tuning_plot_file = open(tuning_plot_file_name, 'a')
-        print_to(s, [tuning_plot_file])
-        tuning_plot_file.close()
+            s = str(_tuner_config)+" "+str(local_min_time)
+            tuning_plot_file = open(tuning_plot_file_name, 'a')
+            print_to(s, [tuning_plot_file])
+            tuning_plot_file.close()
 
-        if real_time_graph:
-            plot_data['configs'] = _tuner_configs_count
-            plot_data['min_time'] = global_min_time
-            plot_data['max_time'] = global_max_time
-            plot_data['out_dir'] = str(_tuner_src_path)
-            plot_data['in_file'] = tuning_plot_file_name
-            # dynamic_display(plot_data)
+            if real_time_graph:
+                plot_data['configs'] = _tuner_configs_count
+                plot_data['min_time'] = global_min_time
+                plot_data['max_time'] = global_max_time
+                plot_data['out_dir'] = str(_tuner_src_path)
+                plot_data['in_file'] = tuning_plot_file_name
+                # dynamic_display(plot_data)
 
         dump_files.remove(tuning_report_file)
         tuning_report_file.close()
