@@ -254,14 +254,14 @@ def mark_par_and_vec(poly_part, param_estimates):
         intr_size = get_dim_size(interval, param_estimates)
 
         # outer parallel dim
-        if(get_constant_from_expr(intr_size) >= 32):
+        if(get_constant_from_expr(intr_size) >= 16):
             if parallel_dim is not None:
                 parallel_dim = min(p.align[dim], parallel_dim)
             else:
                 parallel_dim = p.align[dim]
 
         # inner vector dim
-        if(get_constant_from_expr(intr_size) >= 8):
+        if(get_constant_from_expr(intr_size) >= 4):
             if vec_dim is not None:
                 vec_dim = max(p.align[dim], vec_dim)
             else:
