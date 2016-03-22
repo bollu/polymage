@@ -23,13 +23,12 @@ def main():
     init_all(app_data)
 
     print_config(app_data)
-    cycle_name = app_data['cycle']+"cycle"
     if app_data['mode'] == 'tune':
         auto_tune(app_data)
     else:
         #-------------------------------------------------------------------
         create_lib(None, "norm", app_data)
-        create_lib(build_mg_cycle, cycle_name, app_data)
+        create_lib(build_mg_cycle, app_data['cycle_name'], app_data)
         #-------------------------------------------------------------------
         init_norm(app_data)
         multigrid(app_data)
