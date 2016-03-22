@@ -6,6 +6,8 @@ import ctypes
 import numpy as np
 import time
 
+from utils import *
+
 from printer import print_line, print_layout, print_errors
 
 def minimal_exec_mg(pipe_lib, pipe_lib_func, func_params,
@@ -15,6 +17,8 @@ def minimal_exec_mg(pipe_lib, pipe_lib_func, func_params,
 
     pool_alloc = app_data['pool_alloc']  # bool
     grid_data = app_data['grid_data']
+
+    cycle_name = app_data['cycle_name']
 
     # build function argument list based on the iteration,
     # even : in = U_ : out = W_
@@ -27,11 +31,11 @@ def minimal_exec_mg(pipe_lib, pipe_lib_func, func_params,
     arg_data['F_'] = grid_data['F_']
 
     arg_data['V_'] = grid_data['U_']
-    arg_data['Vcycle'] = grid_data['W_']
+    arg_data[cycle_name] = grid_data['W_']
     func_args.append(map_cfunc_args(func_params, arg_data))
 
     arg_data['V_'] = grid_data['W_']
-    arg_data['Vcycle'] = grid_data['U_']
+    arg_data[cycle_name] = grid_data['U_']
     func_args.append(map_cfunc_args(func_params, arg_data))
 
     if pool_alloc:

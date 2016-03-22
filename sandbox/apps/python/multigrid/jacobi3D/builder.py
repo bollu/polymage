@@ -10,7 +10,7 @@ from loader import load_lib
 from polymage_vcycle import v_cycle
 from polymage_wcycle import w_cycle
 
-from compiler   import *
+from compiler import *
 from constructs import *
 
 def code_gen(pipe, file_name, app_data):
@@ -34,7 +34,6 @@ def generate_graph(pipe, file_name, app_data):
     print("[builder]: writing the graph dot file to", graph_file, "...")
 
     graph = pipe.pipeline_graph
-    #graph = pipe.original_graph
     graph.write(graph_file)
     print("[builder]: ... DONE")
 
