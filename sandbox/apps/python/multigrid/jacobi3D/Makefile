@@ -16,7 +16,7 @@ NU2=0  # post-smoothing steps
 NUC=0  # corase-smoothing steps
 
 APP_ARGS=--cycle=${CYCLE} --nit=${NIT} --runs=${RUNS} --n=${SIZE} --L=${L} --nu1=${NU1} --nuc=${NUC} --nu2=${NU2}
-OPT_ARGS=--pool_alloc --optimize_storage --early_free
+OPT_ARGS=--pool_alloc --optimize_storage --early_free --multipar
 TOOL_ARGS=--graph-gen --runs=$(RUNS) --timer
 CXX_ARGS=--cxx="$(CXX)" --cxx_flags="$(CXX_FLAGS)"
 
