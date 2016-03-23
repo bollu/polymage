@@ -56,6 +56,8 @@ def auto_tune(app_data):
     tile_size_configs.append([32, 64, 64])
     tile_size_configs.append([64, 64, 64])
 
+    # relative path to root directory from app dir
+    ROOT = app_data['ROOT']
     opts = []
     if app_data['early_free']:
         opts += ['early_free']

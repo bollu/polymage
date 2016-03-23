@@ -44,3 +44,14 @@ parser.add_option('--pool_alloc',
                   default=False,
                   help='True : Use a pool of memory allocations, \
                         False: generate simple malloc function call')
+
+# To extract multidimensional parallelism, PolyMage uses OpenMP's collapse
+# clause on perfectly nested parallel loops. Enabling this optimization results
+# in generation of omp pragma with "collapse". However, parallel loop nests
+# that are not perfectly nested remain unaffected.
+parser.add_option('--multipar',
+                  action='store_true',
+                  dest='multipar',
+                  default=False,
+                  help='True : Mark omp \'collapse\' directive if possible, \
+                        False: Simply mark \'omp parallel for\'')
