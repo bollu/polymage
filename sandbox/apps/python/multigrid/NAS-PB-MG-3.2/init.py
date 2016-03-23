@@ -211,6 +211,8 @@ def get_input(app_data):
     app_data['early_free'] = bool(app_args.early_free)
     # pool allocate option
     app_data['pool_alloc'] = bool(app_args.pool_alloc)
+    # multi-dimensional parallelism option
+    app_data['multipar'] = bool(app_args.multipar)
 
     return
 

@@ -10,7 +10,7 @@ CLASS='W'  # NAS-MG Problem Class
 RUNS=1
 
 APP_ARGS=--class=$(CLASS) --runs=$(RUNS)
-OPT_ARGS=--pool_alloc --optimize_storage --early_free
+OPT_ARGS=--pool_alloc --optimize_storage --early_free --multipar
 TOOL_ARGS=--graph-gen --runs=$(RUNS) --timer
 CXX_ARGS=--cxx="$(CXX)" --cxx_flags="$(CXX_FLAGS)"
 
