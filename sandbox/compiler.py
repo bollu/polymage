@@ -36,6 +36,7 @@ def buildPipeline(outputs,
     #options.append('optimize_storage')
     #options.append('early_free')
     #options.append('pool_alloc')
+    options.append('multipar')
 
     if 'optimize_storage' in options:
         options.append('flatten_scratchpad')

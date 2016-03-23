@@ -349,20 +349,60 @@ def generate_c_naive_from_expression_node(pipe, polyrep, node, body,
         #incr = genc.CAssign(var, var + 1)
         #body.add(inc)
 
-def generate_c_naive_from_isl_ast(pipe, polyrep, node, body,
-                                  cparam_map, pooled):
+def log_loop_start(var, indent, log_level=logging.DEBUG-1):
+    indent_str = ''.join(' ' for i in range(0, indent))
+    loop_str = "for : "+str(var)+" {"
+    LOG(log_level, indent_str+loop_str)
+    return
+
+def log_loop_end(indent, log_level=logging.DEBUG-1):
+    indent_str = ''.join(' ' for i in range(0, indent))
+    LOG(log_level, indent_str+"}")
+    return
+
+def rec_perfect_loopnest(node, perfect_loopnest=[]):
+    if node.get_type() == isl._isl.ast_node_type.for_:
+        var = isl_expr_to_cgen(node.for_get_iterator())
+        if "_T" in str(var):
+            perfect_loopnest.append(node)
+            rec_perfect_loopnest(node.for_get_body(), perfect_loopnest)
+
+    return perfect_loopnest
+
+def collect_perfect_loopnest(node):
+    # recursively collect perfect loopnest nodes
+    perfect_loopnest = []
+    perfect_loopnest = rec_perfect_loopnest(node, perfect_loopnest)
+
+    # ***
+    log_level = logging.DEBUG-1
+    LOG(log_level, "")
+    LOG(log_level, "perfect_loopnest:")
+    var_list = []
+    for loop_node in perfect_loopnest:
+        var_list.append(isl_expr_to_cgen(loop_node.for_get_iterator()))
+    LOG(log_level, [str(var) for var in var_list])
+    LOG(log_level, "")
+
+    return perfect_loopnest
+
+def generate_c_naive_from_isl_ast(pipe, polyrep, node, body, cparam_map,
+                                  pooled, perfect_loopnest, indent=0):
     if node.get_type() == isl._isl.ast_node_type.block:
         num_nodes = (node.block_get_children().n_ast_node())
         for i in range(0, num_nodes):
             child = node.block_get_children().get_ast_node(i)
             generate_c_naive_from_isl_ast(pipe, polyrep, child, body,
-                                          cparam_map, pooled)
+                                          cparam_map, pooled,
+                                          perfect_loopnest, indent+1)
     else:
         if node.get_type() == isl._isl.ast_node_type.for_:
             # Convert lb and ub expressions to C expressions
             prologue = []
             cond = isl_cond_to_cgen(node.for_get_cond(), prologue)
             var = isl_expr_to_cgen(node.for_get_iterator())
+            # ***
+            log_loop_start(var, indent)
             var_inc = isl_expr_to_cgen(node.for_get_inc())
             incr = genc.CAssign(var, var+var_inc)
             if prologue is not None:
@@ -385,21 +425,41 @@ def generate_c_naive_from_isl_ast(pipe, polyrep, node, body,
             dim_vector = is_sched_dim_vector(polyrep, user_nodes, var.name)
             arrays = get_arrays_for_user_nodes(pipe, polyrep, user_nodes)
 
+            # number of loops in the perfectly nested loop
+            n_ploops = len(perfect_loopnest)
+
             if dim_parallel:
-                omp_pragma = genc.CPragma("omp parallel for schedule(static)")
+                omp_par_str = "omp parallel for schedule(static)"
+                if n_ploops > 1:
+                    outer_loop = perfect_loopnest[0]
+                    # outer loop
+                    if node == outer_loop:
+                        omp_par_str += " collapse("+str(n_ploops)+")"
+                omp_pragma = genc.CPragma(omp_par_str)
                 body.add(omp_pragma)
             if dim_vector:
                 vec_pragma = genc.CPragma("ivdep")
                 body.add(vec_pragma)
 
-            flat_scratch = 'flatten_scratchpad' in pipe.options
-
             body.add(loop)
+
             # Assuming only one parallel dimension and a whole lot
             # of other things.
             freelist = []
             array_writers = pipe.array_writers
-            if dim_parallel:
+
+            # check if this loop is at the right level to allocate
+            # thread-local scratchpads
+            flat_scratch = 'flatten_scratchpad' in pipe.options
+            scratchpad_loop = True
+            if n_ploops >= 1:
+                # innermost perfect loop
+                if node != perfect_loopnest[n_ploops-1]:
+                    scratchpad_loop = False
+            else:
+                scratchpad_loop = dim_parallel
+
+            if scratchpad_loop:
                 with loop.body as lbody:
                     for array in arrays:
                         # add a comment line with a list of comps using this
@@ -418,11 +478,15 @@ def generate_c_naive_from_isl_ast(pipe, polyrep, node, body,
                             freelist.append(array)
             with loop.body as lbody:
                 generate_c_naive_from_isl_ast(pipe, polyrep,
-                                              node.for_get_body(),
-                                              lbody, cparam_map, pooled)
+                                              node.for_get_body(), lbody,
+                                              cparam_map, pooled,
+                                              perfect_loopnest, indent+1)
                 # Deallocate storage
                 for array in freelist:
                     array.deallocate(lbody, pooled)
+
+            # ***
+            log_loop_end(indent)
 
         if node.get_type() == isl._isl.ast_node_type.if_:
             if_cond = isl_cond_to_cgen(node.if_get_cond())
@@ -431,19 +495,22 @@ def generate_c_naive_from_isl_ast(pipe, polyrep, node, body,
                 with cif_else.if_block as ifblock:
                     generate_c_naive_from_isl_ast(pipe, polyrep,
                                                   node.if_get_then(), ifblock,
-                                                  cparam_map, pooled)
+                                                  cparam_map, pooled,
+                                                  perfect_loopnest, indent+1)
                 with cif_else.else_block as elseblock:
                     generate_c_naive_from_isl_ast(pipe, polyrep,
                                                   node.if_get_else(),
                                                   elseblock,
-                                                  cparam_map, pooled)
+                                                  cparam_map, pooled,
+                                                  perfect_loopnest, indent+1)
                 body.add(cif_else)
             else:
                 cif = genc.CIfThen(if_cond)
                 with cif.if_block as ifblock:
-                    generate_c_naive_from_isl_ast(pipe,
-                                                  polyrep, node.if_get_then(),
-                                                  ifblock, cparam_map, pooled)
+                    generate_c_naive_from_isl_ast(pipe, polyrep,
+                                                  node.if_get_then(), ifblock,
+                                                  cparam_map, pooled,
+                                                  perfect_loopnest, indent+1)
                 body.add(cif)
 
         if node.get_type() == isl._isl.ast_node_type.user:
@@ -757,7 +824,8 @@ def generate_code_for_group(pipeline, g, body, alloc_arrays,
     LOG(logging.DEBUG, log_str)
     # ***
 
-    pooled = 'pool_alloc' in pipeline._options
+    pooled = 'pool_alloc' in pipeline.options
+    multipar = 'multipar' in pipeline.options
 
     for comp in sorted_comps:
         func = comp.func
@@ -810,8 +878,12 @@ def generate_code_for_group(pipeline, g, body, alloc_arrays,
     polyrep = g.polyRep
     if polyrep.polyast != []:
         for ast in polyrep.polyast:
+            if multipar:
+                perfect_loopnest = collect_perfect_loopnest(ast)
+            else:
+                perfect_loopnest = []
             generate_c_naive_from_isl_ast(pipeline, polyrep, ast, body,
-                                          cparam_map, pooled)
+                                          cparam_map, pooled, perfect_loopnest)
             pass
 
     return
