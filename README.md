@@ -1,5 +1,7 @@
-PolyMage is release under the Apache License, version 2.0. Please see the 
-LICENSE file for more details.
+**LICENSE**
+
+PolyMage is available under the Apache License, version 2.0. Please see 
+the LICENSE file for more details.
 
 **REQUIREMENTS**
 
