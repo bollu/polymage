@@ -73,6 +73,8 @@ def build_mg_cycle(app_data):
         opts += ['optimize_storage']
     if app_data['pool_alloc']:
         opts += ['pool_alloc']
+    if app_data['multipar']:
+        opts += ['multipar']
 
     mg_pipe = buildPipeline(live_outs,
                             param_estimates=p_estimates,

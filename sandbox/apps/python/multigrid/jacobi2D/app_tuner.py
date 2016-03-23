@@ -60,6 +60,8 @@ def auto_tune(app_data):
         opts += ['optimize_storage']
     if app_data['pool_alloc']:
         opts += ['pool_alloc']
+    if app_data['multipar']:
+        opts += ['multipar']
 
     gen_compile_string(app_data)
     cxx_string = app_data['cxx_string']
