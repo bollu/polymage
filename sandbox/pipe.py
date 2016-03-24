@@ -1,5 +1,8 @@
-# 
-# Copyright 2014-2016 Vinay Vasista, Ravi Teja Mullapudi, Uday Bondhugula
+#
+# Copyright 2014-2016 Vinay Vasista, Ravi Teja Mullapudi, Uday Bondhugula,
+# and others from Multicore Computing Lab, Department of Computer Science
+# and Automation, Indian Institute of Science
+#
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,6 +17,10 @@
 # limitations under the License.
 # 
 #
+# pipe.py : Intermediate representation of pipeline specification and driving
+#           the optimization processes at a high level.
+#
+
 from __future__ import absolute_import, division, print_function
 
 # More Python 3 vs 2 mojo
