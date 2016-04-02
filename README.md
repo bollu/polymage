@@ -31,12 +31,16 @@ installing libffi-devel via yum/apt-get)
 
 **INSTALLATION**
 
-$ git clone git@bitbucket.org:udayb/polymage-mcl.git
-$ cd polymage-mcl
-$ git submodule init
-$ git submodule update
+$ git clone git@bitbucket.org:udayb/polymage.git
+
+$ cd polymage
+
+$ git submodule update --init
+
 $ cd cgen
+
 $ git am ../patches/0001-ctye-to-dtype-handle-void.patch
+
 $ cd ..
 
 
