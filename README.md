@@ -1,7 +1,7 @@
 **LICENSE**
 
 PolyMage is available under the Apache License, version 2.0. Please see 
-the LICENSE file for more details.
+the LICENSE file for details.
 
 **REQUIREMENTS**
 
@@ -36,7 +36,7 @@ $ cd polymage-mcl
 $ git submodule init
 $ git submodule update
 $ cd cgen
-$ git am ../patches/0001-ctye-to-dtype-handle-void.patch 
+$ git am ../patches/0001-ctye-to-dtype-handle-void.patch
 $ cd ..
 
 
@@ -49,7 +49,7 @@ For example, the harris corner detection test can be run using the following com
 sandbox/tests directory:
 .../sandbox/tests$> py.test-3 test_harris.py
 
-Note: The input language does not exactly match that in the ASPLOS 2015 paper. However,  
+Note: The input language does not exactly match that in the ASPLOS 2015 paper; however,  
 it is very close.  
 
 sandbox/apps/python : has some benchmark applications written using a python driver code.  
