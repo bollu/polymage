@@ -1,5 +1,11 @@
+# 
+# To use GNU compilers instead of Intel's C++ compiler, comment the two lines 
+# below and uncomment the subsequent ones
+#
 CXX=icpc
 CXXFLAGS=-xhost -openmp -fPIC -shared -O3
+# CXX = g++
+# CXXFLAGS=-march=native -mtune=native -fopenmp -fPIC -shared -O3
 
 all: harris.so bilateral.so unsharp.so laplacian.so harris_naive.so bilateral_naive.so unsharp_naive.so laplacian_naive.so
 
