@@ -1,7 +1,7 @@
 all: test
 
 test:
-	py.test-3.4 -vv
+	py.test -vv
 
 clean:
 	rm -rf __pycache__ *.pyc *.dot *.png *.cpp
