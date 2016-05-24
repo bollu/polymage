@@ -28,6 +28,7 @@ from expr_types import *
 from expression import *
 import logging
 import targetc as genc
+import math
 
 logging.basicConfig(format="%(levelname)s: %(name)s: %(message)s")
 
@@ -417,7 +418,6 @@ def is_valid_kernel(kernel, num_dimensions):
                                                 "Erroring dimensions: %s\n"
                                                 "Kernel: %s" % (inner_dim,
                                                                 kernel))
-        # print(kernel, closure_data)
         if isinstance(kernel, list):
             for subkernel in kernel:
                 new_closure_data = {
@@ -427,13 +427,13 @@ def is_valid_kernel(kernel, num_dimensions):
                 assert is_valid_kernel_reucur(subkernel,
                                               num_dimensions - 1,
                                               new_closure_data)
-
         else:
             if num_dimensions < 0:
                 error_str = ("kernel has more dimensions than expected")
             elif num_dimensions > 0:
                 error_str = ("Kernel has less dimensions than expected")
-
+            else:
+                return True
 
             parent_chain = " →\n\t".join(map(str, closure_data["parent"]))
             assert num_dimensions == 0, ("%s\n"
@@ -452,11 +452,11 @@ def is_valid_kernel(kernel, num_dimensions):
         "total_dim": num_dimensions,
         "parent": []
     }
-    is_valid_kernel_reucur(kernel, num_dimensions, closure_data)
+    return is_valid_kernel_reucur(kernel, num_dimensions, closure_data)
 
-def get_valid_kernel_dimensions(kernel):
+def get_valid_kernel_sizes(kernel):
     """
-    Provides the dimensions of the kernel,
+    Provides the sizes along the dimensions of the kernel,
     outermost to innermost for a valid kernel
 
     Parameters
@@ -466,8 +466,8 @@ def get_valid_kernel_dimensions(kernel):
     
     Returns
     -------
-    dimensions: list
-    1-D list of length of dimensions, outermost to innermost
+    sizes: list
+    1-D list of sizes, dimensions are ordered outermost to innermost
     """
 
     def kernel_dim_recur(subkernel):
@@ -483,30 +483,28 @@ def get_valid_kernel_dimensions(kernel):
 
 
 class TStencil(AbstractExpression):
-    def __init__(self, _varDom, _kernel, _origin=None, timesteps=1):
+    def __init__(self, _varDom, _kernel, _name, _origin=None, _timesteps=1):
 
-        assert(isinstance(_kernel, list))
-        assert(len(_kernel) == len(_weights))
         self.name = _name
-        self.kernel = _kernel
         self.varDom = _varDom
-        self.weights = _weights
-        self.timesteps = _timesteps 
+        self.timesteps = int(_timesteps) 
+
+        assert is_valid_kernel(_kernel, len(_varDom))
+        self.size = get_valid_kernel_sizes(_kernel)
+        self.kernel = _kernel
+
+        if _origin == None:
+            self.origin = list(map(lambda x: math.floor(x / 2), self.size))
 
     def __str__(self):
-        ker_weights = []
-        for i in range(len(self.kernel)):
-            if self.weights[i] == 1:
-                ker_weights.append(str(self.kernel[i]))
-            elif self.weights[i] == -1:
-                ker_weights.append("-1" + str(self.kernel[i]))
-            elif self.weights[i] == 0:
-                ker_weights.append("0")
-            else:
-             ker_weights.append("%s%s" % (self.weights[i], self.kernel[i]))
-        return "Stencil object (%s)\n\tdomain: %s \n\trepr: %s" % (self.name,
-                                                                  list(map(str, self.varDom)),
-                                                                  " ".join(ker_weights))
+        return ("Stencil object (%s)"
+                "\n\tdomain: %s"
+                "\n\tdimensions: %s"
+                "\n\ttimesteps: %s"
+                "\n\torigin: %s"
+                "\n\tkernel: %s" % (self.name, list(map(str, self.varDom)),
+                                    self.size, self.timesteps,
+                                    self.origin, self.kernel))
 
 
 
