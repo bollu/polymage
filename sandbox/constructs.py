@@ -454,6 +454,34 @@ def is_valid_kernel(kernel, num_dimensions):
     }
     is_valid_kernel_reucur(kernel, num_dimensions, closure_data)
 
+def get_valid_kernel_dimensions(kernel):
+    """
+    Provides the dimensions of the kernel,
+    outermost to innermost for a valid kernel
+
+    Parameters
+    ----------
+    kernel: nested list
+    a valid N-dimensional kernel for computation
+    
+    Returns
+    -------
+    dimensions: list
+    1-D list of length of dimensions, outermost to innermost
+    """
+
+    def kernel_dim_recur(subkernel):
+        if isinstance(subkernel, list):
+            if len(subkernel) > 0:
+                return [len(subkernel)] + kernel_dim_recur(subkernel[0])
+            else:
+                return [0]
+
+        else:
+            return []
+    return kernel_dim_recur(kernel)
+
+
 class TStencil(AbstractExpression):
     def __init__(self, _varDom, _kernel, _origin=None, timesteps=1):
 
