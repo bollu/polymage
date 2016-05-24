@@ -374,6 +374,114 @@ class Reference(AbstractExpression):
         arg_str = ", ".join([arg.__str__() for arg in self._args])
         return self._obj.name + "(" + arg_str + ")"
 
+
+# returns lengths of stuff one level deep in the list
+# returns 0 if the object is a value
+def get_inner_dimensions(lst):
+    if isinstance(lst, list):
+        dim = []
+        for x in lst:
+            if isinstance(x, list):
+                dim.append(len(x))
+            else:
+                dim.append(0)
+        return dim
+    else:
+        return 0
+
+
+def list_elements_equal(lst):
+    return not lst or lst.count(lst[0]) == len(lst)
+
+
+def is_valid_kernel(kernel, num_dimensions):
+    """Checks if the given kernel is a valid stencil by making sure
+    that length(vardom) = nesting of kernel
+    Parameters
+    ----------
+    kernel: list
+    the kernel corresponding to the Stencil. This is usually a nested list
+
+    num_dimensions: int
+    number of dimensions the kernel posesses
+    Returns
+    -------
+    is_valid: Bool
+    """
+
+    def is_valid_kernel_reucur(kernel, num_dimensions, closure_data):
+
+        inner_dim = get_inner_dimensions(kernel)
+        assert list_elements_equal(inner_dim), ("kernel does not have "
+                                                "equal dimensions.\n"
+                                                "Erroring dimensions: %s\n"
+                                                "Kernel: %s" % (inner_dim,
+                                                                kernel))
+        # print(kernel, closure_data)
+        if isinstance(kernel, list):
+            for subkernel in kernel:
+                new_closure_data = {
+                    "total_dim": closure_data["total_dim"],
+                    "parent": [kernel] + closure_data["parent"]
+                }
+                assert is_valid_kernel_reucur(subkernel,
+                                              num_dimensions - 1,
+                                              new_closure_data)
+
+        else:
+            if num_dimensions < 0:
+                error_str = ("kernel has more dimensions than expected")
+            elif num_dimensions > 0:
+                error_str = ("Kernel has less dimensions than expected")
+
+
+            parent_chain = " →\n\t".join(map(str, closure_data["parent"]))
+            assert num_dimensions == 0, ("%s\n"
+                                        "Expected Dimensions: %s\n"
+                                        "Incorrect Kernel: %s\n" %
+                                        (error_str,
+                                         closure_data["total_dim"],
+                                         parent_chain))
+        return True
+    
+    
+    # workaround for python scope madness - scopes get absolutely
+    # _wrecked_ in a recursive inner function, so just pass around
+    # a closure like the C people we are
+    closure_data = {
+        "total_dim": num_dimensions,
+        "parent": []
+    }
+    is_valid_kernel_reucur(kernel, num_dimensions, closure_data)
+
+class TStencil(AbstractExpression):
+    def __init__(self, _varDom, _kernel, _origin=None, timesteps=1):
+
+        assert(isinstance(_kernel, list))
+        assert(len(_kernel) == len(_weights))
+        self.name = _name
+        self.kernel = _kernel
+        self.varDom = _varDom
+        self.weights = _weights
+        self.timesteps = _timesteps 
+
+    def __str__(self):
+        ker_weights = []
+        for i in range(len(self.kernel)):
+            if self.weights[i] == 1:
+                ker_weights.append(str(self.kernel[i]))
+            elif self.weights[i] == -1:
+                ker_weights.append("-1" + str(self.kernel[i]))
+            elif self.weights[i] == 0:
+                ker_weights.append("0")
+            else:
+             ker_weights.append("%s%s" % (self.weights[i], self.kernel[i]))
+        return "Stencil object (%s)\n\tdomain: %s \n\trepr: %s" % (self.name,
+                                                                  list(map(str, self.varDom)),
+                                                                  " ".join(ker_weights))
+
+
+
 class Condition(object):
     def __init__(self, _left, _cond, _right):
         _left  = Value.numericToValue(_left)
