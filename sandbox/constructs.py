@@ -483,26 +483,35 @@ def get_valid_kernel_sizes(kernel):
 
 
 class TStencil(AbstractExpression):
-    def __init__(self, _varDom, _kernel, _name, _origin=None, _timesteps=1):
+    def __init__(self, _var_domain, _kernel, _name, _origin=None, _timesteps=1):
 
         self.name = _name
-        self.varDom = _varDom
+        self.var_domain = _var_domain
         self.timesteps = int(_timesteps) 
 
-        assert is_valid_kernel(_kernel, len(_varDom))
+        assert is_valid_kernel(_kernel, len(_var_domain))
         self.size = get_valid_kernel_sizes(_kernel)
         self.kernel = _kernel
 
         if _origin == None:
             self.origin = list(map(lambda x: math.floor(x / 2), self.size))
 
+    def getObjects(self, objType):
+        objs = []
+        for interval in self.var_domain:
+            objs += interval.collect(objType)
+        return list(set(objs))
+
+    def clone():
+        return TStencil(self, self._var_domain.clone(), deepcopy(self._kernel),
+                        self._name
     def __str__(self):
         return ("Stencil object (%s)"
                 "\n\tdomain: %s"
                 "\n\tdimensions: %s"
                 "\n\ttimesteps: %s"
                 "\n\torigin: %s"
-                "\n\tkernel: %s" % (self.name, list(map(str, self.varDom)),
+                "\n\tkernel: %s" % (self.name, list(map(str, self.var_domain)),
                                     self.size, self.timesteps,
                                     self.origin, self.kernel))
 
