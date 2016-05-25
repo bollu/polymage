@@ -1,5 +1,10 @@
+#include <iostream>
+
 #include<stdlib.h>
 #include<assert.h>
+
+using namespace std;
+
 // Linked list of allocations
 struct alloc_node {
     void * alloc;
@@ -58,7 +63,7 @@ int pool_num_allocs() {
         total_allocs += 1;
         curr_node = curr_node->next;
     }
-    return total_allocs;   
+    return total_allocs;
 }
 
 long long int pool_total_alloc() {
@@ -72,12 +77,13 @@ long long int pool_total_alloc() {
     return total_bytes;
 }
 
-bool pool_alloc_in_use(void * buffer) {
+bool is_alloc_in_use(void * buffer) {
     assert(alloc_begin!=NULL && alloc_end!=NULL);
     struct alloc_node * curr_node = alloc_begin;
     while (curr_node != NULL) {
         if (curr_node->alloc == buffer) 
             return curr_node->in_use;
+        curr_node = curr_node->next;
     }
 }
 
