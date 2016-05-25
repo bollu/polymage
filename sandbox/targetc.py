@@ -105,6 +105,14 @@ class CPowf(Powf):
     def __init__(self, _expr1, _expr2):
         Powf.__init__(self, _expr1, _expr2)
 
+class CRandomFloat(RandomFloat):
+    def __init__(self):
+        RandomFloat.__init__(self)
+
+class CLog(Log):
+    def __init__(self, _expr):
+        Log.__init__(self, _expr)
+
 class CExp(Exp):
     def __init__(self, _expr):
         Exp.__init__(self, _expr)

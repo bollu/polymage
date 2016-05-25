@@ -670,6 +670,13 @@ def generate_c_expr(pipe, exp, cparam_map, cvar_map,
         cexpr1 = generate_c_expr(pipe, exp.arguments[0], cparam_map, cvar_map)
         cexpr2 = generate_c_expr(pipe, exp.arguments[1], cparam_map, cvar_map)
         return genc.CPowf(cexpr1, cexpr2)
+    if isinstance(exp, RandomFloat):
+        return genc.CRandomFloat()
+    if isinstance(exp, Log):
+        cexpr = generate_c_expr(pipe, exp.arguments[0],
+                                cparam_map, cvar_map,
+                                scratch_map, prologue_stmts)
+        return genc.CLog(cexpr)
     if isinstance(exp, Exp):
         cexpr = generate_c_expr(pipe, exp.arguments[0],
                                 cparam_map, cvar_map,

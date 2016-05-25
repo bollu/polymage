@@ -105,6 +105,32 @@ class Powf(InbuiltFunction):
         rightStr = self._args[1].__str__()
         return "powf(" + leftStr + ", " + rightStr + ")"
 
+class Log(InbuiltFunction): # Natural Log
+    def __init__(self, _expr):
+        InbuiltFunction.__init__(self, _expr)
+
+    def getType(self):
+        return Double
+
+    def clone(self):
+        return Log(self._args[0].clone())
+
+    def __str__(self):
+        return "log(" +  self._args[0].__str__() +  ")"
+
+class RandomFloat(InbuiltFunction): # Random Float b/w 0.0f and 1.0f
+    def __init__(self):
+        InbuiltFunction.__init__(self)
+
+    def getType(self):
+        return Float
+
+    def clone(self):
+        return RandomFloat()
+
+    def __str__(self):
+        return "(static_cast<float> (rand()) / static_cast<float> (RAND_MAX))"
+
 class Exp(InbuiltFunction):
     def __init__(self, _expr):
         InbuiltFunction.__init__(self, _expr)
@@ -231,7 +257,7 @@ class Select(AbstractExpression):
         if typeCheck:
             trueType = getType(_trueExpr)
             falseType = getType(_falseExpr)
-            assert trueType == falseType
+            assert trueType == falseType, str(_trueExpr)+" == "+str(_falseExpr)
         self._trueExpr = _trueExpr
         self._falseExpr = _falseExpr
         self._cond = _cond
@@ -627,12 +653,12 @@ class Function(object):
     @defn.setter
     def defn(self, _def):
         assert(self._body == [])
-        assert(len(_def) > 0)
+        assert(len(_def) > 0), str(_def) + " " + str(self._name)
         case_type = 0
         non_case_type = 0
         for case in _def:
             case = Value.numericToValue(case)
-            assert(isinstance(case, (Case, AbstractExpression)))
+            assert(isinstance(case, (Case, AbstractExpression))),str(case)
 
             # if the function is defined using Case, all the definition parts
             # in the list '_def' must be of the type Case.
@@ -791,7 +817,7 @@ class Reduction(Function):
         assert(self._body == [])
         for case in _def:
             case = Value.numericToValue(case)
-            assert(isinstance(case, (Case, Reduce)))
+            assert(isinstance(case, (Case, Reduce))),str(case)
             # check if the Case and Expression constructs only use
             # function variables and global parameters
 
