@@ -170,6 +170,23 @@ class AbstractExpression(object):
             objs = [self]
         return objs
 
+    def macro_expand(self):
+        """
+        If the expression is a macro, then expand it
+        Otherwise, do reursively call macro expand on the children
+        and then return the final expanded expression
+
+        Returns
+        -------
+        expanded_expr: AbstractExpression
+        The expanded expression.
+
+        A leaf node may return itself and choose not to expand.
+        A compound node must expand its children with a macro_expand call
+        """
+        raise NotImplemntedError("this function is not implement")
+
+
 class Value(AbstractExpression):
 
     @classmethod
@@ -202,6 +219,9 @@ class Value(AbstractExpression):
         return self._value == _value
     def __str__(self):
         return self._value.__str__()
+
+    def macro_expand(self):
+        return self
 
 class AbstractBinaryOpNode(AbstractExpression):
     def __init__(self, _left, _right, _op=None): 
@@ -243,6 +263,12 @@ class AbstractBinaryOpNode(AbstractExpression):
         if (self._right is not None):
             right_str = self._right.__str__()
         return "(" + left_str + " " + self._op + " " + right_str + ")"
+
+
+    def macro_expand(self):
+        self._left = self._left.macro_expand()
+        self._right = self._right.macro_expand()
+        return self
 
 
 class Add(AbstractBinaryOpNode):
@@ -305,6 +331,10 @@ class InbuiltFunction(AbstractExpression):
     def inline_refs(self, refToExprMap):
         self._args = [ substitute_refs(arg, refToExprMap) for arg in self._args]
 
+    def macro_expand(self):
+        # TODO: check if maybe arguments need to be macro expanded?
+        return self
+
 class AbstractUnaryOpNode(AbstractExpression):
     def __init__(self, _child, _op=None): 
         self._child  = _child
@@ -330,6 +360,10 @@ class AbstractUnaryOpNode(AbstractExpression):
     def __str__(self):
         child_str = self._child.__str__()
         return self._op + "(" + child_str + ")"
+
+    def macro_expand(self):
+        self._child = self._child.macro_expand()
+        return self
 
 class UnaryPlus(AbstractUnaryOpNode):
     def __init__(self, _child):
