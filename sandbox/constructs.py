@@ -482,7 +482,52 @@ def get_valid_kernel_sizes(kernel):
     return kernel_dim_recur(kernel)
 
 
-class TStencil(AbstractExpression):
+def check_type(given_variable, expected_type):
+    if not isinstance(given_variable, expected_type):
+        raise TypeError("Expected {given_value} to be of type {expected_type}."
+            "\nGiven Value: {given_value}"
+            "\nGiven Type: {given_type}"
+            "\nExpected Type: {expected_type}".format({
+                "expected_type": str(type(given_variable)),
+                "given_type": str(type(given_variable)),
+                "given_value": str(given_variable)
+            }))
+
+class ASTMacro(AbstractExpression):
+    """
+    Represents an AST node that is a "macro". This means that it is replaced
+    in a pre-processing step during a tree walk
+    """
+
+    def macro_expand():
+        raise NotImplemntedError("this macro has not been implemented yet")
+
+class Stencil(ASTMacro):
+    def __init__(self, _input_fn, _iteration_vars, _kernel, _origin=None):
+        check_type(_input_fn, Function)
+        self._input_fn = _input_fn
+
+        for v in _iteration_vars:
+            check_type(v, Variable)
+        self._iteration_vars = _iteration_vars
+        
+        assert is_valid_kernel(_kernel, len(_iteration_vars))
+        self.size = get_valid_kernel_sizes(_kernel)
+        self.kernel = _kernel
+
+        if _origin == None:
+            self.origin = list(map(lambda x: math.floor(x / 2), self.size))
+
+    def __str__(self):
+        return ("Stencil object"
+                "\n\tinput: %s"
+                "\n\titeration vars: %s"
+                "\n\tdimensions: %s"
+                "\n\torigin: %s"
+                "\n\tkernel: %s" % (self._input_fn,
+                                    list(map(str, self._iteration_vars)),
+                                    self.size, self.origin, self.kernel))
+class TStencil(object):
     def __init__(self, _var_domain, _kernel, _name, _origin=None, _timesteps=1):
 
         self.name = _name
@@ -502,9 +547,6 @@ class TStencil(AbstractExpression):
             objs += interval.collect(objType)
         return list(set(objs))
 
-    def clone():
-        return TStencil(self, self._var_domain.clone(), deepcopy(self._kernel),
-                        self._name
     def __str__(self):
         return ("Stencil object (%s)"
                 "\n\tdomain: %s"
