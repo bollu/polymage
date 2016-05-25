@@ -160,6 +160,9 @@ class ComputeObject:
     @property
     def is_image_typ(self):
         return self._is_image_typ
+    @property
+    def is_reduction_typ(self):
+        return self._is_reduction_typ
 
     @property
     def parents(self):
@@ -208,6 +211,7 @@ class ComputeObject:
         self._is_children_set = False
         self._is_group_set = False
         self._is_image_typ = isinstance(self.func, Image)
+        self._is_reduction_typ = isinstance(self.func, Reduction)
         return
 
     def add_child(self, comp):
@@ -267,6 +271,11 @@ class ComputeObject:
     # within the group
     def compute_liveness(self):
         assert self.is_group_set
+
+        if self.is_output:
+            self._is_liveout = True
+            return
+
         # if there any children
         if not self.children:
             # no child => live_out
@@ -613,7 +622,7 @@ class Pipeline:
         self._inputs = []
 
         ''' CLONING '''
-        # Clone the computation objects i.e. functions and reductions
+        # Clone the functions and reductions
         self._clone_map = {}
         for func in self._orig_funcs:
             if isinstance(func, Image):
