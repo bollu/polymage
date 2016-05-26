@@ -8,7 +8,7 @@ sys.path.insert(0, '../')
 from compiler import *
 from constructs import *
 
-def test_stencil():
+def _test_stencil():
 
     R = Parameter(Int, "R")
     C = Parameter(Int, "C")
