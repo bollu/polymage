@@ -51,10 +51,10 @@ def test_stencil1():
     assert stencil_f2.origin == [0, 1]
     assert stencil_f2.kernel == kernel2
     assert str(Stencil.macro_expand(stencil_f2)) == \
-        '((((f1((x + -1), (y + -1)) * -1) + ' + \
-        '(f1((x + -1), y) * 2)) + ' + \
-        '(f1((x + -1), (y + 1)) * -3.8)) + ' + \
-        '(f1(x, y) * -1))'
+        '((((f1(x, (y + -1)) * -1) + ' + \
+        '(f1(x, y) * 2)) + ' + \
+        '(f1(x, (y + 1)) * -3.8)) + ' + \
+        '(f1((x + 1), y) * -1))'
 
     kernel3 = [[[ 1,  2, -1], [-2,  1, -2], [-1,  2,  1]],
                [[ 2,  1,  2], [ 1, -2,  1], [ 2,  1,  2]],
@@ -139,18 +139,18 @@ def test_stencil2():
     assert stencil2.kernel == kernel2
     assert str(Stencil.macro_expand(stencil2)) == \
         '((((((((((' + \
-        '(grid((x + -1), (y + -1), (z + -1)) + ' + \
-        '(grid((x + -1), (y + -1), z) * 2)) + ' + \
-        '(grid((x + -1), y, (z + -1)) * -2)) + ' + \
-        'grid((x + -1), y, z)) + ' + \
-        '(grid((x + -1), (y + 1), (z + -1)) * -1)) + ' + \
-        '(grid((x + -1), (y + 1), z) * 2)) + ' + \
-        '(grid(x, (y + -1), (z + -1)) * 2)) + ' + \
-        'grid(x, (y + -1), z)) + ' + \
-        'grid(x, y, (z + -1))) + ' + \
+        '(grid(x, (y + -1), z) + ' + \
+        '(grid(x, (y + -1), (z + 1)) * 2)) + ' + \
         '(grid(x, y, z) * -2)) + ' + \
-        '(grid(x, (y + 1), (z + -1)) * 2)) + ' + \
-        'grid(x, (y + 1), z))'
+        'grid(x, y, (z + 1))) + ' + \
+        '(grid(x, (y + 1), z) * -1)) + ' + \
+        '(grid(x, (y + 1), (z + 1)) * 2)) + ' + \
+        '(grid((x + 1), (y + -1), z) * 2)) + ' + \
+        'grid((x + 1), (y + -1), (z + 1))) + ' + \
+        'grid((x + 1), y, z)) + ' + \
+        '(grid((x + 1), y, (z + 1)) * -2)) + ' + \
+        '(grid((x + 1), (y + 1), z) * 2)) + ' + \
+        'grid((x + 1), (y + 1), (z + 1)))'
 
     return
 
