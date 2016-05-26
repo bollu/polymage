@@ -46,7 +46,7 @@ def set_vars(app_data):
         h = 1.0/(N[l]+1)
         invhh[l] = 1.0/(h*h)
 
-        # omega.D^-1 = omega.(d^-1.I) = omega * h^2/6.0
+        # omega.D^-1 = omega.(d^-1.I) = omega * h^2/4.0
         # d^-1 depends on diagonal elements of A^h
         dinv = (h*h)/4.0
         jacobi_c[l] = omega * dinv

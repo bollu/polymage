@@ -6,6 +6,7 @@ def print_line(to_file=None):
               file=to_file)
     else:
         print("--------------------------------------------------")
+    return
 
 def print_header():
     print_line()
@@ -13,11 +14,13 @@ def print_header():
     print_line()
     print("[main]: initializing...")
     print("")
+    return
 
 def print_usage():
     print("[main]: Usage: ")
     print("[main]: "+sys.argv[0]+" <mode> <#iters>")
     print("[main]: 'mode'  :: {'new', 'existing', 'ready', 'tune'}")
+    return
 
 def print_config(app_data):
     nx = ny = app_data['N']
@@ -33,6 +36,8 @@ def print_config(app_data):
     print("[main]: nuc              =", app_data['nuc'])
     print_line()
 
+    return
+
 def print_layout(app_data):
     L = app_data['L']
     n = app_data['n']
@@ -47,6 +52,7 @@ def print_layout(app_data):
     print("# discr            iter       error         residual       rho-error    rho-residual")
     print("# ----------       ----       -----         --------       ---------    ------------")
 
+    return
 
 def print_errors(it, app_data):
     N = app_data['N']
@@ -77,4 +83,3 @@ def print_errors(it, app_data):
               "%0.6f" % rho_err+"     "+"%0.6f" % rho_residual)
 
     return
-
