@@ -71,24 +71,24 @@ def bilateral_grid(pipe_data):
 
     blurz = Function(([c, x, y, z], [cr, gridrowr, gridcolr, gridintr]), Float, "blurz")
     blurz.defn = [Case(cond, (grid(c, x, y, z-2) + \
-                                          grid(c, x, y, z-1) * 4 + \
-                                          grid(c, x, y, z  ) * 6 + \
-                                          grid(c, x, y, z+1) * 4 + \
-                                          grid(c, x, y, z+2))) ]
+                              grid(c, x, y, z-1) * 4 + \
+                              grid(c, x, y, z  ) * 6 + \
+                              grid(c, x, y, z+1) * 4 + \
+                              grid(c, x, y, z+2))) ]
 
     blurx = Function(([c, x, y, z], [cr, gridrowr, gridcolr, gridintr]), Float, "blurx")
     blurx.defn = [ Case(cond, (blurz(c, x-2, y, z) + \
-                                          blurz(c, x-1, y, z) * 4 + \
-                                          blurz(c, x  , y, z) * 6 + \
-                                          blurz(c, x+1, y, z) * 4 + \
-                                          blurz(c, x+2, y, z))) ]
+                               blurz(c, x-1, y, z) * 4 + \
+                               blurz(c, x  , y, z) * 6 + \
+                               blurz(c, x+1, y, z) * 4 + \
+                               blurz(c, x+2, y, z))) ]
 
     blury = Function(([c, x, y, z], [cr, gridrowr, gridcolr, gridintr]), Float, "blury")
     blury.defn = [ Case(cond, (blurx(c, x, y-2, z) + \
-                                          blurx(c, x, y-1, z) * 4 + \
-                                          blurx(c, x, y  , z) * 6 + \
-                                          blurx(c, x, y+1, z) * 4 + \
-                                          blurx(c, x, y+2, z))) ]
+                               blurx(c, x, y-1, z) * 4 + \
+                               blurx(c, x, y  , z) * 6 + \
+                               blurx(c, x, y+1, z) * 4 + \
+                               blurx(c, x, y+2, z))) ]
 
     zv = img(x, y) * invSigma_r
     zi = Cast(Int, zv)

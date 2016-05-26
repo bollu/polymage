@@ -108,6 +108,12 @@ def auto_group(pipeline):
 
     small_comps, comp_size_map = get_small_comps(pipeline, comps)
 
+    def log_no_merge(log_reasons):
+        log_level = logging.DEBUG-1
+        for reason in log_reasons:
+            LOG(log_level, '  *'+reason)
+        LOG(log_level, 'NOT merging')
+
     # loop termination boolean
     opt = True
     it = 0
@@ -116,6 +122,7 @@ def auto_group(pipeline):
 
         # ***
         log_level = logging.DEBUG
+        LOG(log_level, "\n")
         LOG(log_level, "---------------")
         LOG(log_level, "iter = "+str(it))
         LOG(log_level, "Current groups:")
@@ -173,6 +180,10 @@ def auto_group(pipeline):
                 merge_count = len(group.comps)+child_comps_count
                 if merge_count > grp_size:
                     merge = False
+                    # ***
+                    log_reasons = ['group_size limit will be exceeded']
+                    log_no_merge(log_reasons)
+                    # ***
 
                 # - if group has many children
                 if (len(group.children) > 1):
@@ -188,6 +199,10 @@ def auto_group(pipeline):
                         # if all_parents are children of group => OK to merge
                         if not all_parents.issubset(set(group.children)):
                             merge = False
+                            # ***
+                            log_reasons = ['All parents of child groups are not children of the group']
+                            log_no_merge(log_reasons)
+                            # ***
 
                     if merge:
                         new_grp = group
@@ -201,5 +216,24 @@ def auto_group(pipeline):
                         pipeline.merge_groups(group, group.children[0])
                         opt = True
                         break
+            else:
+                # ***
+                log_reasons = []
+                if is_small_grp:
+                    log_reasons.append('Group of small comps')
+                if is_reduction_grp:
+                    log_reasons.append('Reduction groups')
+                if is_const_grp:
+                    log_reasons.append('Group of const comps')
+                if len(group.comps) >= grp_size:
+                    log_reasons.append('group_size limit already met')
+                log_no_merge(log_reasons)
+                # ***
+
+    # ***
+    log_level = logging.DEBUG
+    LOG(log_level, "\n")
+    LOG(log_level, "---------------")
+    # ***
 
     return

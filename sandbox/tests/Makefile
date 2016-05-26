@@ -1,7 +1,9 @@
+PYTEST=py.test-3.3 -vv
+
 all: test
 
 test:
-	py.test -vv
+	$(PYTEST) -vv
 
 clean:
 	rm -rf __pycache__ *.pyc *.dot *.png *.cpp

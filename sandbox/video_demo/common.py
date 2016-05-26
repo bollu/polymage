@@ -68,7 +68,9 @@ def mtx2rvec(R):
     axis = np.cross(vt[0], vt[1])
     return axis * np.arctan2(s, c)
 
-def draw_str(dst, (x, y), s):
+def draw_str(dst, pixel, s):
+    x = pixel[0]
+    y = pixel[1]
     cv2.putText(dst, s, (x+1, y+1), cv2.FONT_HERSHEY_PLAIN, 2.5, (0, 0, 0), thickness = 3)
     cv2.putText(dst, s, (x, y), cv2.FONT_HERSHEY_PLAIN, 2.5, (0, 0, 255), thickness = 3)
 

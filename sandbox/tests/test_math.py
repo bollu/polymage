@@ -73,8 +73,16 @@ def test_math():
     select = Function(([x, y], [row, col]), Float, "_select")
     select.defn = [ Case(cond, Select(select_cond, ipow(x, y), exp(x, y))) ]
 
+    options = []
+    options.append('optimize_storage')
+    options.append('early_free')
+    options.append('pool_alloc')
+    options.append('multipar')
+
     pipeline = buildPipeline([select],
-                             pipe_name="aimless")
+                             group_size=100,
+                             pipe_name="aimless",
+                             options=options)
 
 
     filename = "math_graph"

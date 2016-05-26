@@ -699,7 +699,7 @@ class PolyRep(object):
                             self.poly_parts[comp].append(part)
             else:
                 assert(isinstance(case, AbstractExpression) or
-                       isinstance(case, Accumulate))
+                       isinstance(case, Reduce))
                 parts = self.make_poly_parts(sched_m, case,
                                              None, comp,
                                              align, scale, level_no)
