@@ -16,6 +16,7 @@ def init_images(app_data):
 	img_path = app_args.img_file
 	img = np.array(Image.open(img_path))#.convert('1'))
 	rows, cols, c = img.shape
+	print("Input Image shape: "+str(img.shape))
 
 	#row_base = int(app_args.rowbase)
 	#col_base = int(app_args.colbase)
@@ -24,7 +25,7 @@ def init_images(app_data):
 	image_region = img[0:rows, 0:cols, 0:3]
 
 	# create ghost zones
-	image_ghost = np.zeros((rows+4, cols+4, 4), image_region.dtype)
+	image_ghost = np.zeros((rows, cols, 4), image_region.dtype)
 	image_ghost[0:rows, 0:cols, 0:3] = image_region[0:rows, 0:cols, 0:3]
 
 	# convert input image to floating point
@@ -35,7 +36,7 @@ def init_images(app_data):
 	image_f_flip = np.rollaxis(image_f, 2).ravel()
 	#image_f_flip = image_f.ravel()
 
-	OUT = np.zeros((4,rows, cols), np.float32).ravel()
+	OUT = np.zeros((3,rows, cols), np.float32).ravel()
 
 	#image_f = image_region.astype(np.float32).ravel()
 

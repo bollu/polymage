@@ -57,7 +57,7 @@ def lensblur(pipe_data):
 	#Halide: The number of samples of the aperture to use
 	aperture_samples = 32
 
-	z_int = Interval(Int, 0, aperture_samples)
+	z_int = Interval(Int, 0, slices)
 
 	maximum_blur_radius = int(max(slices - focus_depth, focus_depth) * blur_radius_scale)
 
@@ -165,9 +165,13 @@ def lensblur(pipe_data):
 	filtered_cost.defn = [ cost_pyramid_pull[0](0,x,y,z) / cost_pyramid_pull[0](1,x,y,z) ]
 
 	#Halide: Assume minimum cost slice is the correct depth
-	depth = Function(([x,y], [rows,cols]), Int, "depth")
-	depth.defn = [ cost_confidence(x, y) ] #TODO: place holder. fix this
+	#depth = Function(([x,y], [rows,cols]), Int, "depth")
+	#depth.defn = [ cost_confidence(x, y) ] #TODO: place holder. fix this
 	#depth.defn = #TODO: Implement this => depth(x, y) = argmin(filtered_cost(x, y, r))[0]
+	#r = Variable(Int, "r")
+	#r_int = Interval(Int, 0, slices)
+	depth = Reduction(([x,y], [rows,cols]), ([x,y,r], [rows,cols,r_int]), Int, "depth")
+	depth.defn = [ Reduce(depth(x,y), filtered_cost(x,y,r), Op.Min) ]
 
 	bokeh_radius = Function(([x, y], [rows, cols]), Float, "bokeh_radius")
 	bokeh_radius.defn = [ Cast(Float, Abs(depth(x, y) - focus_depth)) * blur_radius_scale ]

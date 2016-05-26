@@ -27,7 +27,7 @@ def maxfilter(pipe_data):
 	pipe_data['C'] = C
 
 	# Input Image
-	img = Image(Float, "img", [3, R+2, C+2])
+	img = Image(Float, "img", [3, R, C])
 
 	radius = 26
 
@@ -35,7 +35,8 @@ def maxfilter(pipe_data):
 
 	rows = Interval(Int, 0, R-1)
 	cols = Interval(Int, 0, C-1)
-	c_int = Interval(Int, 0, 3)
+	c_int = Interval(Int, 0, 2)
+	#channels = Interval(Int, 0, 2)
 
 	t_int = Interval(Int, 0, slices)
 
@@ -79,6 +80,9 @@ def maxfilter(pipe_data):
 	second_sample = vert_log(x, y + t + 1 - clamp( Cast(Int,Pow(2,eslice)), 0, 2*radius), c, eslice)		 #TODO: Last Resort
 	vert.defn = [ Max(first_sample, second_sample) ]
 
+	dx = Variable(Int, "dx") # for final
+	dx_int = Interval(Int, -radius, 2*radius+1)
+
 	dy = Variable(Int, "dy")
 	dy_int = Interval(Int, 0, radius + 1)
 	x_radius_int = Interval(Int, 0, radius)
@@ -86,13 +90,12 @@ def maxfilter(pipe_data):
 	rhs = ((radius + 0.25)*(radius + 0.25))
 	cond_t = Condition(lhs, "<", rhs)
 	cond_f = Condition(lhs, ">=", rhs)
-	filter_height = Reduction(([x], [rows]), ([x, dy], [x_radius_int, dy_int]), Int, "filter_height")
+	filter_height = Reduction(([x], [dx_int]), ([x, dy], [x_radius_int, dy_int]), Int, "filter_height")
 	#filter_height.defn = [ Reduce(filter_height(x), Select(cond_t, 1, 0), Op.Sum) ]
 	filter_height.defn = [ Case(cond_t, Reduce(filter_height(x),1,Op.Sum)), 
 			Case(cond_f, Reduce(filter_height(x), 0, Op.Sum)) ]
+	filter_height.default = 0
 
-	dx = Variable(Int, "dx")
-	dx_int = Interval(Int, -radius, 2*radius+1)
 	x_dx_int = Interval(Int, radius, R - 2*radius - 2)
 	final = Reduction(([x, y, c], [rows, cols, c_int]), ([x, y, c, dx], [x_dx_int, cols, c_int, dx_int]), Int, "final")
 	final.defn = [ Reduce(final(x, y, c), vert(x+ dx, y, c, clamp(filter_height(dx), 0, radius + 1)), Op.Max) ]

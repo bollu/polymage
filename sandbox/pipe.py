@@ -302,13 +302,15 @@ class ComputeObject:
         intervals = self.func.domain
         dims = self.func.ndims
 
-        def compute_size_tuple(dim, intervals, sizes):
+        def compute_size_tuple(dim, intervals, sizes, funcname):
             if sizes and sizes[dim] != -1:
                 param = 0  # const
                 size = sizes[dim]
             else:
                 params = intervals[dim].collect(Parameter)
-                assert not len(params) > 1
+                assert not len(params) > 1, funcname+", \
+					("+str(dim)+"/"+str(len(params))+'),'+', \
+					'.join([par.name for par in params])
                 if len(params) == 1:
                     param = params[0]
                 elif len(params) == 0:  # const
@@ -325,7 +327,8 @@ class ComputeObject:
 
         # for each dimension
         for dim in range(0, dims):
-            dim_size_tuple = compute_size_tuple(dim, intervals, sizes)
+            dim_size_tuple = \
+				compute_size_tuple(dim, intervals, sizes, self._func.name)
             interval_sizes.append(dim_size_tuple)
 
         return interval_sizes
@@ -530,6 +533,7 @@ class Group:
         for comp in self.comps:
             if (not comp.func.hasBoundedIntegerDomain()):
                 polyhedral = False
+                print("no bounded integer domain for: "+comp.func.name)
         return polyhedral
 
     def order_compute_objs(self):

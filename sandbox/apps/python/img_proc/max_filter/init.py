@@ -14,6 +14,7 @@ def init_images(app_data):
     # input image: 
     img_path = app_args.img_file
     image = np.array(Image.open(img_path))
+    print("Input Image shape: "+str(image.shape))
 
     #img_path2 = app_args.alpha_file
     #alpha = np.array(Image.open(img_path2))
@@ -40,10 +41,10 @@ def init_images(app_data):
     #imgalpha_f = np.float32(imgalpha_ghost) / 255.0
 
     # result array
-    res = np.empty((3, R, C), np.float32)
+    res = np.empty((3, R, C), np.uint8)
 
     img_data = {}
-    img_data['IN'] = image
+    img_data['IN'] = image_flip
     #img_data['IN'] = imgalpha_f
     img_data['OUT'] = res
 

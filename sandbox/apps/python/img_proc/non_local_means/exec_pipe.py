@@ -65,7 +65,8 @@ def nlmeans(app_data):
 	in1 = app_data['img_data']['IN']
 	#print("len in1 = "+str(len(in1)))
 
-	in1 = np.reshape(in1, (4,rows+4,cols+4))
+	#in1 = np.reshape(in1, (4,rows+4,cols+4))
+	in1 = np.reshape(in1, (4,rows,cols))
 	print("in1.shape = "+str(in1.shape))
 	in1 = np.rollaxis(in1, 2)
 	in1 = np.rollaxis(in1, 2)
@@ -80,7 +81,7 @@ def nlmeans(app_data):
 
 	img2 = Image.frombuffer(mode,size,in_ghost)
 	#img2 = Image.frombuffer(mode,size,in1)
-	np.savetxt('validate/poly_in.txt', in_ghost)
+	#np.savetxt('validate/poly_in.txt', in_ghost)
 	img2.show()
    
 	runs = int(app_args.runs)
@@ -89,13 +90,13 @@ def nlmeans(app_data):
 		t1 = time.time()
 
 	b4 = app_data['img_data']['OUT']
-	np.savetxt('validate/poly_out.tmp.txt', b4)
+	#np.savetxt('validate/poly_out.tmp.txt', b4)
 	while it < runs :
 		call_pipe(app_data)
 		it += 1
 		OUT = app_data['img_data']['OUT']
-		np.savetxt('validate/poly_out.txt', OUT)
-		OUT = OUT.reshape(4,rows,cols)
+		#np.savetxt('validate/poly_out.txt', OUT)
+		OUT = OUT.reshape(3,rows,cols)
 		OUT = np.rollaxis(OUT, 2)
 		OUT = np.rollaxis(OUT, 2)
 		OUT = np.uint8(OUT * 255.0)

@@ -29,7 +29,7 @@ def nlmeans(pipe_data):
 	c = Variable(Int, "c")
 
 	# Input Image
-	img = Image(Float, "img", [3, R+2, C+2])
+	img = Image(Float, "img", [3, R, C])
 
 	# clamped image - boundary conditions: repeat edge
 	rows = Interval(Int, 0, R-1)
@@ -83,11 +83,14 @@ def nlmeans(pipe_data):
 #			Op.Sum)
 	#d = Function(([x, y, dx, dy], [rows, cols, s_dom_x, s_dom_y]), Float, "d")
 	#d.defn = [ d_sum ]
-	d = Reduction(([x, y, dx, dy], [rows, cols, s_dom_x, s_dom_y]), \
-			([c, x, y, dx, dy], [colours, rows, cols, s_dom_x, s_dom_y]), \
-			Float, \
+	#d = Reduction(([x, y, dx, dy], [rows, cols, s_dom_x, s_dom_y]), 
+		#	([c], [colours]), 
+	d = Reduction(([x, y, dx, dy], [rows, cols, s_dom_x, s_dom_y]), 
+			([x, y, dx, dy, c], [rows, cols, s_dom_x, s_dom_y, colours]), 
+			Float, 
 			"d")
 	d.defn = [ Reduce(d(x, y, dx, dy), dc(c, x, y, dx, dy), Op.Sum) ]
+	d.default = float(0)
 
 	# Halide: Find the patch differences by blurring the difference image
 	# Function blur_d
@@ -102,6 +105,7 @@ def nlmeans(pipe_data):
 	blur_d_y.defn = [ Reduce(blur_d_y(x, y, dx, dy), \
 			d(x, y + patch_var, dx, dy), \
 			Op.Sum) ]
+	blur_d_y.default = float(0)
 	#blur_d_y = Function(([x, y, dx, dy], [rows, cols, s_dom_x, s_dom_y]), Float, "blur_d_y")
 	#blur_d_y.defn = [ blur_d_y_sum ]
 
@@ -117,6 +121,7 @@ def nlmeans(pipe_data):
 	blur_d.defn = [ Reduce(blur_d(x, y, dx, dy), \
 			blur_d_y(x+ patch_var, y, dx, dy), \
 			Op.Sum) ]
+	blur_d.default = float(0)
 
 	# Halide: Compute the weights from the patch differences.
 	w = Function(([x, y, dx, dy], [rows, cols, s_dom_x, s_dom_y]), \
@@ -149,13 +154,15 @@ def nlmeans(pipe_data):
 	non_local_means_sum.defn = [ Reduce(non_local_means_sum(c, x, y), \
 			w(x, y, dx, dy) * clamped_with_alpha(c, x + dx, y + dy), \
 			Op.Sum) ]
+	non_local_means_sum.default = float(0)
 	#non_local_means_sum = Function(([c, x, y], [colours, rows, cols]), Float, "non_local_means_sum")
 	#non_local_means_sum.defn = [ s_dom_red ]
 
 	# Final function: non_local_means
+	c_int = Interval(Int, 0, 2)
 	nlm_sum = non_local_means_sum(c, x, y) / non_local_means_sum(3, x, y)
 	#condf = Condition(nlm_sum, ">=", 0.0) & Condition(nlm_sum, "<=", 1.0)
-	non_local_means = Function(([c, x, y], [colours, rows, cols]), Float, "non_local_means")
+	non_local_means = Function(([c, x, y], [c_int, rows, cols]), Float, "non_local_means")
 	#non_local_means.defn = [ Select(condf, nlm_sum, 0.0) ]
 	nlm_min = Min(nlm_sum, 1.0)
 	nlm_clamp = Max(nlm_min, 0.0)
