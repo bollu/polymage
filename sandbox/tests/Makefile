@@ -1,4 +1,4 @@
-PYTEST=py.test-3.3 -vv
+PYTEST=py.test-3.3
 
 all: test
 
