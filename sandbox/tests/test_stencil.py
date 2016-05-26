@@ -152,6 +152,25 @@ def test_stencil2():
         '(grid((x + 1), (y + 1), z) * 2)) + ' + \
         'grid((x + 1), (y + 1), (z + 1)))'
 
+    kernel3 = [[[ 1,  2], [ 2,  1]],
+               [[ 2,  1], [ 1,  2]]]
+    stencil3 = Stencil(grid, [x, y, z], kernel3, _origin = [1, 1, 1])
+
+    assert stencil3.iter_vars == [x, y, z]
+    assert stencil3.sizes == [2, 2, 2]
+    assert stencil3.origin == [1, 1, 1]
+    assert stencil3.kernel == kernel3
+    assert str(Stencil.macro_expand(stencil3)) == \
+        '((((((' + \
+        '(grid((x + -1), (y + -1), (z + -1)) + ' + \
+        '(grid((x + -1), (y + -1), z) * 2)) + ' + \
+        '(grid((x + -1), y, (z + -1)) * 2)) + ' + \
+        'grid((x + -1), y, z)) + ' + \
+        '(grid(x, (y + -1), (z + -1)) * 2)) + ' + \
+        'grid(x, (y + -1), z)) + ' + \
+        'grid(x, y, (z + -1))) + ' + \
+        '(grid(x, y, z) * 2))'
+
     return
 
 def _test_stencil3():
