@@ -550,23 +550,41 @@ class Stencil(AbstractExpression):
         self._iteration_vars = _iteration_vars
 
         assert is_valid_kernel(_kernel, len(_iteration_vars))
-        self.kernel = _kernel
+        self._kernel = _kernel
 
-        if _origin is None:
-            sizes = get_valid_kernel_sizes(_kernel)
-            self._origin = list(map(lambda x: math.floor(x / 2), sizes))
+        self._sizes = get_valid_kernel_sizes(self._kernel)
+
+        self._origin = _origin
+        if self._origin is None:
+            self._origin = list(map(lambda x: (x-1) // 2, self._sizes))
+
+    @property
+    def input_func(self):
+        return self._input_fn
+    @property
+    def iter_vars(self):
+        return self._iteration_vars
+    @property
+    def kernel(self):
+        return self._kernel
+    @property
+    def sizes(self):
+        return self._sizes
+    @property
+    def origin(self):
+        return self._origin
 
     def __str__(self):
         return ("Stencil object"
                 "\n%s"
                 "\n\tinput: %s"
                 "\n\titeration vars: %s"
-                "\n\tdimensions: %s"
+                "\n\tdimension sizes: %s"
                 "\n\torigin: %s"
                 "\n\tkernel: %s" % (str(Stencil.macro_expand(self)),
                                     self._input_fn,
-                                    list(map(str, self._iteration_vars)),
-                                    get_valid_kernel_sizes(self.kernel),
+                                    list(map(str, self.iter_vars)),
+                                    self.sizes,
                                     self._origin, self.kernel))
 
     @staticmethod
@@ -642,11 +660,11 @@ class Stencil(AbstractExpression):
         return chosen
 
     @staticmethod
-    def _build_indexed_kernel(origin, iteration_vars, kernel):
-        assert is_valid_kernel(kernel, num_dimensions=len(iteration_vars))
+    def _build_indexed_kernel(origin, iter_vars, kernel):
+        assert is_valid_kernel(kernel, num_dimensions=len(iter_vars))
         kernel_sizes = get_valid_kernel_sizes(kernel)
         return Stencil._build_indexed_kernel_recur(origin,
-                                                   iteration_vars,
+                                                   iter_vars,
                                                    [],
                                                    kernel_sizes,
                                                    kernel)
