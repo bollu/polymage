@@ -1,10 +1,20 @@
 import ctypes
 import numpy as np
 import time
-import cv2
+from cv2 import *
 import sys
-
+from numba import jit
 from common import clock, draw_str, StatValue, image_clamp
+
+
+"""Function to perform OpenCV Unsharp Masking"""
+@jit("uint8[::](uint8[::],float64,float64)",cache=True,nogil=True)
+def unsharp_mask_cv(image,weight,threshold):
+    weight=0.5
+    mask=image
+    blurred=GaussianBlur(image,(9,9),10.0)
+    sharp=addWeighted(image,(1+weight),blurred,(-weight),0)
+    return sharp
 
 # load polymage shared libraries
 libharris = ctypes.cdll.LoadLibrary("./harris.so")
@@ -28,13 +38,12 @@ bilateral_naive = libbilateral_naive.pipeline_bilateral_naive
 laplacian = liblaplacian.pipeline_laplacian
 laplacian_naive = liblaplacian_naive.pipeline_laplacian_naive
 
-fn = sys.argv[1]
-cap = cv2.VideoCapture(fn)
+cap = VideoCapture(sys.argv[1])
 
 frames = 0
 startTime = time.clock()
 
-cv_mode = True
+cv_mode = False
 naive_mode = False
 
 harris_mode = False
@@ -49,6 +58,20 @@ levels = 4
 alpha = 1.0/(levels-1)
 beta = 1.0
 
+modes = ['Unsharp Mask (Naive)','Unsharp Mask (Opt)','Laplacian (Naive)','Laplacian (Opt)',\
+            'Bilateral (Naive)','Bilateral (Opt)','Harris OpenCV','Unsharp Mask OpenCV', \
+            'Harris (Naive)','Harris (Opt)']
+
+"""Dictionary for accumulators"""
+sums={}
+for mode in modes:
+    sums[mode]=0.0
+
+"""Dictionary for frames"""
+frames={}
+for mode in modes:
+    frames[mode]=0
+
 libharris_naive.pool_init()
 libharris.pool_init()
 
@@ -61,19 +84,21 @@ liblaplacian.pool_init()
 libbilateral_naive.pool_init()
 libbilateral.pool_init()
 
-while(cap.isOpened()):
-    ret, frame = cap.read()
+namedWindow("Video",WINDOW_NORMAL)
 
+while(cap.isOpened()):
+    frames += 1
+    ret, frame = cap.read()
     frameStart = clock()
     rows = frame.shape[0]
     cols = frame.shape[1]
     if harris_mode:
         if cv_mode:
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            gray = cvtColor(frame, COLOR_BGR2GRAY)
             gray = np.float32(gray) / 4.0
-            res = cv2.cornerHarris(gray, 3, 3, 0.04)
+            res = cornerHarris(gray, 3, 3, 0.04)
         else:
-            res = np.empty((rows, cols), np.float32) 
+            res = np.empty((rows, cols), np.float32)
             if naive_mode:
                 harris_naive(ctypes.c_int(cols-2), \
                              ctypes.c_int(rows-2), \
@@ -86,16 +111,19 @@ while(cap.isOpened()):
                        ctypes.c_void_p(res.ctypes.data))
 
     elif unsharp_mode:
-        res = np.empty((rows-4, cols-4, 3), np.float32)
-        if naive_mode:
-            unsharp_naive(ctypes.c_int(cols-4), \
-                          ctypes.c_int(rows-4), \
+        if cv_mode:
+            res=unsharp_mask_cv(frame,weight,thresh)
+        else:
+            res = np.empty((rows-4, cols-4, 3), np.float32)
+            if naive_mode:
+                unsharp_naive(ctypes.c_int(cols - 4), \
+                          ctypes.c_int(rows - 4), \
                           ctypes.c_float(thresh), \
                           ctypes.c_float(weight), \
                           ctypes.c_void_p(frame.ctypes.data), \
                           ctypes.c_void_p(res.ctypes.data))
-        else:
-            unsharp(ctypes.c_int(cols-4), \
+            else:
+                unsharp(ctypes.c_int(cols-4), \
                     ctypes.c_int(rows-4), \
                     ctypes.c_float(thresh), \
                     ctypes.c_float(weight), \
@@ -134,16 +162,58 @@ while(cap.isOpened()):
                       ctypes.c_int(rows+56), \
                       ctypes.c_void_p(frame.ctypes.data), \
                       ctypes.c_void_p(res.ctypes.data))
+
+
     else:
         res = frame
 
     frameEnd = clock()
+    value=frameEnd*1000-frameStart*1000
 
-    cv2.rectangle(res, (0, 0), (750, 150), (255, 255, 255), thickness=cv2.cv.CV_FILLED)
+    """Conditions to sum the values of frame delay accumulators and frame counters deoending on the mode"""
+    if harris_mode:
+        if cv_mode:
+            sums['Harris OpenCV']+=value
+            frames['Harris OpenCV']+=1
+        elif naive_mode:
+            sums['Harris (Naive)']+=value
+            frames['Harris (Naive)']+=1
+        else:
+            sums['Harris (Opt)']+=value
+            frames['Harris (Opt)']+=1
+    elif unsharp_mode:
+        if cv_mode:
+            sums['Unsharp Mask OpenCV']+=value
+            frames['Unsharp Mask OpenCV']+=1
+        elif naive_mode:
+            sums[Unsharp Mask (Naive)]+=value
+            frames['Unsharp Mask (Naive)']+=1
+        else:
+            sums['Unsharp Mask (Opt)']+=value
+            frames['Unsharp Mask (Opt)']+=1
 
-    draw_str(res, (40, 40),      "frame interval :  %.1f ms" % (frameEnd*1000 - frameStart*1000))
+    elif laplacian_mode:
+        if naive_mode:
+            sums['Laplacian (Naive)']+=value
+            frames['Laplacian (Naive)']+=1
+        else:
+            sums['Laplacian (Opt)']+=value
+            frames['Laplacian (Opt)']+=1
+
+    elif bilateral_mode:
+        if naive_mode:
+            sums['Bilateral (Naive)']+=value
+            frames['Bilateral (Naive)']+=1
+        else:
+            sums['Bilateral (Opt)']+=value
+            frames['Bilateral (Opt)']+=1
+
+    rectangle(res, (0, 0), (750, 150), (255, 255, 255), thickness=cv.CV_FILLED)
+    draw_str(res, (40, 40),      "frame interval :  %.1f ms" % value)
     if cv_mode and harris_mode:
         draw_str(res, (40, 80),  "Pipeline        :  " + str("OpenCV"))
+    elif cv_mode and unsharp_mode:
+		draw_str(res, (40, 80),  "Pipeline        :  " + str("OpenCV"))
     elif bilateral_mode or harris_mode or unsharp_mode or laplacian_mode:
         if naive_mode:
             draw_str(res, (40, 80),  "Pipeline        :  " + str("PolyMage (Naive)"))
@@ -163,9 +233,9 @@ while(cap.isOpened()):
     else:
         draw_str(res, (40, 120), "Benchmark    :  ")
 
-    cv2.imshow('threaded video', res)
+    imshow('Video', res)
 
-    ch = 0xFF & cv2.waitKey(1)
+    ch = 0xFF & waitKey(1)
     if ch == ord('q'):
         break
     if ch == ord(' '):
@@ -192,7 +262,7 @@ while(cap.isOpened()):
         harris_mode = False
         unsharp_mode = False
         laplacian_mode = False
-    frames += 1
+
 
 libharris_naive.pool_destroy()
 libharris.pool_destroy()
@@ -207,4 +277,9 @@ libbilateral_naive.pool_destroy()
 libbilateral.pool_destroy()
 
 cap.release()
-cv2.destroyAllWindows()
+destroyAllWindows()
+
+"""Printing values with dictionary"""
+for mode in frames:
+    if frames[mode]!=0:
+        print "Average frame delay for ",mode," is - ",sums[mode]/frames[mode],"ms"
