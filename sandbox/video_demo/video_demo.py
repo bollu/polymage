@@ -40,7 +40,6 @@ laplacian_naive = liblaplacian_naive.pipeline_laplacian_naive
 
 cap = VideoCapture(sys.argv[1])
 
-frames = 0
 startTime = time.clock()
 
 cv_mode = False
@@ -87,7 +86,6 @@ libbilateral.pool_init()
 namedWindow("Video",WINDOW_NORMAL)
 
 while(cap.isOpened()):
-    frames += 1
     ret, frame = cap.read()
     frameStart = clock()
     rows = frame.shape[0]
@@ -186,7 +184,7 @@ while(cap.isOpened()):
             sums['Unsharp Mask OpenCV']+=value
             frames['Unsharp Mask OpenCV']+=1
         elif naive_mode:
-            sums[Unsharp Mask (Naive)]+=value
+            sums['Unsharp Mask (Naive)']+=value
             frames['Unsharp Mask (Naive)']+=1
         else:
             sums['Unsharp Mask (Opt)']+=value
