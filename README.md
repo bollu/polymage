@@ -28,13 +28,14 @@ $ sudo pip3 install islpy
 (islpy itself requires ffi development files -- this can be installed by 
 installing libffi-devel via yum/apt-get)
 
-6) Numba for Numpy
-The latest version of Anaconda is required to install Numba (if it's not already present on your system)
-Anaconda may be installed as follows
+6) The video demo (sandbox/video_demo) requires Numba for Numpy.
+A recent version of Anaconda can be used to install Numba; Anaconda may 
+be installed as follows.
  -- Visit the Downloads page of Anaconda - https://www.continuum.io/downloads
- -- Download the command line installer for Python 2.x or 3.x
- -- Run the command line installer, following the instructions provided on the site
-Then, Numba may be installed as follows
+ -- Download the command-line installer for Python 2.x or 3.x
+ -- Run the command-line installer, following the instructions on the 
+    site
+Then, install Numba with:
 $ git clone git://github.com/numba/numba.git
 $ conda install numba
 
