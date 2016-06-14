@@ -10,7 +10,7 @@ from common import clock, draw_str, StatValue, image_clamp
 """Function to perform OpenCV Unsharp Masking"""
 @jit("uint8[::](uint8[::],float64,float64)",cache=True,nogil=True)
 def unsharp_mask_cv(image,weight,threshold):
-    weight=0.1
+    weight=0.2
     mask=image
     blurred=GaussianBlur(image,(0,0),3.0)
     sharp=addWeighted(image,(1+weight),blurred,(-weight),0)
