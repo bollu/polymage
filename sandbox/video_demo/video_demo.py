@@ -10,10 +10,10 @@ from common import clock, draw_str, StatValue, image_clamp
 """Function to perform OpenCV Unsharp Masking"""
 @jit("uint8[::](uint8[::],float64,float64)",cache=True,nogil=True)
 def unsharp_mask_cv(image,weight,threshold):
-    weight=1.0
-    mask=image
-    blurred=GaussianBlur(image,(9,9),3.0)
-    sharp=addWeighted(image,(1+weight),blurred,(-weight),0)
+    weight = 1.0
+    mask = image
+    blurred = GaussianBlur(image,(9,9),3.0)
+    sharp = addWeighted(image,(1+weight),blurred,(-weight),0)
     return sharp
 
 # load polymage shared libraries
@@ -62,14 +62,14 @@ modes = ['Unsharp Mask (Naive)','Unsharp Mask (Opt)','Laplacian (Naive)','Laplac
             'Harris (Naive)','Harris (Opt)']
 
 """Dictionary for accumulators"""
-sums={}
+sums = {}
 for mode in modes:
-    sums[mode]=0.0
+    sums[mode] = 0.0
 
 """Dictionary for frames"""
-frames={}
+frames = {}
 for mode in modes:
-    frames[mode]=0
+    frames[mode] = 0
 
 libharris_naive.pool_init()
 libharris.pool_init()
@@ -108,7 +108,7 @@ while(cap.isOpened()):
 
     elif unsharp_mode:
         if cv_mode:
-            res=unsharp_mask_cv(frame,weight,thresh)
+            res = unsharp_mask_cv(frame,weight,thresh)
         else:
             res = np.empty((rows-4, cols-4, 3), np.float32)
             if naive_mode:
@@ -164,45 +164,45 @@ while(cap.isOpened()):
         res = frame
 
     frameEnd = clock()
-    value=frameEnd*1000-frameStart*1000
+    value = frameEnd*1000-frameStart*1000
 
     """Conditions to sum the values of frame delay accumulators and frame counters deoending on the mode"""
     if harris_mode:
         if cv_mode:
-            sums['Harris (OpenCV)']+=value
-            frames['Harris (OpenCV)']+=1
+            sums['Harris (OpenCV)'] += value
+            frames['Harris (OpenCV)'] += 1
         elif naive_mode:
-            sums['Harris (Naive)']+=value
-            frames['Harris (Naive)']+=1
+            sums['Harris (Naive)'] += value
+            frames['Harris (Naive)'] += 1
         else:
-            sums['Harris (Opt)']+=value
-            frames['Harris (Opt)']+=1
+            sums['Harris (Opt)'] += value
+            frames['Harris (Opt)'] += 1
     elif unsharp_mode:
         if cv_mode:
-            sums['Unsharp Mask (OpenCV)']+=value
-            frames['Unsharp Mask (OpenCV)']+=1
+            sums['Unsharp Mask (OpenCV)'] += value
+            frames['Unsharp Mask (OpenCV)'] += 1
         elif naive_mode:
-            sums['Unsharp Mask (Naive)']+=value
-            frames['Unsharp Mask (Naive)']+=1
+            sums['Unsharp Mask (Naive)'] += value
+            frames['Unsharp Mask (Naive)'] += 1
         else:
-            sums['Unsharp Mask (Opt)']+=value
-            frames['Unsharp Mask (Opt)']+=1
+            sums['Unsharp Mask (Opt)'] += value
+            frames['Unsharp Mask (Opt)'] += 1
 
     elif laplacian_mode:
         if naive_mode:
-            sums['Laplacian (Naive)']+=value
-            frames['Laplacian (Naive)']+=1
+            sums['Laplacian (Naive)'] += value
+            frames['Laplacian (Naive)'] += 1
         else:
-            sums['Laplacian (Opt)']+=value
-            frames['Laplacian (Opt)']+=1
+            sums['Laplacian (Opt)'] += value
+            frames['Laplacian (Opt)'] += 1
 
     elif bilateral_mode:
         if naive_mode:
-            sums['Bilateral (Naive)']+=value
-            frames['Bilateral (Naive)']+=1
+            sums['Bilateral (Naive)'] += value
+            frames['Bilateral (Naive)'] += 1
         else:
-            sums['Bilateral (Opt)']+=value
-            frames['Bilateral (Opt)']+=1
+            sums['Bilateral (Opt)'] += value
+            frames['Bilateral (Opt)'] += 1
 
     rectangle(res, (0, 0), (750, 150), (255, 255, 255), thickness=cv.CV_FILLED)
     draw_str(res, (40, 40),      "frame interval :  %.1f ms" % value)
