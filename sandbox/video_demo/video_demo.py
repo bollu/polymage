@@ -83,8 +83,6 @@ liblaplacian.pool_init()
 libbilateral_naive.pool_init()
 libbilateral.pool_init()
 
-namedWindow("Video",WINDOW_NORMAL)
-
 while(cap.isOpened()):
     ret, frame = cap.read()
     frameStart = clock()
