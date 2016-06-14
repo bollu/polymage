@@ -58,7 +58,7 @@ alpha = 1.0/(levels-1)
 beta = 1.0
 
 modes = ['Unsharp Mask (Naive)','Unsharp Mask (Opt)','Laplacian (Naive)','Laplacian (Opt)',\
-            'Bilateral (Naive)','Bilateral (Opt)','Harris OpenCV','Unsharp Mask OpenCV', \
+            'Bilateral (Naive)','Bilateral (Opt)','Harris OpenCV','Unsharp Mask (OpenCV)', \
             'Harris (Naive)','Harris (Opt)']
 
 """Dictionary for accumulators"""
