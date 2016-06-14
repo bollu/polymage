@@ -27,16 +27,28 @@ extern "C" void  pipeline_mask(int  C, int  R, float  threshold, float  weight, 
     float  blurx[3][32][262];
     float  blury[3][32][262];
     float  sharpen[3][32][262];
+    int  _ct0 = (((R + 1) < ((32 * _T_i1) + 31))? (R + 1): ((32 * _T_i1) + 31));
+    int  _ct1 = ((2 > (32 * _T_i1))? 2: (32 * _T_i1));
+    int  _ct4 = (((R + 1) < ((32 * _T_i1) + 31))? (R + 1): ((32 * _T_i1) + 31));
+    int  _ct5 = ((2 > (32 * _T_i1))? 2: (32 * _T_i1));
+    int  _ct8 = (((R + 1) < ((32 * _T_i1) + 31))? (R + 1): ((32 * _T_i1) + 31));
+    int  _ct9 = ((2 > (32 * _T_i1))? 2: (32 * _T_i1));
+    int  _ct12 = (((R + 1) < ((32 * _T_i1) + 31))? (R + 1): ((32 * _T_i1) + 31));
+    int  _ct13 = ((2 > (32 * _T_i1))? 2: (32 * _T_i1));
     for (int  _T_i2 = -1; (_T_i2 <= ((C + 3) / 256)); _T_i2 = (_T_i2 + 1))
     {
+      int  _ct2 = (((C + 3) < ((256 * _T_i2) + 261))? (C + 3): ((256 * _T_i2) + 261));
+      int  _ct3 = ((0 > (256 * _T_i2))? 0: (256 * _T_i2));
+      int  _ct6 = (((C + 1) < ((256 * _T_i2) + 260))? (C + 1): ((256 * _T_i2) + 260));
+      int  _ct7 = ((2 > ((256 * _T_i2) + 1))? 2: ((256 * _T_i2) + 1));
+      int  _ct10 = (((C + 1) < ((256 * _T_i2) + 259))? (C + 1): ((256 * _T_i2) + 259));
+      int  _ct11 = ((2 > ((256 * _T_i2) + 2))? 2: ((256 * _T_i2) + 2));
+      int  _ct14 = (((C + 1) < ((256 * _T_i2) + 258))? (C + 1): ((256 * _T_i2) + 258));
+      int  _ct15 = ((2 > ((256 * _T_i2) + 3))? 2: ((256 * _T_i2) + 3));
       for (int  _i0 = 0; (_i0 <= 2); _i0 = (_i0 + 1))
       {
-        int  _ct0 = (((R + 1) < ((32 * _T_i1) + 31))? (R + 1): ((32 * _T_i1) + 31));
-        int  _ct1 = ((2 > (32 * _T_i1))? 2: (32 * _T_i1));
         for (int  _i1 = _ct1; (_i1 <= _ct0); _i1 = (_i1 + 1))
         {
-          int  _ct2 = (((C + 3) < ((256 * _T_i2) + 261))? (C + 3): ((256 * _T_i2) + 261));
-          int  _ct3 = ((0 > (256 * _T_i2))? 0: (256 * _T_i2));
           #pragma ivdep
           for (int  _i2 = _ct3; (_i2 <= _ct2); _i2 = (_i2 + 1))
           {
@@ -46,12 +58,8 @@ extern "C" void  pipeline_mask(int  C, int  R, float  threshold, float  weight, 
       }
       for (int  _i0 = 0; (_i0 <= 2); _i0 = (_i0 + 1))
       {
-        int  _ct4 = (((R + 1) < ((32 * _T_i1) + 31))? (R + 1): ((32 * _T_i1) + 31));
-        int  _ct5 = ((2 > (32 * _T_i1))? 2: (32 * _T_i1));
         for (int  _i1 = _ct5; (_i1 <= _ct4); _i1 = (_i1 + 1))
         {
-          int  _ct6 = (((C + 1) < ((256 * _T_i2) + 260))? (C + 1): ((256 * _T_i2) + 260));
-          int  _ct7 = ((2 > ((256 * _T_i2) + 1))? 2: ((256 * _T_i2) + 1));
           #pragma ivdep
           for (int  _i2 = _ct7; (_i2 <= _ct6); _i2 = (_i2 + 1))
           {
@@ -61,12 +69,8 @@ extern "C" void  pipeline_mask(int  C, int  R, float  threshold, float  weight, 
       }
       for (int  _i0 = 0; (_i0 <= 2); _i0 = (_i0 + 1))
       {
-        int  _ct8 = (((R + 1) < ((32 * _T_i1) + 31))? (R + 1): ((32 * _T_i1) + 31));
-        int  _ct9 = ((2 > (32 * _T_i1))? 2: (32 * _T_i1));
         for (int  _i1 = _ct9; (_i1 <= _ct8); _i1 = (_i1 + 1))
         {
-          int  _ct10 = (((C + 1) < ((256 * _T_i2) + 259))? (C + 1): ((256 * _T_i2) + 259));
-          int  _ct11 = ((2 > ((256 * _T_i2) + 2))? 2: ((256 * _T_i2) + 2));
           #pragma ivdep
           for (int  _i2 = _ct11; (_i2 <= _ct10); _i2 = (_i2 + 1))
           {
@@ -76,12 +80,8 @@ extern "C" void  pipeline_mask(int  C, int  R, float  threshold, float  weight, 
       }
       for (int  _i0 = 0; (_i0 <= 2); _i0 = (_i0 + 1))
       {
-        int  _ct12 = (((R + 1) < ((32 * _T_i1) + 31))? (R + 1): ((32 * _T_i1) + 31));
-        int  _ct13 = ((2 > (32 * _T_i1))? 2: (32 * _T_i1));
         for (int  _i1 = _ct13; (_i1 <= _ct12); _i1 = (_i1 + 1))
-        {
-          int  _ct14 = (((C + 1) < ((256 * _T_i2) + 258))? (C + 1): ((256 * _T_i2) + 258));
-          int  _ct15 = ((2 > ((256 * _T_i2) + 3))? 2: ((256 * _T_i2) + 3));
+        {        
           #pragma ivdep
           for (int  _i2 = _ct15; (_i2 <= _ct14); _i2 = (_i2 + 1))
           {
@@ -97,5 +97,3 @@ extern "C" void  pipeline_mask(int  C, int  R, float  threshold, float  weight, 
 
   pool_deallocate(img);
 }
-
-
