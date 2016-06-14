@@ -58,7 +58,7 @@ alpha = 1.0/(levels-1)
 beta = 1.0
 
 modes = ['Unsharp Mask (Naive)','Unsharp Mask (Opt)','Laplacian (Naive)','Laplacian (Opt)',\
-            'Bilateral (Naive)','Bilateral (Opt)','Harris OpenCV','Unsharp Mask (OpenCV)', \
+            'Bilateral (Naive)','Bilateral (Opt)','Harris (OpenCV)','Unsharp Mask (OpenCV)', \
             'Harris (Naive)','Harris (Opt)']
 
 """Dictionary for accumulators"""
@@ -171,8 +171,8 @@ while(cap.isOpened()):
     """Conditions to sum the values of frame delay accumulators and frame counters deoending on the mode"""
     if harris_mode:
         if cv_mode:
-            sums['Harris OpenCV']+=value
-            frames['Harris OpenCV']+=1
+            sums['Harris (OpenCV)']+=value
+            frames['Harris (OpenCV)']+=1
         elif naive_mode:
             sums['Harris (Naive)']+=value
             frames['Harris (Naive)']+=1
@@ -181,8 +181,8 @@ while(cap.isOpened()):
             frames['Harris (Opt)']+=1
     elif unsharp_mode:
         if cv_mode:
-            sums['Unsharp Mask OpenCV']+=value
-            frames['Unsharp Mask OpenCV']+=1
+            sums['Unsharp Mask (OpenCV)']+=value
+            frames['Unsharp Mask (OpenCV)']+=1
         elif naive_mode:
             sums['Unsharp Mask (Naive)']+=value
             frames['Unsharp Mask (Naive)']+=1
