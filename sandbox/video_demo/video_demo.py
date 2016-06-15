@@ -7,17 +7,15 @@ from numba import jit
 from common import clock, draw_str
 
 
-@jit("uint8[::](uint8[::],float64,float64)",cache=True,nogil=True)
-def unsharp_mask_cv(image,weight,thresh):
-    rows=image.shape[0]
-    cols=image.shape[1]
-    kernelx=np.array([1,4,6,4,1],np.float32)/16
-    kernely=np.array([[1],[4],[6],[4],[1]],np.float32)/16
-    blury=sepFilter2D(image,-1,kernelx,kernely)
-    sharpen = addWeighted(image,(1+weight),blury,(-weight),0)
-    th,choose=threshold(absdiff(image,blury),thresh,1,THRESH_BINARY)
-    choose=choose.astype(bool)
-    mask=image
+@jit("uint8[::](uint8[::],int64,float64,int64,int64)",cache=True,nogil=True)
+def unsharp_mask_cv(image,weight,thresh,rows,cols):
+    mask = image
+    kernelx = np.array([1,4,6,4,1],np.float32) / 16
+    kernely = np.array([[1],[4],[6],[4],[1]],np.float32) / 16
+    blury = sepFilter2D(image,-1,kernelx,kernely)
+    sharpen = addWeighted(image,(1 + weight),blury,(-weight),0)
+    th,choose = threshold(absdiff(image,blury),thresh,1,THRESH_BINARY)
+    choose = choose.astype(bool)
     np.copyto(mask,sharpen,'same_kind',choose)
     return mask
 
@@ -112,7 +110,7 @@ while(cap.isOpened()):
 
     elif unsharp_mode:
         if cv_mode:
-            res = unsharp_mask_cv(frame,weight,thresh)
+            res = unsharp_mask_cv(frame,weight,thresh,rows,cols)
         else:
             res = np.empty((rows-4, cols-4, 3), np.float32)
             if naive_mode:
