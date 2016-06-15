@@ -3,11 +3,8 @@ import numpy as np
 import time
 from cv2 import *
 import sys
-from numba import jit
 from common import clock, draw_str
 
-
-@jit("uint8[::](uint8[::],int64,float64,int64,int64)",cache=True,nogil=True)
 def unsharp_mask_cv(image,weight,thresh,rows,cols):
     mask = image
     kernelx = np.array([1,4,6,4,1],np.float32) / 16
