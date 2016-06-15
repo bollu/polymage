@@ -10,11 +10,18 @@ from common import clock, draw_str, StatValue, image_clamp
 """Function to perform OpenCV Unsharp Masking"""
 @jit("uint8[::](uint8[::],float64,float64)",cache=True,nogil=True)
 def unsharp_mask_cv(image,weight,threshold):
-    weight = 1.0
     mask = image
-    blurred = GaussianBlur(image,(9,9),3.0)
+    blurred = GaussianBlur(image,(9,9),10.0)
     sharp = addWeighted(image,(1+weight),blurred,(-weight),0)
-    return sharp
+    for i in range(rows):
+		for j in range(cols):
+			for k in range(3):
+				if abs(image[i,j,k] - blurred[i,j,k]) < threshold:
+					mask[i,j,k] = image[i,j,k]
+				else:
+					mask[i,j,k] = sharp[i,j,k]
+    return mask
+
 
 # load polymage shared libraries
 libharris = ctypes.cdll.LoadLibrary("./harris.so")
@@ -108,7 +115,7 @@ while(cap.isOpened()):
 
     elif unsharp_mode:
         if cv_mode:
-            res = unsharp_mask_cv(frame,weight,thresh)
+            res = unsharp_mask_cv(frame,1.0,0.001)
         else:
             res = np.empty((rows-4, cols-4, 3), np.float32)
             if naive_mode:
