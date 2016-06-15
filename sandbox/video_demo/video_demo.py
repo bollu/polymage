@@ -9,16 +9,15 @@ from common import clock, draw_str
 
 @jit("uint8[::](uint8[::],float64,float64)",cache=True,nogil=True)
 def unsharp_mask_cv(image,weight,thresh):
-    rows = image.shape[0]
-    cols = image.shape[1]
-    kernel = np.array([[0,0,0,0,0],[0,0,0,0,0],[1,4,6,4,1],[0,0,0,0,0],[0,0,0,0,0]],np.float32) / 16
-    blurx = filter2D(image,-1,kernel)
-    kernel = np.array([[0,0,1,0,0],[0,0,4,0,0],[0,0,6,0,0],[0,0,4,0,0],[0,0,1,0,0]],np.float32) / 16
-    blury = filter2D(blurx,-1,kernel)
+    rows=image.shape[0]
+    cols=image.shape[1]
+    kernelx=np.array([1,4,6,4,1],np.float32)/16
+    kernely=np.array([[1],[4],[6],[4],[1]],np.float32)/16
+    blury=sepFilter2D(image,-1,kernelx,kernely)
     sharpen = addWeighted(image,(1+weight),blury,(-weight),0)
-    th,temp2 = threshold(absdiff(image,blury),thresh,1,THRESH_BINARY)
-    temp2 = temp2.astype(bool)
-    mask = image
+    th,temp2=threshold(absdiff(image,blury),thresh,1,THRESH_BINARY)
+    temp2=temp2.astype(bool)
+    mask=image
     np.copyto(mask,sharpen,'same_kind',temp2)
     return mask
 
