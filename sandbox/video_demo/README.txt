@@ -23,6 +23,6 @@ b - to switch to bilateral grid
 l - to switch to local laplacian filters
 
 space - to toggle between OpenCV and PolyMage mode
-        (applies only to 'harris')
+        (applies only to 'harris' and 'unsharp mask' modes)
 
 n - to toggle between naive and optimized PolyMage code
