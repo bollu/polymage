@@ -15,10 +15,10 @@ def unsharp_mask_cv(image,weight,thresh):
     kernely=np.array([[1],[4],[6],[4],[1]],np.float32)/16
     blury=sepFilter2D(image,-1,kernelx,kernely)
     sharpen = addWeighted(image,(1+weight),blury,(-weight),0)
-    th,temp2=threshold(absdiff(image,blury),thresh,1,THRESH_BINARY)
-    temp2=temp2.astype(bool)
+    th,choose=threshold(absdiff(image,blury),thresh,1,THRESH_BINARY)
+    choose=choose.astype(bool)
     mask=image
-    np.copyto(mask,sharpen,'same_kind',temp2)
+    np.copyto(mask,sharpen,'same_kind',choose)
     return mask
 
 
