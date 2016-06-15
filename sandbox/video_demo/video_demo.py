@@ -4,22 +4,22 @@ import time
 from cv2 import *
 import sys
 from numba import jit
-from common import clock, draw_str, StatValue, image_clamp
+from common import clock, draw_str
 
 
-"""Function to perform OpenCV Unsharp Masking"""
 @jit("uint8[::](uint8[::],float64,float64)",cache=True,nogil=True)
-def unsharp_mask_cv(image,weight,threshold):
+def unsharp_mask_cv(image,weight,thresh):
+    rows = image.shape[0]
+    cols = image.shape[1]
+    kernel = np.array([[0,0,0,0,0],[0,0,0,0,0],[1,4,6,4,1],[0,0,0,0,0],[0,0,0,0,0]],np.float32) / 16
+    blurx = filter2D(image,-1,kernel)
+    kernel = np.array([[0,0,1,0,0],[0,0,4,0,0],[0,0,6,0,0],[0,0,4,0,0],[0,0,1,0,0]],np.float32) / 16
+    blury = filter2D(blurx,-1,kernel)
+    sharpen = addWeighted(image,(1+weight),blury,(-weight),0)
+    th,temp2 = threshold(absdiff(image,blury),thresh,1,THRESH_BINARY)
+    temp2 = temp2.astype(bool)
     mask = image
-    blurred = GaussianBlur(image,(9,9),10.0)
-    sharp = addWeighted(image,(1+weight),blurred,(-weight),0)
-    for i in range(rows):
-		for j in range(cols):
-			for k in range(3):
-				if abs(image[i,j,k] - blurred[i,j,k]) < threshold:
-					mask[i,j,k] = image[i,j,k]
-				else:
-					mask[i,j,k] = sharp[i,j,k]
+    np.copyto(mask,sharpen,'same_kind',temp2)
     return mask
 
 
@@ -46,8 +46,6 @@ laplacian = liblaplacian.pipeline_laplacian
 laplacian_naive = liblaplacian_naive.pipeline_laplacian_naive
 
 cap = VideoCapture(sys.argv[1])
-
-startTime = time.clock()
 
 cv_mode = False
 naive_mode = False
@@ -115,7 +113,7 @@ while(cap.isOpened()):
 
     elif unsharp_mode:
         if cv_mode:
-            res = unsharp_mask_cv(frame,1.0,0.001)
+            res = unsharp_mask_cv(frame,weight,thresh)
         else:
             res = np.empty((rows-4, cols-4, 3), np.float32)
             if naive_mode:
