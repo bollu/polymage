@@ -22,7 +22,7 @@ def unsharp_mask_cv(image,weight,thresh,rows,cols):
 @jit("uint8[::](uint8[::])",cache=True,nogil=True)
 def unsharp_mask_pil(image):
     im = Image.fromarray(image)
-    m = im.filter(ImageFilter.UnsharpMask(radius=2,percent=100,threshold=3))
+    m = im.filter(ImageFilter.UnsharpMask(radius=2,percent=150,threshold=1))
     mask = np.array(m)
     return mask
 
