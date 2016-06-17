@@ -4,7 +4,9 @@ import time
 from cv2 import *
 import sys
 from common import clock, draw_str
+from PIL import Image, ImageFilter
 
+#@jit("uint8[::](uint8[::],int64,float64,int64,int64)",cache=True,nogil=True)
 def unsharp_mask_cv(image,weight,thresh,rows,cols):
     mask = image
     kernelx = np.array([1,4,6,4,1],np.float32) / 16
@@ -16,6 +18,12 @@ def unsharp_mask_cv(image,weight,thresh,rows,cols):
     np.copyto(mask,sharpen,'same_kind',choose)
     return mask
 
+#@jit("uint8[::](uint8[::])",cache=True,nogil=True)
+def unsharp_mask_pil(image):
+    im = Image.fromarray(image)
+    m = im.filter(ImageFilter.UnsharpMask(radius=2,percent=100,threshold=3))
+    mask = np.array(m)
+    return mask
 
 # load polymage shared libraries
 libharris = ctypes.cdll.LoadLibrary("./harris.so")
@@ -43,6 +51,7 @@ cap = VideoCapture(sys.argv[1])
 
 cv_mode = False
 naive_mode = False
+pil_mode = False
 
 harris_mode = False
 unsharp_mode = False
@@ -58,7 +67,7 @@ beta = 1.0
 
 modes = ['Unsharp Mask (Naive)','Unsharp Mask (Opt)','Laplacian (Naive)','Laplacian (Opt)',\
             'Bilateral (Naive)','Bilateral (Opt)','Harris (OpenCV)','Unsharp Mask (OpenCV)', \
-            'Harris (Naive)','Harris (Opt)']
+            'Harris (Naive)','Harris (Opt)', 'Unsharp Mask (PIL)']
 
 """Dictionary for accumulators"""
 sums = {}
@@ -108,6 +117,8 @@ while(cap.isOpened()):
     elif unsharp_mode:
         if cv_mode:
             res = unsharp_mask_cv(frame,weight,thresh,rows,cols)
+        elif pil_mode:
+            res=unsharp_mask_pil(frame)
         else:
             res = np.empty((rows-4, cols-4, 3), np.float32)
             if naive_mode:
@@ -180,6 +191,9 @@ while(cap.isOpened()):
         if cv_mode:
             sums['Unsharp Mask (OpenCV)'] += value
             frames['Unsharp Mask (OpenCV)'] += 1
+        elif pil_mode:
+            sums['Unsharp Mask (PIL)'] +=value
+            frames['Unsharp Mask (PIL)'] += 1
         elif naive_mode:
             sums['Unsharp Mask (Naive)'] += value
             frames['Unsharp Mask (Naive)'] += 1
@@ -205,10 +219,10 @@ while(cap.isOpened()):
 
     rectangle(res, (0, 0), (750, 150), (255, 255, 255), thickness=cv.CV_FILLED)
     draw_str(res, (40, 40),      "frame interval :  %.1f ms" % value)
-    if cv_mode and harris_mode:
+    if cv_mode:
         draw_str(res, (40, 80),  "Pipeline        :  " + str("OpenCV"))
-    elif cv_mode and unsharp_mode:
-		draw_str(res, (40, 80),  "Pipeline        :  " + str("OpenCV"))
+    elif pil_mode and unsharp_mode:
+        draw_str(res, (40, 80),  "Pipeline        :  " + str("PIL"))
     elif bilateral_mode or harris_mode or unsharp_mode or laplacian_mode:
         if naive_mode:
             draw_str(res, (40, 80),  "Pipeline        :  " + str("PolyMage (Naive)"))
@@ -237,6 +251,8 @@ while(cap.isOpened()):
         cv_mode = not cv_mode
     if ch == ord('n'):
         naive_mode = not naive_mode
+    if ch == ord('p'):
+        pil_mode = not pil_mode
     if ch == ord('h'):
         harris_mode = not harris_mode
         bilateral_mode = False
