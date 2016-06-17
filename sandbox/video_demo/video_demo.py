@@ -5,8 +5,9 @@ from cv2 import *
 import sys
 from common import clock, draw_str
 from PIL import Image, ImageFilter
+from numba import jit
 
-#@jit("uint8[::](uint8[::],int64,float64,int64,int64)",cache=True,nogil=True)
+@jit("uint8[::](uint8[::],int64,float64,int64,int64)",cache=True,nogil=True)
 def unsharp_mask_cv(image,weight,thresh,rows,cols):
     mask = image
     kernelx = np.array([1,4,6,4,1],np.float32) / 16
@@ -18,12 +19,95 @@ def unsharp_mask_cv(image,weight,thresh,rows,cols):
     np.copyto(mask,sharpen,'same_kind',choose)
     return mask
 
-#@jit("uint8[::](uint8[::])",cache=True,nogil=True)
+@jit("uint8[::](uint8[::])",cache=True,nogil=True)
 def unsharp_mask_pil(image):
     im = Image.fromarray(image)
     m = im.filter(ImageFilter.UnsharpMask(radius=2,percent=100,threshold=3))
     mask = np.array(m)
     return mask
+
+@jit(nogil=True,cache=True,nopython=True)
+def mini(x,y):
+	if x < y:
+		return x
+	else:
+		return y
+
+@jit(nogil=True,cache=True,nopython=True)
+def maxi(x,y):
+	if x > y:
+		return x
+	else:
+		return y
+
+@jit("float32[::](uint8[::],float64,float64,int64,int64)",nogil=True,cache=True)
+def unsharp_mask_numba(image,weight,threshold,r,c):
+	image_f = np.float32(image) / 255.0
+	mask = image_f
+	tilex = 32
+	tiley = 256
+	im = np.zeros((3,(r+4),(c+4)),np.float32)
+    
+	for i in range(r+4):
+		for j in range(c+4):
+			for k in range(3):
+				im[k,i,j] = image_f[i,j,k]
+                
+	blurx = np.zeros((3,tilex,tiley + 6),dtype=np.float32)
+	blury = np.zeros((3,tilex,tiley + 6),dtype=np.float32)
+	sharpen = np.zeros((3,tilex,tiley + 6),dtype=np.float32)
+    
+	for ti1 in range((int(r + 1) / tilex) + 1):
+		ct0 = mini(r + 1,(tilex * ti1) + tilex - 1)
+		ct1 = maxi(2,(tilex * ti1))
+		ct4 = mini(r + 1,(tilex * ti1) + tilex - 1)
+		ct5 = maxi(2,(tilex * ti1))
+		ct8 = mini(r + 1,(tilex * ti1) + tilex - 1)
+		ct9 = maxi(2,tilex * ti1)
+		ct12 = mini(r + 1,(tilex * ti1) + tilex - 1)
+		ct13 = maxi(2,tilex * ti1)
+		for ti2 in range(-1,(int(c + 3) / tiley) + 1):
+			ct2 = mini(c + 3,(tiley*ti2) + tiley + 5)
+			ct3 = maxi(0,(tiley * ti2))
+			ct6 = mini(c + 1,(tiley * ti2) + tiley + 4)
+			ct7 = maxi(2,(tiley * ti2) + 1)
+			ct10=mini(c + 1,(tiley * ti2) + tiley + 3)
+			ct11=maxi(2,(tiley * ti2) + 2)
+			ct14=mini(c + 1,(tiley * ti2) + tiley + 2)
+			ct15=maxi(2,(tiley * ti2) + 3)
+			for i0 in range(3):
+				for i1 in range(ct1,ct0 + 1):
+					for i2 in range(ct3,ct2 + 1):
+						#blurx[i0,(-32*ti1)+i1,(-256*ti2)+i2] = (image_f[i1-2,i2,i0] + image_f[i1-1,i2,i0]*4 + image_f[i1,i2,i0]*6 + image_f[i1+1,i2,i0]*4 + image_f[i1+2,i2,i0])
+						#blurx[i0,(-32*ti1)+i1,(-256*ti2)+i2] *= 0.0625
+						blurx[i0,(-tilex*ti1)+i1,(-tiley*ti2)+i2] = (im[i0,i1-2,i2]/16 + im[i0,i1-1,i2]*0.25 + im[i0,i1,i2]*6/16 + im[i0,i1+1,i2]*0.25 + im[i0,i1+2,i2]/16)
+
+
+			for i0 in range(3):
+				for i1 in range(ct5,ct4 + 1):
+					for i2 in range(ct7,ct6 + 1):
+						blury[i0,(-tilex*ti1)+i1,(-tiley*ti2)+i2] = (blurx[i0,(-tilex*ti1)+i1,-2+(-tiley*ti2)+i2]/16) + (blurx[i0,(-tilex*ti1)+i1,-1+(-tiley*ti2)+i2] * 0.25) + (blurx[i0,(-tilex*ti1)+i1,(-tiley*ti2)+i2] * 6.0/16) + (blurx[i0,(-tilex*ti1)+i1,1 + (-tiley*ti2)+i2] * 0.25) + (blurx[i0,(-tilex*ti1)+i1,2 + (-tiley*ti2)+i2]/16)
+
+
+			for i0 in range(3):
+				for i1 in range(ct9,ct8 + 1):
+					for i2 in range(ct11,ct10 + 1):
+						#sharpen[i0,(-32*ti1)+i1,(-256*ti2)+i2] = image_f[i1,i2,i0] * (1+weight) - blury[i0,(-32*ti1)+i1,(-256*ti2)+i2] * weight
+
+						sharpen[i0,(-tilex*ti1)+i1,(-tiley*ti2)+i2] = im[i0,i1,i2] * (1+weight) - blury[i0,(-tilex*ti1)+i1,(-tiley*ti2)+i2] * weight
+
+
+			for i0 in range(3):
+				for i1 in range(ct13,ct12 + 1):
+					for i2 in range(ct15,ct14 + 1):
+						#if image_f[i1,i2,i0] - blury[i0,(-32*ti1)+i1,(-256*ti2)+i2] < threshold:
+							#mask[i1,i2,i0]=image_f[i1,i2,i0]
+						if im[i0,i1,i2] - blury[i0,(-tilex*ti1)+i1,(-tiley*ti2)+i2] < threshold:
+							mask[i1,i2,i0] = im[i0,i1,i2]
+						else:
+							mask[i1,i2,i0] = sharpen[i0,(-tilex*ti1)+i1,(-tiley*ti2)+i2]
+
+	return mask
 
 # load polymage shared libraries
 libharris = ctypes.cdll.LoadLibrary("./harris.so")
@@ -52,6 +136,7 @@ cap = VideoCapture(sys.argv[1])
 cv_mode = False
 naive_mode = False
 pil_mode = False
+numba_mode = False
 
 harris_mode = False
 unsharp_mode = False
@@ -67,7 +152,7 @@ beta = 1.0
 
 modes = ['Unsharp Mask (Naive)','Unsharp Mask (Opt)','Laplacian (Naive)','Laplacian (Opt)',\
             'Bilateral (Naive)','Bilateral (Opt)','Harris (OpenCV)','Unsharp Mask (OpenCV)', \
-            'Harris (Naive)','Harris (Opt)', 'Unsharp Mask (PIL)']
+            'Harris (Naive)','Harris (Opt)', 'Unsharp Mask (PIL)', 'Unsharp Mask (Numba)']
 
 """Dictionary for accumulators"""
 sums = {}
@@ -118,7 +203,9 @@ while(cap.isOpened()):
         if cv_mode:
             res = unsharp_mask_cv(frame,weight,thresh,rows,cols)
         elif pil_mode:
-            res=unsharp_mask_pil(frame)
+            res = unsharp_mask_pil(frame)
+        elif numba_mode:
+            res = unsharp_mask_numba(frame,weight,thresh,rows-4,cols-4)
         else:
             res = np.empty((rows-4, cols-4, 3), np.float32)
             if naive_mode:
@@ -192,8 +279,11 @@ while(cap.isOpened()):
             sums['Unsharp Mask (OpenCV)'] += value
             frames['Unsharp Mask (OpenCV)'] += 1
         elif pil_mode:
-            sums['Unsharp Mask (PIL)'] +=value
+            sums['Unsharp Mask (PIL)'] += value
             frames['Unsharp Mask (PIL)'] += 1
+        elif numba_mode:
+            sums['Unsharp Mask (Numba)'] += value
+            frames['Unsharp Mask (Numba)'] += 1
         elif naive_mode:
             sums['Unsharp Mask (Naive)'] += value
             frames['Unsharp Mask (Naive)'] += 1
@@ -219,10 +309,12 @@ while(cap.isOpened()):
 
     rectangle(res, (0, 0), (750, 150), (255, 255, 255), thickness=cv.CV_FILLED)
     draw_str(res, (40, 40),      "frame interval :  %.1f ms" % value)
-    if cv_mode:
+    if (cv_mode and harris_mode) or (cv_mode and unsharp_mode):
         draw_str(res, (40, 80),  "Pipeline        :  " + str("OpenCV"))
     elif pil_mode and unsharp_mode:
         draw_str(res, (40, 80),  "Pipeline        :  " + str("PIL"))
+    elif numba_mode and unsharp_mode:
+        draw_str(res, (40, 80),  "Pipeline        :  " + str("Numba"))
     elif bilateral_mode or harris_mode or unsharp_mode or laplacian_mode:
         if naive_mode:
             draw_str(res, (40, 80),  "Pipeline        :  " + str("PolyMage (Naive)"))
@@ -253,6 +345,8 @@ while(cap.isOpened()):
         naive_mode = not naive_mode
     if ch == ord('p'):
         pil_mode = not pil_mode
+    if ch == ord('m'):
+        numba_mode = not numba_mode
     if ch == ord('h'):
         harris_mode = not harris_mode
         bilateral_mode = False
