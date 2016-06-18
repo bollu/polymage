@@ -345,8 +345,12 @@ while(cap.isOpened()):
         naive_mode = not naive_mode
     if ch == ord('p'):
         pil_mode = not pil_mode
+        numba_mode = False
+        unsharp_mode = False
     if ch == ord('m'):
         numba_mode = not numba_mode
+        pil_mode = False
+        unsharp_mode = False
     if ch == ord('h'):
         harris_mode = not harris_mode
         bilateral_mode = False
@@ -357,6 +361,8 @@ while(cap.isOpened()):
         bilateral_mode = False
         harris_mode = False
         laplacian_mode = False
+        pil_mode = False
+        numba_mode = False
     if ch == ord('l'):
         laplacian_mode = not laplacian_mode
         unsharp_mode = False
