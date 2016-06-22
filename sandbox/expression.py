@@ -271,8 +271,8 @@ def substitute_vars(expr, var_to_expr_map):
                             substitute_vars(expr.expression, var_to_expr_map))
     elif (isinstance(expr, constructs.Select)):
         new_cond = substitute_vars(expr.condition, var_to_expr_map)
-        new_true = substitute_vars(expr.trueExpression, var_to_expr_map)
-        new_false = substitute_vars(expr.falseExpression, var_to_expr_map)
+        new_true = substitute_vars(expr.true_expression, var_to_expr_map)
+        new_false = substitute_vars(expr.false_expression, var_to_expr_map)
         return constructs.Select(new_cond, new_true, new_false)
     elif (isinstance(expr, InbuiltFunction)):
         expr = expr.clone()
@@ -370,8 +370,8 @@ def getType(expr):
     elif (isinstance(expr, constructs.Cast)):
         return expr.typ
     elif (isinstance(expr, constructs.Select)):
-        true_type = getType(expr.trueExpression)
-        false_type = getType(expr.falseExpression)
+        true_type = getType(expr.true_expression)
+        false_type = getType(expr.false_expression)
         assert true_type == false_type
         return true_type
     elif (isinstance(expr, InbuiltFunction)):

@@ -254,35 +254,35 @@ class Cast(AbstractExpression):
 
 
 class Select(AbstractExpression):
-    def __init__(self, _cond, _trueExpr, _falseExpr, typeCheck = True):
+    def __init__(self, _cond, _true_expr, _false_expr, typeCheck = True):
         assert(isinstance(_cond, Condition))
-        _trueExpr = Value.numericToValue(_trueExpr)
-        _falseExpr = Value.numericToValue(_falseExpr)
-        assert(isinstance(_trueExpr, AbstractExpression))
-        assert(isinstance(_falseExpr, AbstractExpression))
+        _true_expr = Value.numericToValue(_true_expr)
+        _false_expr = Value.numericToValue(_false_expr)
+        assert(isinstance(_true_expr, AbstractExpression))
+        assert(isinstance(_false_expr, AbstractExpression))
         if typeCheck:
-            trueType = getType(_trueExpr)
-            falseType = getType(_falseExpr)
-            assert trueType == falseType, str(_trueExpr)+" == "+str(_falseExpr)
-        self._trueExpr = _trueExpr
-        self._falseExpr = _falseExpr
+            trueType = getType(_true_expr)
+            falseType = getType(_false_expr)
+            assert trueType == falseType, str(_true_expr)+" == "+str(_false_expr)
+        self._true_expr = _true_expr
+        self._false_expr = _false_expr
         self._cond = _cond
 
     @property 
     def condition(self):
         return self._cond
     @property
-    def trueExpression(self):
-        return self._trueExpr     
+    def true_expression(self):
+        return self._true_expr     
     @property
-    def falseExpression(self):
-        return self._falseExpr
+    def false_expression(self):
+        return self._false_expr
 
     def collect(self, objType):
         objs = []
         objs += self._cond.collect(objType)
-        objs += self._trueExpr.collect(objType)
-        objs += self._falseExpr.collect(objType)
+        objs += self._true_expr.collect(objType)
+        objs += self._false_expr.collect(objType)
         if (type(self) == objType):
             objs += [self]
         return list(set(objs))
@@ -294,18 +294,18 @@ class Select(AbstractExpression):
     
     def clone(self):
         return Select(self._cond.clone(),
-                      self._trueExpr.clone(),
-                      self._falseExpr.clone())
+                      self._true_expr.clone(),
+                      self._false_expr.clone())
 
     def __str__(self):
         condStr = self._cond.__str__()
-        trueStr = self._trueExpr.__str__()
-        falseStr = self._falseExpr.__str__()
+        trueStr = self._true_expr.__str__()
+        falseStr = self._false_expr.__str__()
         return "(" + condStr + "? " + trueStr + ": " + falseStr + ")"
 
     def macro_expand(self):
-        self._trueExpr = self._trueExpr.macro_expand()
-        self._falseExpr = self._falseExpr.macro_expand()
+        self._true_expr = self._true_expr.macro_expand()
+        self._false_expr = self._false_expr.macro_expand()
         return self
 
 class Max(Select):

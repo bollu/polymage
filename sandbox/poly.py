@@ -817,7 +817,7 @@ class PolyRep(object):
                     true_sched = add_constraints(true_sched, [], eqs)
                     true_sched = true_sched.project_out(isl._isl.dim_type.in_,
                                                         dim_in, 1)
-                    broken_parts.append((true_sched, expr.trueExpression))
+                    broken_parts.append((true_sched, expr.true_expression))
 
                     # false branch schedule
                     false_sched = sched_map.copy()
@@ -853,7 +853,7 @@ class PolyRep(object):
                     false_sched = \
                         false_sched.project_out(isl._isl.dim_type.in_,
                                                 dim_in, 2)
-                    broken_parts.append((false_sched, expr.falseExpression))
+                    broken_parts.append((false_sched, expr.false_expression))
 
         # Note the align and scale lists are cloned otherwise all the parts
         # will be sharing the same alignment and scaling

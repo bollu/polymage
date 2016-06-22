@@ -609,10 +609,10 @@ def generate_c_expr(pipe, exp, cparam_map, cvar_map,
         c_cond = generate_c_cond(pipe, exp.condition,
                                  cparam_map, cvar_map,
                                  scratch_map, prologue_stmts)
-        true_expr = generate_c_expr(pipe, exp.trueExpression,
+        true_expr = generate_c_expr(pipe, exp.true_expression,
                                     cparam_map, cvar_map,
                                     scratch_map, prologue_stmts)
-        false_expr = generate_c_expr(pipe, exp.falseExpression,
+        false_expr = generate_c_expr(pipe, exp.false_expression,
                                      cparam_map, cvar_map,
                                      scratch_map, prologue_stmts)
         if prologue_stmts is not None:
@@ -620,13 +620,13 @@ def generate_c_expr(pipe, exp, cparam_map, cvar_map,
             # before the condition check
 
             # true path
-            var_type = genc.TypeMap.convert(getType(exp.trueExpression))
+            var_type = genc.TypeMap.convert(getType(exp.true_expression))
             true_c_var = genc.CVariable(var_type, new_temp())
             decl = genc.CDeclaration(var_type, true_c_var, true_expr)
             prologue_stmts.append(decl)
 
             # false path
-            var_type = genc.TypeMap.convert(getType(exp.falseExpression))
+            var_type = genc.TypeMap.convert(getType(exp.false_expression))
             false_c_var = genc.CVariable(var_type, new_temp())
             decl = genc.CDeclaration(var_type, false_c_var, false_expr)
             prologue_stmts.append(decl)
