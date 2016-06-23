@@ -263,7 +263,8 @@ class Select(AbstractExpression):
         if typeCheck:
             trueType = getType(_true_expr)
             falseType = getType(_false_expr)
-            assert trueType == falseType, str(_true_expr)+" == "+str(_false_expr)
+            assert trueType == falseType, \
+                str(_true_expr)+" == "+str(_false_expr)
         self._true_expr = _true_expr
         self._false_expr = _false_expr
         self._cond = _cond
