@@ -5,7 +5,7 @@ python:
   - "3.5"
 # command to install dependencies
 install: 
-    python setup.py install --user
+    ./auto-setup.sh
 
 # command to run tests
 script:
