@@ -1,0 +1,19 @@
+digraph {
+	graph [bb="0,0,86,91"];
+	node [label="\N"];
+	subgraph cluster_0 {
+		graph [bb="8,8,78,83",
+			label=0,
+			lheight=0.21,
+			lp="43,71.5",
+			lwidth=0.10,
+			style="dashed, rounded"
+		];
+		S_1		 [color="#D2691E",
+			height=0.5,
+			pos="43,34",
+			shape=box,
+			style="rounded, bold",
+			width=0.75];
+	}
+}

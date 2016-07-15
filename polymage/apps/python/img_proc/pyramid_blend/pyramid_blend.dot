@@ -1,0 +1,432 @@
+digraph {
+	graph [bb="0,0,965.27,1096"];
+	node [label="\N"];
+	subgraph cluster_3 {
+		graph [bb="29.267,689,129.27,847",
+			label=5,
+			lheight=0.21,
+			lp="79.267,835.5",
+			lwidth=0.10,
+			style="dashed, rounded"
+		];
+		Dx_2_mask		 [color="#D2691E",
+			height=0.5,
+			pos="79.267,798",
+			shape=box,
+			style="rounded, filled",
+			width=1.1458];
+		Dy_2_mask		 [color="#8B008B",
+			height=0.5,
+			pos="79.267,715",
+			shape=box,
+			style="rounded, bold",
+			width=1.1458];
+		Dx_2_mask -> Dy_2_mask		 [pos="e,79.267,733.15 79.267,779.82 79.267,769.19 79.267,755.31 79.267,743.2"];
+	}
+	subgraph cluster_4 {
+		graph [bb="583.27,772,681.27,930",
+			label=6,
+			lheight=0.21,
+			lp="632.27,918.5",
+			lwidth=0.10,
+			style="dashed, rounded"
+		];
+		Dx_2_img1		 [color="#D2691E",
+			height=0.5,
+			pos="632.27,881",
+			shape=box,
+			style="rounded, filled",
+			width=1.1389];
+		Dy_2_img1		 [color="#00CED1",
+			height=0.5,
+			pos="632.27,798",
+			shape=box,
+			style="rounded, bold",
+			width=1.1389];
+		Dx_2_img1 -> Dy_2_img1		 [pos="e,632.27,816.15 632.27,862.82 632.27,852.19 632.27,838.31 632.27,826.2"];
+	}
+	subgraph cluster_9 {
+		graph [bb="207.27,606,305.27,764",
+			label=7,
+			lheight=0.21,
+			lp="256.27,752.5",
+			lwidth=0.10,
+			style="dashed, rounded"
+		];
+		Dx_3_img2		 [color="#D2691E",
+			height=0.5,
+			pos="256.27,715",
+			shape=box,
+			style="rounded, filled",
+			width=1.1389];
+		Dy_3_img2		 [color="#7CFC00",
+			height=0.5,
+			pos="256.27,632",
+			shape=box,
+			style="rounded, bold",
+			width=1.1389];
+		Dx_3_img2 -> Dy_3_img2		 [pos="e,256.27,650.15 256.27,696.82 256.27,686.19 256.27,672.31 256.27,660.2"];
+	}
+	subgraph cluster_8 {
+		graph [bb="345.27,606,443.27,764",
+			label=10,
+			lheight=0.21,
+			lp="394.27,752.5",
+			lwidth=0.19,
+			style="dashed, rounded"
+		];
+		Dx_3_img1		 [color="#D2691E",
+			height=0.5,
+			pos="394.27,715",
+			shape=box,
+			style="rounded, filled",
+			width=1.1389];
+		Dy_3_img1		 [color="#FF00FF",
+			height=0.5,
+			pos="394.27,632",
+			shape=box,
+			style="rounded, bold",
+			width=1.1389];
+		Dx_3_img1 -> Dy_3_img1		 [pos="e,394.27,650.15 394.27,696.82 394.27,686.19 394.27,672.31 394.27,660.2"];
+	}
+	subgraph cluster_10 {
+		graph [bb="483.27,523,681.27,764",
+			label=8,
+			lheight=0.21,
+			lp="582.27,752.5",
+			lwidth=0.10,
+			style="dashed, rounded"
+		];
+		Ux_1_img2		 [color="#D2691E",
+			height=0.5,
+			pos="532.27,715",
+			shape=box,
+			style="rounded, filled",
+			width=1.1389];
+		Uy_1_img2		 [color="#FF0000",
+			height=0.5,
+			pos="532.27,632",
+			shape=box,
+			style="rounded, filled",
+			width=1.1389];
+		Ux_1_img2 -> Uy_1_img2		 [pos="e,532.27,650.15 532.27,696.82 532.27,686.19 532.27,672.31 532.27,660.2"];
+		Res_1		 [color="#00BFFF",
+			height=0.5,
+			pos="525.27,549",
+			shape=box,
+			style="rounded, bold",
+			width=0.75];
+		Uy_1_img2 -> Res_1		 [pos="e,526.75,567.15 530.78,613.82 529.86,603.19 528.66,589.31 527.62,577.2"];
+		Ux_1_img1		 [color="#1E90FF",
+			height=0.5,
+			pos="632.27,715",
+			shape=box,
+			style="rounded, filled",
+			width=1.1389];
+		Uy_1_img1		 [color="#228B22",
+			height=0.5,
+			pos="632.27,632",
+			shape=box,
+			style="rounded, filled",
+			width=1.1389];
+		Ux_1_img1 -> Uy_1_img1		 [pos="e,632.27,650.15 632.27,696.82 632.27,686.19 632.27,672.31 632.27,660.2"];
+		Uy_1_img1 -> Res_1		 [pos="e,547.93,567.15 609.58,613.82 593.97,602.01 573.06,586.18 555.97,573.24"];
+	}
+	subgraph cluster_2 {
+		graph [bb="724.27,938,822.27,1088",
+			label=2,
+			lheight=0.21,
+			lp="773.27,1076.5",
+			lwidth=0.10,
+			style="dashed, rounded"
+		];
+		Dx_1_img1		 [color="#D2691E",
+			height=0.5,
+			pos="773.27,1039",
+			shape=box,
+			style="rounded, filled",
+			width=1.1389];
+		Dy_1_img1		 [color="#FF0000",
+			height=0.5,
+			pos="773.27,964",
+			shape=box,
+			style="rounded, bold",
+			width=1.1389];
+		Dx_1_img1 -> Dy_1_img1		 [pos="e,773.27,982.18 773.27,1020.7 773.27,1012.2 773.27,1001.9 773.27,992.37"];
+	}
+	subgraph cluster_5 {
+		graph [bb="477.27,772,575.27,930",
+			label=3,
+			lheight=0.21,
+			lp="526.27,918.5",
+			lwidth=0.10,
+			style="dashed, rounded"
+		];
+		Dx_2_img2		 [color="#D2691E",
+			height=0.5,
+			pos="526.27,881",
+			shape=box,
+			style="rounded, filled",
+			width=1.1389];
+		Dy_2_img2		 [color="#228B22",
+			height=0.5,
+			pos="526.27,798",
+			shape=box,
+			style="rounded, bold",
+			width=1.1389];
+		Dx_2_img2 -> Dy_2_img2		 [pos="e,526.27,816.15 526.27,862.82 526.27,852.19 526.27,838.31 526.27,826.2"];
+	}
+	subgraph cluster_7 {
+		graph [bb="29.267,523,129.27,681",
+			label=9,
+			lheight=0.21,
+			lp="79.267,669.5",
+			lwidth=0.10,
+			style="dashed, rounded"
+		];
+		Dx_3_mask		 [color="#D2691E",
+			height=0.5,
+			pos="79.267,632",
+			shape=box,
+			style="rounded, filled",
+			width=1.1458];
+		Dy_3_mask		 [color="#DAA520",
+			height=0.5,
+			pos="79.267,549",
+			shape=box,
+			style="rounded, bold",
+			width=1.1458];
+		Dx_3_mask -> Dy_3_mask		 [pos="e,79.267,567.15 79.267,613.82 79.267,603.19 79.267,589.31 79.267,577.2"];
+	}
+	subgraph cluster_6 {
+		graph [bb="759.27,689,957.27,930",
+			label=4,
+			lheight=0.21,
+			lp="858.27,918.5",
+			lwidth=0.10,
+			style="dashed, rounded"
+		];
+		Ux_0_img1		 [color="#D2691E",
+			height=0.5,
+			pos="908.27,881",
+			shape=box,
+			style="rounded, filled",
+			width=1.1389];
+		Uy_0_img1		 [color="#FF0000",
+			height=0.5,
+			pos="908.27,798",
+			shape=box,
+			style="rounded, filled",
+			width=1.1389];
+		Ux_0_img1 -> Uy_0_img1		 [pos="e,908.27,816.15 908.27,862.82 908.27,852.19 908.27,838.31 908.27,826.2"];
+		Res_0		 [color="#FFA500",
+			height=0.5,
+			pos="808.27,715",
+			shape=box,
+			style="rounded, bold",
+			width=0.75];
+		Uy_0_img1 -> Res_0		 [pos="e,829.44,733.15 887.06,779.82 872.61,768.12 853.29,752.47 837.4,739.6"];
+		Ux_0_img2		 [color="#1E90FF",
+			height=0.5,
+			pos="808.27,881",
+			shape=box,
+			style="rounded, filled",
+			width=1.1389];
+		Uy_0_img2		 [color="#228B22",
+			height=0.5,
+			pos="808.27,798",
+			shape=box,
+			style="rounded, filled",
+			width=1.1389];
+		Ux_0_img2 -> Uy_0_img2		 [pos="e,808.27,816.15 808.27,862.82 808.27,852.19 808.27,838.31 808.27,826.2"];
+		Uy_0_img2 -> Res_0		 [pos="e,808.27,733.15 808.27,779.82 808.27,769.19 808.27,755.31 808.27,743.2"];
+	}
+	subgraph cluster_13 {
+		graph [bb="161.27,8,431.27,515",
+			label=13,
+			lheight=0.21,
+			lp="296.27,503.5",
+			lwidth=0.19,
+			style="dashed, rounded"
+		];
+		Res_3		 [color="#D2691E",
+			height=0.5,
+			pos="296.27,466",
+			shape=box,
+			style="rounded, filled",
+			width=0.75];
+		Col_2_x		 [color="#228B22",
+			height=0.5,
+			pos="296.27,394",
+			shape=box,
+			style="rounded, filled",
+			width=0.86806];
+		Res_3 -> Col_2_x		 [pos="e,296.27,412.1 296.27,447.7 296.27,439.98 296.27,430.71 296.27,422.11"];
+		Col_2		 [color="#FF0000",
+			height=0.5,
+			pos="296.27,322",
+			shape=box,
+			style="rounded, filled",
+			width=0.75];
+		Col_2_x -> Col_2		 [pos="e,296.27,340.1 296.27,375.7 296.27,367.98 296.27,358.71 296.27,350.11"];
+		Uy_2_img1		 [color="#1E90FF",
+			height=0.5,
+			pos="382.27,466",
+			shape=box,
+			style="rounded, filled",
+			width=1.1389];
+		Res_2		 [color="#FFA500",
+			height=0.5,
+			pos="214.27,394",
+			shape=box,
+			style="rounded, filled",
+			width=0.75];
+		Uy_2_img1 -> Res_2		 [pos="e,241.31,406.27 341.17,447.88 313.48,436.34 277.3,421.26 250.66,410.16"];
+		Res_2 -> Col_2		 [pos="e,276.23,340.1 234.54,375.7 244.76,366.97 257.33,356.24 268.45,346.75"];
+		Uy_2_img2		 [color="#FF0000",
+			height=0.5,
+			pos="210.27,466",
+			shape=box,
+			style="rounded, filled",
+			width=1.1389];
+		Uy_2_img2 -> Res_2		 [pos="e,213.29,412.1 211.26,447.7 211.7,439.98 212.23,430.71 212.72,422.11"];
+		Col_1_x		 [color="#8B008B",
+			height=0.5,
+			pos="344.27,250",
+			shape=box,
+			style="rounded, filled",
+			width=0.86806];
+		Col_2 -> Col_1_x		 [pos="e,332.54,268.1 308.13,303.7 313.77,295.47 320.62,285.48 326.84,276.42"];
+		Col_1		 [color="#00CED1",
+			height=0.5,
+			pos="393.27,178",
+			shape=box,
+			style="rounded, filled",
+			width=0.75];
+		Col_1_x -> Col_1		 [pos="e,381.29,196.1 356.38,231.7 362.14,223.47 369.13,213.48 375.47,204.42"];
+		blend_x		 [color="#7CFC00",
+			height=0.5,
+			pos="393.27,106",
+			shape=box,
+			style="rounded, filled",
+			width=0.81944];
+		Col_1 -> blend_x		 [pos="e,393.27,124.1 393.27,159.7 393.27,151.98 393.27,142.71 393.27,134.11"];
+		blend		 [color="#E6E6FA",
+			height=0.5,
+			pos="394.27,34",
+			shape=box,
+			style="rounded, bold",
+			width=0.75];
+		blend_x -> blend		 [pos="e,394.02,52.104 393.51,87.697 393.62,79.983 393.76,70.712 393.88,62.112"];
+	}
+	subgraph cluster_1 {
+		graph [bb="199.27,855,299.27,1013",
+			label=1,
+			lheight=0.21,
+			lp="249.27,1001.5",
+			lwidth=0.10,
+			style="dashed, rounded"
+		];
+		Dx_1_mask		 [color="#D2691E",
+			height=0.5,
+			pos="249.27,964",
+			shape=box,
+			style="rounded, filled",
+			width=1.1458];
+		Dy_1_mask		 [color="#1E90FF",
+			height=0.5,
+			pos="249.27,881",
+			shape=box,
+			style="rounded, bold",
+			width=1.1458];
+		Dx_1_mask -> Dy_1_mask		 [pos="e,249.27,899.15 249.27,945.82 249.27,935.19 249.27,921.31 249.27,909.2"];
+	}
+	subgraph cluster_12 {
+		graph [bb="345.27,523,443.27,598",
+			label=12,
+			lheight=0.21,
+			lp="394.27,586.5",
+			lwidth=0.19,
+			style="dashed, rounded"
+		];
+		Ux_2_img1		 [color="#7B68EE",
+			height=0.5,
+			pos="394.27,549",
+			shape=box,
+			style="rounded, bold",
+			width=1.1389];
+	}
+	subgraph cluster_11 {
+		graph [bb="169.27,523,267.27,598",
+			label=11,
+			lheight=0.21,
+			lp="218.27,586.5",
+			lwidth=0.19,
+			style="dashed, rounded"
+		];
+		Ux_2_img2		 [color="#F0E68C",
+			height=0.5,
+			pos="218.27,549",
+			shape=box,
+			style="rounded, bold",
+			width=1.1389];
+	}
+	subgraph cluster_0 {
+		graph [bb="618.27,938,716.27,1088",
+			label=0,
+			lheight=0.21,
+			lp="667.27,1076.5",
+			lwidth=0.10,
+			style="dashed, rounded"
+		];
+		Dx_1_img2		 [color="#D2691E",
+			height=0.5,
+			pos="667.27,1039",
+			shape=box,
+			style="rounded, filled",
+			width=1.1389];
+		Dy_1_img2		 [color="#D2691E",
+			height=0.5,
+			pos="667.27,964",
+			shape=box,
+			style="rounded, bold",
+			width=1.1389];
+		Dx_1_img2 -> Dy_1_img2		 [pos="e,667.27,982.18 667.27,1020.7 667.27,1012.2 667.27,1001.9 667.27,992.37"];
+	}
+	Dy_1_img2 -> Dx_2_img2	 [pos="e,542.13,899.33 625.92,951.1 610.67,945.8 593.62,938.75 579.27,930 568.61,923.5 558.15,914.71 549.37,906.42"];
+	Dy_1_img2 -> Ux_0_img2	 [pos="e,778.41,899.15 697.17,945.82 718.29,933.69 746.79,917.31 769.64,904.19"];
+	Dy_1_img2 -> Uy_1_img2	 [pos="e,545.09,650.33 678.7,945.86 681.39,940.95 683.88,935.44 685.27,930 711.73,826.2 756.34,766.38 682.27,689 666.85,672.9 602.6,690.14 \
+582.27,681 570.72,675.81 560.22,666.78 551.86,657.95"];
+	Dy_1_mask -> Dx_2_mask	 [pos="e,114.98,816.01 213.21,862.82 187.21,850.43 151.93,833.62 124.1,820.36"];
+	Dy_1_mask -> Res_1	 [pos="e,508.74,567.34 290.63,867.04 336.21,850.56 408.22,817.62 447.27,764 489.61,705.86 451.87,671.18 482.27,606 487.34,595.11 494.84,\
+584.36 502.15,575.22"];
+	Dy_1_img1 -> Dx_2_img1	 [pos="e,662.13,899.15 743.36,945.82 722.24,933.69 693.74,917.31 670.89,904.19"];
+	Dy_1_img1 -> Ux_0_img1	 [pos="e,893.44,899.33 814.62,950.65 829.03,945.41 844.92,938.51 858.27,930 868.37,923.56 878.17,914.87 886.38,906.66"];
+	Dy_1_img1 -> Uy_1_img1	 [pos="e,671.15,650.06 762.4,945.69 759.71,940.78 757.09,935.31 755.27,930 720.12,827.35 774.97,780.26 716.27,689 707.4,675.22 693.8,664.03 \
+680.11,655.38"];
+	Dy_2_mask -> Dx_3_mask	 [pos="e,79.267,650.15 79.267,696.82 79.267,686.19 79.267,672.31 79.267,660.2"];
+	Dy_2_mask -> Res_2	 [pos="e,187,404 40.046,696.9 34.121,692.58 28.814,687.32 25.267,681 -9.0827,619.75 -7.642,585.03 25.267,523 57.363,462.5 132.26,425.35 \
+177.54,407.6"];
+	Dy_2_img1 -> Dx_3_img1	 [pos="e,417.9,733.07 601.02,780 594.04,776.84 586.54,773.94 579.27,772 536.18,760.53 521.9,777.05 479.27,764 460.71,758.32 441.74,748.12 \
+426.45,738.57"];
+	Dy_2_img1 -> Ux_1_img1	 [pos="e,632.27,733.15 632.27,779.82 632.27,769.19 632.27,755.31 632.27,743.2"];
+	Dy_2_img1 -> Uy_2_img1	 [pos="e,365.36,484.01 601.65,780 594.51,776.76 586.78,773.82 579.27,772 566.41,768.89 350.46,773.51 341.27,764 304.04,725.5 324.62,573.9 \
+341.27,523 344.94,511.78 351.8,500.94 358.89,491.84"];
+	Dy_2_img2 -> Dx_3_img2	 [pos="e,271.34,733.44 485.09,797.4 440.31,796.34 367.6,790.17 311.27,764 299.23,758.41 287.85,749.36 278.59,740.63"];
+	Dy_2_img2 -> Ux_1_img2	 [pos="e,531,733.15 527.54,779.82 528.33,769.19 529.36,755.31 530.25,743.2"];
+	Dy_2_img2 -> Uy_2_img2	 [pos="e,191.28,484.19 485.08,795.44 402.76,791.94 223.99,782.31 203.27,764 122.02,692.19 129.26,625.28 165.27,523 169.3,511.53 176.79,\
+500.68 184.51,491.64"];
+	Res_0 -> blend	 [pos="e,421.33,39.617 798.61,696.9 783.08,667.73 754.27,606.06 754.27,550 754.27,550 754.27,550 754.27,177 754.27,108.1 523.2,58.457 431.31,\
+41.438"];
+	Dy_3_mask -> Res_3	 [pos="e,288.12,484.23 120.86,534.1 134.83,529.92 150.59,525.72 165.27,523 186.1,519.14 241.73,525.26 260.27,515 269.47,509.91 277.01,501.37 \
+282.77,492.89"];
+	Dy_3_img1 -> Ux_2_img1	 [pos="e,394.27,567.15 394.27,613.82 394.27,603.19 394.27,589.31 394.27,577.2"];
+	Dy_3_img1 -> Res_3	 [pos="e,304.38,484.29 432.51,613.98 438.43,609.63 443.74,604.35 447.27,598 463.45,568.86 470,547.37 447.27,523 429.79,504.27 354.77,527.25 \
+332.27,515 323.03,509.97 315.48,501.45 309.73,492.97"];
+	Dy_3_img2 -> Ux_2_img2	 [pos="e,226.31,567.15 248.21,613.82 243.12,602.98 236.44,588.74 230.69,576.47"];
+	Dy_3_img2 -> Res_3	 [pos="e,294.3,484.28 265,613.84 267.29,608.83 269.59,603.28 271.27,598 282.36,563.09 289.29,521.3 292.96,494.46"];
+	Res_1 -> Col_1	 [pos="e,415.73,196.03 519.06,530.82 509.5,502.79 492.27,445.27 492.27,395 492.27,395 492.27,395 492.27,321 492.27,272.38 452.73,228.5 \
+423.62,202.78"];
+	Ux_2_img1 -> Uy_2_img1	 [pos="e,384.81,484.15 391.72,530.82 390.15,520.19 388.09,506.31 386.3,494.2"];
+	Ux_2_img2 -> Uy_2_img2	 [pos="e,211.96,484.15 216.57,530.82 215.52,520.19 214.15,506.31 212.95,494.2"];
+}
