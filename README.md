@@ -1,7 +1,20 @@
-**LICENSE**
+*PolyMage*
 
-PolyMage is available under the Apache License, version 2.0. Please see 
-the LICENSE file for details.
+[![Code 
+Climate](https://codeclimate.com/github/bollu/polymage/badges/gpa.svg)](https://codeclimate.com/github/bollu/polymage)
+
+PolyMage is a domain-specific language and optimizing code generator for 
+automatic optimization of image processing pipelines, being developed at the 
+Multicore Computing Lab, Indian Institute of Science. PolyMage takes an image 
+processing pipeline expressed by the user in a high-level language (embedded in 
+Python) and generates an optimized parallelized C++ implementation of the 
+pipeline.
+
+*INSTALLATION GUIDE*
+
+PolyMage is a pure-python library that requires a C++ compiler for code
+generation.
+
 
 **REQUIREMENTS**
 
@@ -79,3 +92,9 @@ The following repository contains just the base and the best PolyMage optimized 
 Sandybridge) used for experiments in the ASPLOS 2015 paper for all of the benchmarks -- these are  
 sufficient if one is purely interested in a final performance comparison without any tweaking/tuning:  
 https://github.com/bondhugula/polymage-benchmarks
+
+
+**LICENSE**
+
+PolyMage is available under the Apache License, version 2.0. Please see 
+the LICENSE file for details.
