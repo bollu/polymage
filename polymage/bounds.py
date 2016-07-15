@@ -23,7 +23,7 @@
 from __future__ import absolute_import, division, print_function
 
 from .expression import isAffine
-from .poly import extract_value_dependence
+from .poly import extract_value_dependence, Group
 import logging
 # from . import pipe
 
@@ -45,7 +45,7 @@ def bounds_check_pass(pipeline):
     for inp_func in pipeline.inputs:
         inp_comp = pipeline.func_map[inp_func]
         inp_groups[inp_func] = \
-            pipe.Group(pipeline._ctx, [inp_comp], \
+            Group(pipeline._ctx, [inp_comp], \
                        pipeline._param_constraints)
 
     for group in pipeline.groups:

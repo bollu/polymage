@@ -24,6 +24,7 @@ from __future__ import absolute_import, division, print_function
 
 import cgen
 from .cexpr import *
+from .expression import *
 
 # catch the excpetion from python3 and sort it out ahead of time
 try:

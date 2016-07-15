@@ -28,7 +28,6 @@ import time
 # from . import pipe
 from .constructs import *
 from .expression import *
-from .schedule import *
 from .poly import *
 import islpy as isl
 from . import expr_ast as expr

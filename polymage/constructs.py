@@ -1025,19 +1025,19 @@ class Function(object):
             objs += interval.collect(objType)
         return list(set(objs))
 
-    def hasBoundedIntegerDomain(self):
-        boundedIntegerDomain = True
-        for varDom in self._varDomain:
-            if isinstance(varDom, Interval):
-                if(not isAffine(varDom.lowerBound) or
-                   not isAffine(varDom.upperBound)):
-                    boundedIntegerDomain = False
-                    break
-            else:
-                boundedIntegerDomain = False
-                break
+    # def hasBoundedIntegerDomain(self):
+    #     boundedIntegerDomain = True
+    #     for varDom in self._varDomain:
+    #         if isinstance(varDom, Interval):
+    #             if(not isAffine(varDom.lowerBound) or
+    #                not isAffine(varDom.upperBound)):
+    #                 boundedIntegerDomain = False
+    #                 break
+    #         else:
+    #             boundedIntegerDomain = False
+    #             break
 
-        return boundedIntegerDomain
+    #     return boundedIntegerDomain
 
     def clone(self):
         newBody = [ c.clone() for c in self._body ]
@@ -1153,25 +1153,25 @@ class Reduction(Function):
             # the first definition?
             self._body.append(case)
 
-    def hasBoundedIntegerDomain(self):
-        boundedIntegerDomain = True
-        for varDom in self._varDomain:
-            if isinstance(varDom, Interval):
-                if(not isAffine(varDom.lowerBound) or
-                   not isAffine(varDom.upperBound)):
-                    boundedIntegerDomain = False
-            else:
-                boundedIntegerDomain = False
+    # def hasBoundedIntegerDomain(self):
+    #     boundedIntegerDomain = True
+    #     for varDom in self._varDomain:
+    #         if isinstance(varDom, Interval):
+    #             if(not isAffine(varDom.lowerBound) or
+    #                not isAffine(varDom.upperBound)):
+    #                 boundedIntegerDomain = False
+    #         else:
+    #             boundedIntegerDomain = False
 
-        for redDom in self._redDomain:
-            if isinstance(redDom, Interval):
-                if(not isAffine(redDom.lowerBound) or
-                   not isAffine(redDom.upperBound)):
-                    boundedIntegerDomain = False
-            else:
-                boundedIntegerDomain = False
+    #     for redDom in self._redDomain:
+    #         if isinstance(redDom, Interval):
+    #             if(not isAffine(redDom.lowerBound) or
+    #                not isAffine(redDom.upperBound)):
+    #                 boundedIntegerDomain = False
+    #         else:
+    #             boundedIntegerDomain = False
 
-        return boundedIntegerDomain
+    #     return boundedIntegerDomain
 
     def getObjects(self, objType):
         objs = []
@@ -1183,7 +1183,7 @@ class Reduction(Function):
             objs += interval.collect(objType)
         objs += self._default.collect(objType)
         return list(set(objs))
-   
+
     def clone(self):
         newBody = [ r.clone() for r in self._body ]
         varDom = ( [ v.clone() for v in self._variables], 
