@@ -26,11 +26,11 @@ import math
 import time
 import islpy as isl
 
-from constructs import *
-from expression import *
-from utils import *
-import pipe
-import align_scale as aln_scl
+from .constructs import *
+from .expression import *
+from .utils import *
+# from . import pipe
+from . import align_scale as aln_scl
 
 # Static method 'alloc' for isl Id does not allow the user to be
 # not None, as of now. We need an exclusive dictionary to map the

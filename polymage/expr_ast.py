@@ -26,7 +26,7 @@ from fractions import Fraction
 from fractions import gcd
 
 # TODO remove this at some point
-from expr_types import *
+from .expr_types import *
 
 class AbstractExpression(object):
     """ AbstractExpression class is a tree representation for expressions

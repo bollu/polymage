@@ -23,8 +23,8 @@
 
 from __future__ import absolute_import, division, print_function
 
-from expr_ast import *
-import constructs
+from .expr_ast import *
+from . import constructs
 
 def get_affine_var_and_param_coeff(expr):
     expr = Value.numericToValue(expr)

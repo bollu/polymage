@@ -23,9 +23,9 @@
 from __future__ import absolute_import, division, print_function
 
 import logging
-from grouping import get_group_dep_vecs
-from utils import *
-from poly import *
+from .grouping import get_group_dep_vecs
+from .utils import *
+from .poly import *
 
 # LOG CONFIG #
 poly_sched_logger = logging.getLogger("poly_schedule.py")

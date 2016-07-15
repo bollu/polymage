@@ -22,9 +22,9 @@
 
 from __future__ import absolute_import, division, print_function
 
-from constructs import *
-from poly import *
-import pipe
+from .constructs import *
+from .poly import *
+# import pipe
 
 def inline_pass(pipeline):
     """

@@ -24,8 +24,8 @@
 
 from __future__ import absolute_import, division, print_function
 
-import pipe
-import poly
+from . import pipe
+from . import poly
 import logging
 
 logging.basicConfig(format="%(levelname)s: %(name)s: %(message)s")

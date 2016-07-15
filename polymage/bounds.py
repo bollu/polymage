@@ -22,10 +22,10 @@
 
 from __future__ import absolute_import, division, print_function
 
-from expression import isAffine
-from poly import extract_value_dependence
+from .expression import isAffine
+from .poly import extract_value_dependence
 import logging
-import pipe
+# from . import pipe
 
 # LOG CONFIG #
 bounds_logger = logging.getLogger("bounds.py")

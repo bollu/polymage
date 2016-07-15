@@ -24,8 +24,8 @@
 from __future__ import absolute_import, division, print_function
 
 import logging
-from utils import *
-from poly import *
+from .utils import *
+from .poly import *
 
 # LOG CONFIG #
 align_scale_logger = logging.getLogger("align_scale.py")

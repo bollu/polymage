@@ -23,11 +23,11 @@
 from __future__ import absolute_import, division, print_function
 
 # TODO remove this at some point
-from expr_ast import *
-from expr_types import *
-from expression import *
+from .expr_ast import *
+from .expr_types import *
+# from .expression import *
 import logging
-import targetc as genc
+# from . import targetc as genc
 import math
 
 logging.basicConfig(format="%(levelname)s: %(name)s: %(message)s")

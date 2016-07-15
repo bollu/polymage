@@ -4,8 +4,8 @@ from fractions import Fraction
 import sys
 sys.path.insert(0, '../')
 
-from constructs import *
-from expression import *
+from .constructs import *
+from .expression import *
 
 def test_affine():
     N = Parameter(UInt, "N")

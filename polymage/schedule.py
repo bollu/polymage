@@ -23,8 +23,8 @@
 from __future__ import absolute_import, division, print_function
 
 import logging
-from utils import *
-from poly import *
+from .utils import *
+from .poly import *
 
 # LOG CONFIG #
 schedule_logger = logging.getLogger("schedule.py")

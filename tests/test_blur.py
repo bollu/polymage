@@ -5,8 +5,7 @@ import sys
 import subprocess
 sys.path.insert(0, '../')
 
-from compiler import *
-from constructs import *
+from polymage import *
 
 def test_blur():
 

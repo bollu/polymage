@@ -25,14 +25,14 @@ from __future__ import absolute_import, division, print_function
 from collections import OrderedDict
 
 import time
-import pipe
-from constructs import *
-from expression import *
-from schedule import *
-from poly import *
+# from . import pipe
+from .constructs import *
+from .expression import *
+from .schedule import *
+from .poly import *
 import islpy as isl
-import expr_ast as expr
-import targetc as genc
+from . import expr_ast as expr
+from . import targetc as genc
 import logging
 
 # LOG CONFIG #

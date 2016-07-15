@@ -24,7 +24,7 @@ import ctypes
 import _ctypes
 
 from fractions import gcd
-import x11
+from . import x11
 import numpy as np
 
 NULL = 'X'

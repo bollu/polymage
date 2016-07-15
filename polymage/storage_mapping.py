@@ -24,10 +24,10 @@
 from __future__ import absolute_import, division, print_function
 
 import logging
-import targetc as genc
-from expression import *
-from pipe import *
-from liveness import *
+from . import targetc as genc
+from .expression import *
+# from pipe import *
+from .liveness import *
 
 # LOG CONFIG #
 storage_logger = logging.getLogger("storage_mapping.py")
